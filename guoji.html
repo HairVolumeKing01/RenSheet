@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RenSheet — 国际表生成器</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+:root {
+  --blue-900: #0D2137;
+  --blue-700: #1A4570;
+  --blue-500: #2B6FA8;
+  --blue-300: #7BB3DD;
+  --blue-100: #D6EAF5;
+  --blue-50: #EDF5FA;
+  --water: #B8D8E3;
+  --gray-900: #1a1a1a;
+  --gray-700: #4A5568;
+  --gray-400: #A0AEC0;
+  --gray-200: #E2E8F0;
+  --gray-100: #F7FAFC;
+  --white: #FFFFFF;
+  --radius: 8px;
+  --font: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--gray-100);
+  color: var(--gray-700);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 44px 28px 80px;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 48px 0 40px;
+}
+.header h1 {
+  font-size: 36px;
+  font-weight: 300;
+  color: var(--blue-900);
+  letter-spacing: 4px;
+}
+.header .intro {
+  margin-top: 12px;
+  font-size: 16px;
+  color: var(--blue-700);
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+/* Card */
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 32px 36px;
+  margin-bottom: 20px;
+  border: 1px solid var(--gray-200);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  text-align: center;
+}
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blue-700);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 18px;
+}
+
+/* Instructions */
+.instructions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.inst-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 12px;
+  background: var(--blue-50);
+  border-radius: var(--radius);
+}
+.inst-step .step-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--blue-300);
+  letter-spacing: 1px;
+}
+.inst-step .step-text {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--blue-700);
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* File drop zone */
+.drop-zone {
+  border: 2px dashed var(--blue-300);
+  border-radius: var(--radius);
+  padding: 36px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--blue-50);
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--blue-500);
+  background: var(--blue-100);
+}
+.drop-zone .dz-icon {
+  font-size: 28px;
+  color: var(--blue-300);
+  margin-bottom: 8px;
+}
+.drop-zone .dz-text {
+  font-size: 14px;
+  color: var(--blue-700);
+}
+.drop-zone .dz-hint {
+  font-size: 12px;
+  color: var(--gray-700);
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+/* File list */
+.file-list {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Parse entry */
+.parse-entry {
+  margin-top: 16px;
+  padding: 16px 20px;
+  background: var(--gray-100);
+  border-radius: var(--radius);
+  border: 1px solid var(--gray-200);
+}
+.parse-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.parse-entry-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blue-700);
+}
+.parse-entry-remove {
+  cursor: pointer;
+  color: var(--gray-400);
+  font-size: 18px;
+  line-height: 1;
+  transition: color 0.15s;
+  background: none;
+  border: none;
+  padding: 0 2px;
+}
+.parse-entry-remove:hover { color: #E53E3E; }
+
+.parse-entry-preview-stats {
+  font-size: 12px;
+  color: var(--gray-400);
+  margin: 8px 0 4px;
+  text-align: left;
+}
+.parse-entry-preview-stats.error { color: #E53E3E; }
+.parse-results {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--gray-200);
+}
+.parse-stats {
+  display: flex;
+  gap: 20px;
+  font-size: 13px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.parse-stats strong { color: var(--blue-700); }
+.verify-ok { color: #38A169; font-weight: 600; }
+.verify-ng { color: #E53E3E; font-weight: 600; }
+
+/* Per-CN mini table */
+.parse-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.parse-preview-table th {
+  background: var(--blue-700);
+  color: var(--white);
+  padding: 6px 10px;
+  font-weight: 500;
+  text-align: center;
+  font-size: 11px;
+}
+.parse-preview-table td {
+  padding: 5px 10px;
+  text-align: center;
+  border-bottom: 1px solid var(--gray-200);
+}
+.parse-preview-table tr:nth-child(even) td { background: var(--blue-50); }
+.parse-preview-table tr:nth-child(odd) td { background: var(--white); }
+
+/* Form controls */
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.form-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-700);
+  white-space: nowrap;
+}
+
+/* Color swatches */
+.color-swatches {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s;
+}
+.color-swatch:hover { transform: scale(1.15); }
+.color-swatch.active { border-color: #1a1a1a; box-shadow: 0 0 0 3px #1a1a1a; transform: scale(1.2); }
+
+/* Input */
+.input-text {
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-family: var(--font);
+  color: var(--gray-700);
+  outline: none;
+  transition: border-color 0.15s;
+  width: 220px;
+}
+.input-text:focus { border-color: var(--blue-300); }
+.input-text.w140 { width: 140px; }
+.input-text.w120 { width: 120px; }
+.input-text.w160 { width: 160px; }
+
+/* Rate display */
+.rate-display {
+  background: var(--blue-50);
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: var(--blue-700);
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+/* Buttons */
+.btn {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-family: var(--font);
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
+}
+.btn-primary {
+  background: var(--blue-700);
+  color: var(--white);
+}
+.btn-primary:hover { background: var(--blue-900); }
+.btn-primary:disabled { background: var(--gray-400); cursor: not-allowed; }
+.btn-secondary {
+  background: var(--white);
+  color: var(--blue-700);
+  border: 1px solid var(--blue-300);
+}
+.btn-secondary:hover { background: var(--blue-50); }
+.btn-export {
+  background: var(--blue-500);
+  color: var(--white);
+}
+.btn-export:hover { background: var(--blue-700); }
+.btn-export:disabled { background: var(--gray-400); cursor: not-allowed; }
+.btn-sm {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+.btn-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* Manual entries */
+.manual-entry {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.remove-manual {
+  cursor: pointer;
+  color: var(--gray-400);
+  font-size: 18px;
+  transition: color 0.15s;
+  background: none;
+  border: none;
+  padding: 0 2px;
+  line-height: 1;
+}
+.remove-manual:hover { color: #E53E3E; }
+
+/* Preview table */
+.preview-wrap {
+  overflow-x: auto;
+  margin-top: 16px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+}
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 600px;
+}
+.preview-table th {
+  background: var(--blue-900);
+  color: var(--white);
+  padding: 10px 12px;
+  font-weight: 500;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.preview-table td {
+  padding: 8px 12px;
+  text-align: center;
+  border-bottom: 1px solid var(--gray-200);
+}
+.preview-table .col-name { font-weight: 600; color: var(--blue-900); }
+.preview-table .col-fee { font-weight: 600; color: var(--blue-700); }
+
+/* Summary */
+.preview-summary {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--gray-700);
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.preview-summary span {
+  background: var(--blue-50);
+  padding: 6px 14px;
+  border-radius: 4px;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--blue-900);
+  color: var(--white);
+  padding: 12px 28px;
+  border-radius: 6px;
+  font-size: 14px;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  letter-spacing: 1px;
+}
+.toast.show { opacity: 1; }
+.toast.error { background: #C53030; }
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--gray-700);
+  font-weight: 500;
+}
+.empty-state .empty-icon { font-size: 36px; margin-bottom: 8px; }
+
+/* Step links */
+.step-links { display:inline-block; margin-top:4px; }
+.step-link { color:var(--blue-500); text-decoration:none; font-size:12px; letter-spacing:0.5px; }
+.step-link:hover { color:var(--blue-700); text-decoration:underline; }
+
+/* Lightbox */
+.lightbox { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:2000; align-items:center; justify-content:center; }
+.lightbox.show { display:flex; }
+.lightbox img { max-width:92vw; max-height:92vh; border-radius:4px; box-shadow:0 4px 24px rgba(0,0,0,0.5); cursor:zoom-out; }
+.lightbox-close { position:absolute; top:20px; right:30px; color:#fff; font-size:32px; cursor:pointer; opacity:0.7; transition:opacity 0.15s; line-height:1; }
+.lightbox-close:hover { opacity:1; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .instructions { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+  .container { padding: 24px 16px 60px; }
+  .header { padding: 32px 0 24px; }
+  .header h1 { font-size: 28px; }
+  .instructions { grid-template-columns: repeat(2, 1fr); }
+  .card { padding: 24px 22px; }
+  .form-row { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .parse-entry .form-row { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .parse-stats { flex-direction: column; gap: 6px; }
+  .preview-table { font-size: 12px; }
+  .color-swatches { max-width: 300px; }
+  .preview-summary { flex-direction: column; gap: 8px; }
+}
+@media (max-width: 480px) {
+  .instructions { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <a href="index.html" style="display:inline-block;margin-bottom:12px;font-size:13px;color:var(--blue-500);text-decoration:none;letter-spacing:1px;transition:color 0.15s;" onmouseover="this.style.color='var(--blue-700)'" onmouseout="this.style.color='var(--blue-500)'">&larr; 返回首页</a>
+    <h1>RenSheet</h1>
+    <p class="intro">国际表生成器</p>
+  </div>
+
+  <!-- Usage Guide -->
+  <div class="card">
+    <div class="card-title">使用说明</div>
+    <div class="instructions">
+      <div class="inst-step">
+        <div class="step-num">STEP 1</div>
+        <div class="step-text">编辑排表格式，确认A1单元格填入品类名（如"xx系列吧唧"），A1不可为空，，B1及其他单元格请留空，不同谷子类型的排表请分开上传
+          <span class="step-links">
+            <a href="sample/肾表，国际表，二调原表示例.xlsx" class="step-link" download>下载格式示例</a>
+          </span>
+        </div>
+      </div>
+      <div class="inst-step">
+        <div class="step-num">STEP 2</div>
+        <div class="step-text">填入总国际运费与总包裹重量，自动计算费率</div>
+      </div>
+      <div class="inst-step">
+        <div class="step-num">STEP 3</div>
+        <div class="step-text">上传排表文件（最多50个，若谷子不按排表统计可直接进入下一步），填写必要参数并逐个解析</div>
+      </div>
+      <div class="inst-step">
+        <div class="step-num">STEP 4</div>
+        <div class="step-text">上传或手动编辑可按cn单独统计的谷子总重（没有可不填）
+          <span class="step-links">
+            <a href="sample/国际表单独称重示例.xlsx" class="step-link" download>下载排表模板</a>
+          </span>
+        </div>
+      </div>
+      <div class="inst-step">
+        <div class="step-num">STEP 5</div>
+        <div class="step-text">选择主题风格，编写title（也是文件名）</div>
+      </div>
+      <div class="inst-step">
+        <div class="step-num">STEP 6</div>
+        <div class="step-text">点击开始处理，预览并导出国际表</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Parameters -->
+  <div class="card">
+    <div class="card-title">STEP 2 — 基础参数</div>
+    <div class="form-row" style="justify-content:center;">
+      <div class="form-group">
+        <label>总国际运费（元）</label>
+        <input type="number" class="input-text w140" id="shippingFee" placeholder="0.00" step="0.01" min="0">
+      </div>
+      <div class="form-group">
+        <label>总包裹重量（克）</label>
+        <input type="number" class="input-text w140" id="packageWeight" placeholder="0.00" step="0.01" min="0">
+      </div>
+      <div class="form-group">
+        <label>费率</label>
+        <span class="rate-display" id="rateDisplay">-- 元/克</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- File Upload & Parse -->
+  <div class="card">
+    <div class="card-title">STEP 3 — 导入排表</div>
+    <a href="sample/导入文件格式示例.xlsx" class="step-link" download>下载格式示例</a>
+    <div class="drop-zone" id="dropZone">
+      <div class="dz-icon">&#x2903;</div>
+      <div class="dz-text">拖拽 .xlsx 文件至此，或点击选择</div>
+      <div class="dz-hint">支持 .xlsx 格式，单次最多 50 个文件</div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx" multiple style="display:none">
+    <div id="parseEntries"></div>
+  </div>
+
+  <!-- Non-sheet Entries -->
+  <div class="card">
+    <div class="card-title">STEP 4 — 非排表区</div>
+    <div style="margin-bottom:14px; padding:12px 16px; background:var(--blue-50); border-radius:var(--radius); display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap;">
+      <span style="font-size:12px; color:var(--gray-700);">上传CN-本体表（可选）</span>
+      <button class="btn btn-secondary btn-sm" id="cnBodyUploadBtn">选择文件</button>
+      <a href="sample/cn-本体表示例.xlsx" class="step-link" download>下载格式示例</a>
+      <input type="file" id="cnBodyFileInput" accept=".xlsx" style="display:none">
+    </div>
+    <div class="empty-state" id="manualEmpty">
+      <div class="empty-icon">&#x25A3;</div>
+      <p>暂无非排表数据，如需添加请点击下方按钮</p>
+    </div>
+    <div id="manualEntries"></div>
+    <div style="text-align:center;">
+    <button class="btn btn-secondary btn-sm" id="addManualBtn" style="margin-top:12px;">+ 添加CN</button>
+    </div>
+  </div>
+
+  <!-- Output Settings -->
+  <div class="card">
+    <div class="card-title">STEP 5 — 输出设置</div>
+    <div class="form-row" style="justify-content:center;">
+      <div class="form-group">
+        <label>文件名称</label>
+        <input type="text" class="input-text" id="fileName" value="国际表" placeholder="输入文件名">
+        <button class="btn btn-secondary btn-sm" id="renameBtn">重命名</button>
+      </div>
+      <div class="form-group">
+        <label>颜色风格</label>
+        <div class="color-swatches" id="colorSwatches">
+          <span class="color-swatch active" data-theme="blue" style="background:linear-gradient(135deg, #1A4570, #2B6FA8)" title="医用蓝"></span>
+          <span class="color-swatch" data-theme="teal" style="background:linear-gradient(135deg, #234E52, #319795)" title="水色"></span>
+          <span class="color-swatch" data-theme="slate" style="background:linear-gradient(135deg, #2D3748, #4A5568)" title="暗灰"></span>
+          <span class="color-swatch" data-theme="indigo" style="background:linear-gradient(135deg, #3C366B, #5A4FCF)" title="紫蓝"></span>
+          <span class="color-swatch" data-theme="cyan" style="background:linear-gradient(135deg, #0E7490, #38BDF8)" title="青蓝"></span>
+          <span class="color-swatch" data-theme="sage" style="background:linear-gradient(135deg, #22543D, #68D391)" title="薄荷"></span>
+          <span class="color-swatch" data-theme="sea" style="background:linear-gradient(135deg, #164E63, #38BDF8)" title="海蓝"></span>
+          <span class="color-swatch" data-theme="violet" style="background:linear-gradient(135deg, #44337A, #805AD5)" title="暮紫"></span>
+          <span class="color-swatch" data-theme="navy" style="background:linear-gradient(135deg, #0A1628, #1E3A5F)" title="海军蓝"></span>
+          <span class="color-swatch" data-theme="steel" style="background:linear-gradient(135deg, #2D3748, #4A6578)" title="钢蓝"></span>
+          <span class="color-swatch" data-theme="moss" style="background:linear-gradient(135deg, #1C2A1C, #3A5A3A)" title="苔绿"></span>
+          <span class="color-swatch" data-theme="graphite" style="background:linear-gradient(135deg, #1A1A1A, #3D3D3D)" title="石墨"></span>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row" style="justify-content:center;">
+      <button class="btn btn-primary" id="processBtn" disabled>开始处理</button>
+      <button class="btn btn-export" id="exportBtn" disabled>导出国际表</button>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="card" id="previewCard">
+    <div class="card-title">STEP 6 — 结果预览</div>
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">&#x25A3;</div>
+      <p>导入文件并点击开始处理后，结果将显示在此处</p>
+    </div>
+    <div class="preview-wrap" id="previewWrap" style="display:none"></div>
+    <div class="preview-summary" id="previewSummary" style="display:none"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== STATE ====================
+var MAX_FILES = 50;
+var parsedFiles = [];         // [{id, name, kind, gramWeight, verifyPoints, workbook, parsed, purchases, cnPoints, cnBodyWeight, totalPoints, totalBodyWeight, cnCount}]
+var manualEntries = [];       // [{id, cn, grams}]
+var computedResults = null;   // {rows, totalBodyWeightAll, totalBoxAllocation, totalPackageWeight, rate}
+var currentTheme = 'blue';
+var fileIdCounter = 0;
+var manualIdCounter = 0;
+
+// ==================== DOM REFS ====================
+var dropZone = document.getElementById('dropZone');
+var fileInput = document.getElementById('fileInput');
+var parseEntriesEl = document.getElementById('parseEntries');
+var processBtn = document.getElementById('processBtn');
+var exportBtn = document.getElementById('exportBtn');
+var previewWrap = document.getElementById('previewWrap');
+var emptyState = document.getElementById('emptyState');
+var previewSummary = document.getElementById('previewSummary');
+var fileNameInput = document.getElementById('fileName');
+var renameBtn = document.getElementById('renameBtn');
+var toast = document.getElementById('toast');
+var manualEntriesEl = document.getElementById('manualEntries');
+var manualEmpty = document.getElementById('manualEmpty');
+var addManualBtn = document.getElementById('addManualBtn');
+var cnBodyUploadBtn = document.getElementById('cnBodyUploadBtn');
+var cnBodyFileInput = document.getElementById('cnBodyFileInput');
+var shippingFeeEl = document.getElementById('shippingFee');
+var packageWeightEl = document.getElementById('packageWeight');
+var rateDisplay = document.getElementById('rateDisplay');
+
+// ==================== TOAST ====================
+var toastTimer;
+function showToast(msg, isError) {
+  clearTimeout(toastTimer);
+  toast.textContent = msg;
+  toast.className = 'toast ' + (isError ? 'error' : '') + ' show';
+  toastTimer = setTimeout(function() { toast.classList.remove('show'); }, 2500);
+}
+
+// ==================== RATE DISPLAY ====================
+function updateRate() {
+  var fee = parseFloat(shippingFeeEl.value) || 0;
+  var weight = parseFloat(packageWeightEl.value) || 0;
+  if (weight > 0 && fee >= 0) {
+    var rate = fee / weight;
+    rateDisplay.textContent = rate.toFixed(4) + ' 元/克';
+  } else {
+    rateDisplay.textContent = '-- 元/克';
+  }
+}
+shippingFeeEl.addEventListener('input', function() { updateRate(); saveDraft(); });
+packageWeightEl.addEventListener('input', function() { updateRate(); saveDraft(); });
+
+// ==================== FILE HANDLING ====================
+dropZone.addEventListener('click', function() { fileInput.click(); });
+fileInput.addEventListener('change', function(e) { handleFiles(e.target.files); });
+dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('drag-over'); });
+dropZone.addEventListener('drop', function(e) {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  handleFiles(e.dataTransfer.files);
+});
+
+function handleFiles(files) {
+  if (!files || !files.length) return;
+  var remaining = MAX_FILES - parsedFiles.length;
+  if (files.length > remaining) {
+    showToast('最多还能导入 ' + remaining + ' 个文件', true);
+    return;
+  }
+  var pending = files.length;
+  var errors = [];
+  for (var i = 0; i < files.length; i++) {
+    (function(file) {
+      if (!file.name.match(/\.xlsx$/i)) {
+        errors.push('文件「' + file.name + '」不是 .xlsx 文件');
+        pending--; if (!pending) finish();
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          var wb = XLSX.read(e.target.result, {type:'array'});
+          var kind = '';
+          try { kind = getSheetKind(wb); } catch(ex) { kind = ''; }
+          parsedFiles.push({
+            id: fileIdCounter++,
+            name: file.name,
+            kind: kind,
+            gramWeight: 0,
+            verifyPoints: 0,
+            workbook: wb,
+            preview: tryParsePreview(wb),
+            parsed: false,
+            purchases: [],
+            cnPoints: {},
+            cnBodyWeight: {},
+            totalPoints: 0,
+            totalBodyWeight: 0,
+            cnCount: 0
+          });
+        } catch(ex) {
+          errors.push('文件「' + file.name + '」文件解析失败');
+        }
+        pending--; if (!pending) finish();
+      };
+      reader.onerror = function() {
+        errors.push('文件「' + file.name + '」读取失败');
+        pending--; if (!pending) finish();
+      };
+      reader.readAsArrayBuffer(file);
+    })(files[i]);
+  }
+  function finish() {
+    renderParseEntries();
+    if (errors.length) showToast(errors.join('\n'), true);
+    else if (parsedFiles.length) showToast('已导入 ' + parsedFiles.length + ' 个文件');
+    fileInput.value = '';
+  }
+}
+
+// ==================== RENDER PARSE ENTRIES ====================
+function removeFileEntry(id) {
+  parsedFiles = parsedFiles.filter(function(f) { return f.id !== id; });
+  computedResults = null;
+  exportBtn.disabled = true;
+  renderParseEntries();
+}
+
+function renderParseEntries() {
+  if (!parsedFiles.length) {
+    parseEntriesEl.innerHTML = '';
+    updateProcessBtn();
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < parsedFiles.length; i++) {
+    var f = parsedFiles[i];
+    html += '<div class="parse-entry" data-id="' + f.id + '">';
+    html += '<div class="parse-entry-header">';
+    html += '<span class="parse-entry-name">' + f.name + '</span>';
+    html += '<button class="parse-entry-remove" data-rid="' + f.id + '" title="移除">&times;</button>';
+    html += '</div>';
+    // Preview stats (before form-row, when not yet parsed)
+    if (!f.parsed && f.preview) {
+      if (f.preview.error) {
+        html += '<div class="parse-entry-preview-stats error">解析提示：' + f.preview.error + '</div>';
+      } else if (f.preview.cnCount > 0 || f.preview.roleCount > 0) {
+        html += '<div class="parse-entry-preview-stats">识别到 ' + f.preview.cnCount + ' 个CN、' + f.preview.roleCount + ' 个角色、' + f.preview.recordCount + ' 个点数</div>';
+      }
+    }
+    html += '<div class="form-row">';
+    html += '<div class="form-group"><label>种类名称</label><input type="text" class="input-text w140 entry-kind" data-eid="' + f.id + '" value="' + escAttr(f.kind) + '" placeholder="如：吧唧"></div>';
+    html += '<div class="form-group"><label>单点克重(g/点)</label><input type="number" class="input-text w120 entry-gram" data-eid="' + f.id + '" value="' + (f.gramWeight || '') + '" placeholder="0.00" step="0.01" min="0"></div>';
+    html += '<div class="form-group"><label>校验总点数</label><input type="number" class="input-text w120 entry-verify" data-eid="' + f.id + '" value="' + (f.verifyPoints || '') + '" placeholder="0" step="1" min="0"></div>';
+    html += '<button class="btn btn-secondary btn-sm parse-btn" data-pid="' + f.id + '">解析此排表</button>';
+    html += '</div>';
+    if (f.parsed) {
+      html += buildParseResultsHtml(f);
+    }
+    html += '</div>';
+  }
+  parseEntriesEl.innerHTML = html;
+
+  // Attach remove listeners
+  var removes = parseEntriesEl.querySelectorAll('.parse-entry-remove');
+  for (var r = 0; r < removes.length; r++) {
+    removes[r].addEventListener('click', function() {
+      removeFileEntry(parseInt(this.dataset.rid));
+    });
+  }
+
+  // Attach input change listeners
+  var kindInputs = parseEntriesEl.querySelectorAll('.entry-kind');
+  for (var ki = 0; ki < kindInputs.length; ki++) {
+    kindInputs[ki].addEventListener('input', function() {
+      var eid = parseInt(this.dataset.eid);
+      var entry = findEntry(eid);
+      if (entry) { entry.kind = this.value.trim(); entry.parsed = false; }
+    });
+  }
+  var gramInputs = parseEntriesEl.querySelectorAll('.entry-gram');
+  for (var gi = 0; gi < gramInputs.length; gi++) {
+    gramInputs[gi].addEventListener('input', function() {
+      var eid = parseInt(this.dataset.eid);
+      var entry = findEntry(eid);
+      if (entry) { entry.gramWeight = parseFloat(this.value) || 0; entry.parsed = false; }
+    });
+  }
+  var verifyInputs = parseEntriesEl.querySelectorAll('.entry-verify');
+  for (var vi = 0; vi < verifyInputs.length; vi++) {
+    verifyInputs[vi].addEventListener('input', function() {
+      var eid = parseInt(this.dataset.eid);
+      var entry = findEntry(eid);
+      if (entry) { entry.verifyPoints = parseInt(this.value) || 0; entry.parsed = false; }
+    });
+  }
+
+  // Attach parse button listeners
+  var parseBtns = parseEntriesEl.querySelectorAll('.parse-btn');
+  for (var pb = 0; pb < parseBtns.length; pb++) {
+    parseBtns[pb].addEventListener('click', function() {
+      parseFileEntry(parseInt(this.dataset.pid));
+    });
+  }
+
+  updateProcessBtn();
+  saveDraft();
+}
+
+function findEntry(id) {
+  for (var i = 0; i < parsedFiles.length; i++) {
+    if (parsedFiles[i].id === id) return parsedFiles[i];
+  }
+  return null;
+}
+
+function escAttr(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function buildParseResultsHtml(f) {
+  var html = '<div class="parse-results">';
+  html += '<div class="parse-stats">';
+  html += '<span>唯一CN数：<strong>' + f.cnCount + '</strong></span>';
+  html += '<span>总点数：<strong>' + f.totalPoints + '</strong></span>';
+  html += '<span>总本体重量：<strong>' + f.totalBodyWeight.toFixed(1) + ' g</strong></span>';
+  if (f.verifyPoints > 0) {
+    var diff = Math.abs(f.totalPoints - f.verifyPoints);
+    if (diff === 0) {
+      html += '<span class="verify-ok">校验通过</span>';
+    } else {
+      html += '<span class="verify-ng">校验不符（差' + diff + '点）</span>';
+    }
+  }
+  html += '</div>';
+
+  // Per-CN mini table
+  var cns = Object.keys(f.cnPoints).sort();
+  if (cns.length > 0) {
+    html += '<table class="parse-preview-table"><thead><tr><th>CN</th><th>点数</th><th>本体(g)</th></tr></thead><tbody>';
+    for (var i = 0; i < cns.length; i++) {
+      html += '<tr><td>' + cns[i] + '</td><td>' + f.cnPoints[cns[i]] + '</td><td>' + (f.cnBodyWeight[cns[i]] || 0).toFixed(1) + '</td></tr>';
+    }
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function updateProcessBtn() {
+  var hasParsed = false;
+  for (var i = 0; i < parsedFiles.length; i++) {
+    if (parsedFiles[i].parsed) { hasParsed = true; break; }
+  }
+  processBtn.disabled = !hasParsed && !hasManualData();
+}
+
+function hasManualData() {
+  for (var i = 0; i < manualEntries.length; i++) {
+    if (manualEntries[i].cn.trim() && (parseFloat(manualEntries[i].grams) || 0) > 0) return true;
+  }
+  return false;
+}
+
+function colToLetter(col) {
+  var s = "";
+  while (col >= 0) {
+    s = String.fromCharCode(65 + (col % 26)) + s;
+    col = Math.floor(col / 26) - 1;
+  }
+  return s;
+}
+
+
+function tryParsePreview(wb) {
+  try {
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    if (data.length < 4) return {error: '数据行不足（仅' + data.length + '行，需要至少4行）'};
+    var kind = getSheetKind(wb);
+    var rawHeaders = (data[1] || []).slice(1);
+    var headers = rawHeaders.filter(function(h) { return h !== ''; });
+    var roleCount = headers.length;
+    var cnSet = {};
+    var recordCount = 0;
+    for (var r = 3; r < data.length; r++) {
+      var row = data[r];
+      if (!row || !row.length) continue;
+      for (var c = 1; c <= headers.length; c++) {
+        var name = String(row[c] || '').trim();
+        if (!name) continue;
+        cnSet[name] = true;
+        recordCount++;
+      }
+    }
+    return {
+      cnCount: Object.keys(cnSet).length,
+      roleCount: roleCount,
+      recordCount: recordCount,
+      kind: kind
+    };
+  } catch(e) {
+    return {error: e.message};
+  }
+}
+// ==================== PARSE INPUT SHEETS ====================
+function getSheetKind(wb) {
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  if (!data.length || !data[0].length) throw new Error('格式错误：A1单元格（品类名）为空');
+  var kind = String(data[0][0] || '').trim();
+  if (!kind) throw new Error('格式错误：A1单元格（品类名）为空');
+  for (var c = 1; c < data[0].length; c++) {
+    if (String(data[0][c] || '').trim()) throw new Error('格式错误：第一行仅A1可填写品类名，B1及其他单元格请留空（当前' + colToLetter(c) + '1单元格有值）');
+  }
+  return kind;
+}
+
+function parseSheet(wb) {
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  if (data.length < 4) throw new Error('格式错误：数据行不足（表内仅' + data.length + '行，至少需要4行——第1行品类名、第2行角色、第3行单价、第4+行数据）');
+
+  var kind = getSheetKind(wb);
+  var rawHeaders = data[1].slice(1);
+  var headers = rawHeaders.filter(function(h) { return h !== ''; });
+  var seen = {};
+  var seenAtCol = {};
+  for (var rh = 0; rh < rawHeaders.length; rh++) {
+    var hdr = String(rawHeaders[rh] || '').trim();
+    if (!hdr) continue;
+    if (seen[hdr]) {
+      var firstCol = seenAtCol[hdr];
+      throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名"' + hdr + '"重复（首次出现于第' + colToLetter(firstCol) + '列）');
+    }
+    seen[hdr] = true;
+    seenAtCol[hdr] = rh + 1;
+  }
+  var prices = data[2].slice(1, 1 + headers.length);
+  var purchases = [];
+
+  for (var r = 3; r < data.length; r++) {
+    var row = data[r];
+    if (!row || !row.length) continue;
+    for (var c = 1; c <= headers.length; c++) {
+      var name = String(row[c] || '').trim();
+      if (!name) continue;
+      var rawLabel = String(headers[c - 1] || '').trim();
+      var price = parseFloat(prices[c - 1]) || 0;
+      purchases.push({
+        person: name,
+        character: rawLabel,
+        label: rawLabel,
+        kind: kind,
+        price: price
+      });
+    }
+  }
+  return purchases;
+}
+
+// ==================== PARSE SINGLE FILE ====================
+function parseFileEntry(id) {
+  var entry = findEntry(id);
+  if (!entry) return;
+
+  // Re-read inputs from DOM
+  var kindInput = parseEntriesEl.querySelector('.entry-kind[data-eid="' + id + '"]');
+  var gramInput = parseEntriesEl.querySelector('.entry-gram[data-eid="' + id + '"]');
+  var verifyInput = parseEntriesEl.querySelector('.entry-verify[data-eid="' + id + '"]');
+
+  entry.kind = kindInput ? kindInput.value.trim() : entry.kind;
+  entry.gramWeight = gramInput ? (parseFloat(gramInput.value) || 0) : entry.gramWeight;
+  entry.verifyPoints = verifyInput ? (parseInt(verifyInput.value) || 0) : entry.verifyPoints;
+
+  if (!entry.kind) { showToast('请填写种类名称', true); return; }
+  if (entry.gramWeight <= 0) { showToast('单点克重必须大于0', true); return; }
+
+  // Check kind consistency with A1
+  var a1kind = '';
+  try { a1kind = getSheetKind(entry.workbook); } catch(e) {
+    showToast('文件「' + entry.name + '」' + e.message, true);
+    return;
+  }
+  if (a1kind !== entry.kind) {
+    showToast('种类名与排表A1（' + a1kind + '）不一致，使用A1值', false);
+    entry.kind = a1kind;
+    if (kindInput) kindInput.value = a1kind;
+  }
+
+  // Parse
+  var purchases;
+  try {
+    purchases = parseSheet(entry.workbook);
+  } catch(e) {
+    showToast('文件「' + entry.name + '」' + e.message, true);
+    return;
+  }
+
+  // Aggregate CN points
+  var cnPoints = {};
+  for (var i = 0; i < purchases.length; i++) {
+    var pn = purchases[i].person;
+    cnPoints[pn] = (cnPoints[pn] || 0) + 1;
+  }
+
+  var cns = Object.keys(cnPoints);
+  var cnBodyWeight = {};
+  var totalPoints = 0;
+  for (var j = 0; j < cns.length; j++) {
+    var pts = cnPoints[cns[j]];
+    totalPoints += pts;
+    cnBodyWeight[cns[j]] = pts * entry.gramWeight;
+  }
+
+  entry.parsed = true;
+  entry.purchases = purchases;
+  entry.cnPoints = cnPoints;
+  entry.cnBodyWeight = cnBodyWeight;
+  entry.totalPoints = totalPoints;
+  entry.totalBodyWeight = totalPoints * entry.gramWeight;
+  entry.cnCount = cns.length;
+
+  computedResults = null;
+  exportBtn.disabled = true;
+  renderParseEntries();
+  showToast(entry.name + ' 解析完成：' + entry.cnCount + '人，' + totalPoints + '点，' + entry.totalBodyWeight.toFixed(1) + 'g');
+}
+
+// ==================== MANUAL ENTRIES ====================
+function addManualEntry() {
+  manualEntries.push({id: manualIdCounter++, cn: '', grams: 0});
+  computedResults = null;
+  exportBtn.disabled = true;
+  renderManualEntries();
+}
+
+function removeManualEntry(id) {
+  manualEntries = manualEntries.filter(function(m) { return m.id !== id; });
+  computedResults = null;
+  exportBtn.disabled = true;
+  renderManualEntries();
+}
+
+function renderManualEntries() {
+  if (!manualEntries.length) {
+    manualEntriesEl.innerHTML = '';
+    manualEmpty.style.display = 'block';
+    updateProcessBtn();
+    return;
+  }
+  manualEmpty.style.display = 'none';
+  var html = '';
+  for (var i = 0; i < manualEntries.length; i++) {
+    var m = manualEntries[i];
+    html += '<div class="manual-entry">';
+    html += '<input type="text" class="input-text w160 manual-cn" data-mid="' + m.id + '" value="' + escAttr(m.cn) + '" placeholder="CN名称">';
+    html += '<input type="number" class="input-text w120 manual-grams" data-mid="' + m.id + '" value="' + (m.grams || '') + '" placeholder="克数(g)" step="0.01" min="0">';
+    html += '<button class="remove-manual" data-rmid="' + m.id + '" title="移除">&times;</button>';
+    html += '</div>';
+  }
+  manualEntriesEl.innerHTML = html;
+
+  // Attach input listeners
+  var cnInputs = manualEntriesEl.querySelectorAll('.manual-cn');
+  for (var ci = 0; ci < cnInputs.length; ci++) {
+    cnInputs[ci].addEventListener('input', function() {
+      var mid = parseInt(this.dataset.mid);
+      var mentry = findManualEntry(mid);
+      if (mentry) { mentry.cn = this.value.trim(); }
+    });
+  }
+  var gramInputs = manualEntriesEl.querySelectorAll('.manual-grams');
+  for (var gi = 0; gi < gramInputs.length; gi++) {
+    gramInputs[gi].addEventListener('input', function() {
+      var mid = parseInt(this.dataset.mid);
+      var mentry = findManualEntry(mid);
+      if (mentry) { mentry.grams = parseFloat(this.value) || 0; }
+    });
+  }
+  var removeBtns = manualEntriesEl.querySelectorAll('.remove-manual');
+  for (var rb = 0; rb < removeBtns.length; rb++) {
+    removeBtns[rb].addEventListener('click', function() {
+      removeManualEntry(parseInt(this.dataset.rmid));
+    });
+  }
+
+  updateProcessBtn();
+  saveDraft();
+}
+
+function findManualEntry(id) {
+  for (var i = 0; i < manualEntries.length; i++) {
+    if (manualEntries[i].id === id) return manualEntries[i];
+  }
+  return null;
+}
+
+addManualBtn.addEventListener('click', addManualEntry);
+
+// ==================== CN-BODY UPLOAD ====================
+cnBodyUploadBtn.addEventListener('click', function() { cnBodyFileInput.click(); });
+cnBodyFileInput.addEventListener('change', function(e) { handleCnBodyUpload(e.target.files); });
+
+function handleCnBodyUpload(files) {
+  if (!files || !files.length) return;
+  var file = files[0];
+  if (!file.name.match(/\.xlsx$/i)) {
+    showToast('不是 .xlsx 文件', true);
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var wb = XLSX.read(e.target.result, {type:'array'});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      if (data.length < 2) {
+        showToast('CN-本体表数据为空', true);
+        return;
+      }
+      var added = 0;
+      var skipped = 0;
+      for (var r = 1; r < data.length; r++) {
+        var row = data[r];
+        if (!row || !row.length) continue;
+        var cn = String(row[0] || '').trim();
+        var grams = parseFloat(row[1]) || 0;
+        if (!cn) { skipped++; continue; }
+        var existing = null;
+        for (var i = 0; i < manualEntries.length; i++) {
+          if (manualEntries[i].cn === cn) { existing = manualEntries[i]; break; }
+        }
+        if (existing) {
+          existing.grams = (existing.grams || 0) + grams;
+        } else {
+          manualEntries.push({id: manualIdCounter++, cn: cn, grams: grams});
+        }
+        added++;
+      }
+      computedResults = null;
+      exportBtn.disabled = true;
+      renderManualEntries();
+      saveDraft();
+      var msg = '已导入 ' + added + ' 条CN-本体数据';
+      if (skipped) msg += '（跳过 ' + skipped + ' 条空CN）';
+      showToast(msg);
+    } catch(ex) {
+      showToast('CN-本体表解析失败：' + ex.message, true);
+    }
+  };
+  reader.onerror = function() {
+    showToast('文件读取失败', true);
+  };
+  reader.readAsArrayBuffer(file);
+  cnBodyFileInput.value = '';
+}
+
+// ==================== RENAME ====================
+renameBtn.addEventListener('click', function() {
+  var newName = fileNameInput.value.trim();
+  if (!newName) { showToast('请输入文件名', true); return; }
+  if (computedResults) {
+    renderPreview();
+  }
+  showToast('已重命名为 ' + newName);
+  saveDraft();
+});
+
+// ==================== COLOR THEME ====================
+document.getElementById('colorSwatches').addEventListener('click', function(e) {
+  var swatch = e.target.closest('.color-swatch');
+  if (!swatch) return;
+  this.querySelectorAll('.color-swatch').forEach(function(s) { s.classList.remove('active'); });
+  swatch.classList.add('active');
+  currentTheme = swatch.dataset.theme;
+  saveDraft();
+  if (computedResults) renderPreview();
+});
+
+function getThemeColors(theme) {
+  var themes = {
+    blue:   {titleBg:'#0D2137', titleFg:'#FFFFFF', headerBg:'#1A4570', rowEven:'#EDF5FA', rowOdd:'#FFFFFF'},
+    teal:   {titleBg:'#1D4044', titleFg:'#FFFFFF', headerBg:'#285E61', rowEven:'#E6FFFA', rowOdd:'#FFFFFF'},
+    slate:  {titleBg:'#1A202C', titleFg:'#FFFFFF', headerBg:'#2D3748', rowEven:'#EDF2F7', rowOdd:'#FFFFFF'},
+    indigo: {titleBg:'#2A204A', titleFg:'#FFFFFF', headerBg:'#44337A', rowEven:'#EBF4FF', rowOdd:'#FFFFFF'},
+    cyan:    {titleBg:'#0F4C6A', titleFg:'#FFFFFF', headerBg:'#0E7490', rowEven:'#E0F2FE', rowOdd:'#FFFFFF'},
+    sage:    {titleBg:'#1F4532', titleFg:'#FFFFFF', headerBg:'#256D46', rowEven:'#E6FFFA', rowOdd:'#FFFFFF'},
+    sea:     {titleBg:'#164E63', titleFg:'#FFFFFF', headerBg:'#0F766E', rowEven:'#D9F2F9', rowOdd:'#FFFFFF'},
+    violet:  {titleBg:'#2D1B4E', titleFg:'#FFFFFF', headerBg:'#553C9A', rowEven:'#F5F0FF', rowOdd:'#FFFFFF'},
+    navy:    {titleBg:'#0A1628', titleFg:'#FFFFFF', headerBg:'#1E3A5F', rowEven:'#EBF0F7', rowOdd:'#FFFFFF'},
+    steel:   {titleBg:'#1E2D3D', titleFg:'#FFFFFF', headerBg:'#3B5C7A', rowEven:'#EDF2F7', rowOdd:'#FFFFFF'},
+    moss:    {titleBg:'#1C2A1C', titleFg:'#FFFFFF', headerBg:'#3A5A3A', rowEven:'#F2F7F2', rowOdd:'#FFFFFF'},
+    graphite:{titleBg:'#1A1A1A', titleFg:'#FFFFFF', headerBg:'#3D3D3D', rowEven:'#F5F5F5', rowOdd:'#FFFFFF'}
+  };
+  return themes[theme] || themes.blue;
+}
+
+// ==================== PROCESS ALL ====================
+function processAll() {
+  var shippingFee = parseFloat(shippingFeeEl.value) || 0;
+  var packageWeight = parseFloat(packageWeightEl.value) || 0;
+
+  // Merge body weights from all parsed files
+  var masterBodyWeight = {};
+  for (var i = 0; i < parsedFiles.length; i++) {
+    var f = parsedFiles[i];
+    if (!f.parsed) continue;
+    var cns = Object.keys(f.cnBodyWeight);
+    for (var j = 0; j < cns.length; j++) {
+      var cn = cns[j];
+      masterBodyWeight[cn] = (masterBodyWeight[cn] || 0) + f.cnBodyWeight[cn];
+    }
+  }
+
+  // Merge manual entries
+  for (var k = 0; k < manualEntries.length; k++) {
+    var m = manualEntries[k];
+    var mcn = m.cn.trim();
+    var mg = parseFloat(m.grams) || 0;
+    if (mcn && mg > 0) {
+      masterBodyWeight[mcn] = (masterBodyWeight[mcn] || 0) + mg;
+    }
+  }
+
+  var allCns = Object.keys(masterBodyWeight);
+  if (!allCns.length) {
+    showToast('没有可处理的数据', true);
+    return null;
+  }
+
+  // Compute totals
+  var totalBodyWeightAll = 0;
+  for (var bi = 0; bi < allCns.length; bi++) {
+    totalBodyWeightAll += masterBodyWeight[allCns[bi]];
+  }
+
+  var boxAllocationTotal = packageWeight - totalBodyWeightAll;
+  var rate = packageWeight > 0 ? shippingFee / packageWeight : 0;
+
+  // Per-CN computation
+  allCns.sort(function(a, b) { return a.localeCompare(b, 'zh'); });
+  var rows = [];
+  for (var ri = 0; ri < allCns.length; ri++) {
+    var ccn = allCns[ri];
+    var bw = masterBodyWeight[ccn];
+    var box = totalBodyWeightAll > 0 ? (bw / totalBodyWeightAll) * boxAllocationTotal : 0;
+    var tw = bw + box;
+    var fee = tw * rate;
+    rows.push({
+      cn: ccn,
+      bodyWeight: bw,
+      boxAllocation: box,
+      totalWeight: tw,
+      internationalFee: fee
+    });
+  }
+
+  // Total row
+  // --- Validation & filtering ---
+  var validationErrors = [];
+  var deletedCns = [];
+  var filteredRows = [];
+
+  for (var vi = 0; vi < rows.length; vi++) {
+    var rrow = rows[vi];
+    var bw = rrow.bodyWeight;
+    var box = rrow.boxAllocation;
+
+    if (bw <= 0 && box <= 0) {
+      deletedCns.push(rrow.cn);
+      continue;
+    }
+
+    var rowErrors = [];
+    if (bw <= 0) {
+      rowErrors.push('本体重量异常（' + bw.toFixed(1) + 'g）');
+    }
+    if (box < 0) {
+      rowErrors.push('箱摊为负（' + box.toFixed(1) + 'g），请增大总包裹重量使其不小于总本体重量');
+    }
+    if (rowErrors.length) {
+      validationErrors.push({cn: rrow.cn, errors: rowErrors, bodyWeight: bw, boxAllocation: box});
+    }
+
+    filteredRows.push(rrow);
+  }
+
+  if (!filteredRows.length) {
+    var delMsg = deletedCns.length ? '（已自动移除 ' + deletedCns.length + ' 条全零数据）' : '';
+    showToast('校验后无有效数据行' + delMsg, true);
+    computedResults = null;
+    previewWrap.style.display = 'none';
+    previewSummary.style.display = 'none';
+    emptyState.style.display = 'block';
+    exportBtn.disabled = true;
+    return null;
+  }
+
+  var totalFee = 0;
+  for (var ti = 0; ti < filteredRows.length; ti++) {
+    totalFee += filteredRows[ti].internationalFee;
+  }
+
+  computedResults = {
+    rows: filteredRows,
+    totalBodyWeightAll: totalBodyWeightAll,
+    totalBoxAllocation: boxAllocationTotal,
+    totalPackageWeight: packageWeight,
+    rate: rate,
+    validationErrors: validationErrors,
+    deletedCns: deletedCns,
+    hasValidationError: validationErrors.length > 0
+  };
+
+  renderPreview();
+  exportBtn.disabled = false;
+  saveDraft();
+  var toastMsg = '处理完成！共 ' + filteredRows.length + ' 人';
+  if (deletedCns.length) toastMsg += '（已移除 ' + deletedCns.length + ' 条全零数据）';
+  if (validationErrors.length) toastMsg += '\n校验发现 ' + validationErrors.length + ' 个异常，请查看预览区';
+  showToast(toastMsg, validationErrors.length > 0);
+  return computedResults;('处理完成！共 ' + rows.length + ' 人');
+  return computedResults;
+}
+
+// ==================== VALIDATE ====================
+function validateBeforeProcess() {
+  var errors = [];
+  var hasParsed = false;
+  for (var i = 0; i < parsedFiles.length; i++) {
+    if (parsedFiles[i].parsed) { hasParsed = true; break; }
+  }
+  if (!hasParsed && !hasManualData()) {
+    errors.push('请先解析排表或添加非排表CN');
+  }
+  if (parseFloat(packageWeightEl.value) < 0) {
+    errors.push('总包裹重量不能为负');
+  }
+  if (parseFloat(shippingFeeEl.value) < 0) {
+    errors.push('总国际运费不能为负');
+  }
+  return errors;
+}
+
+processBtn.addEventListener('click', function() {
+  var errors = validateBeforeProcess();
+  if (errors.length) {
+    showToast(errors.join('\n'), true);
+    return;
+  }
+  processAll();
+});
+
+// ==================== PREVIEW ====================
+function renderPreview() {
+  if (!computedResults || !computedResults.rows.length) {
+    previewWrap.style.display = 'none';
+    previewSummary.style.display = 'none';
+    emptyState.style.display = 'block';
+    return;
+  }
+
+  var title = fileNameInput.value.trim() || '国际表';
+  var themeColors = getThemeColors(currentTheme);
+  var headers = ['cn', '本体(g)', '箱摊(g)', '总重(g)', '国际(元)'];
+
+  // Build validation error banner
+  var errorBanner = '';
+  if (computedResults.deletedCns && computedResults.deletedCns.length) {
+    errorBanner += '<div style="background:#FFF3CD;border:1px solid #E6C631;border-radius:6px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:#856404;">';
+    errorBanner += '已自动移除 ' + computedResults.deletedCns.length + ' 条全零数据：' + computedResults.deletedCns.join('、');
+    errorBanner += '</div>';
+  }
+  if (computedResults.hasValidationError) {
+    errorBanner += '<div style="background:#FEE2E2;border:1px solid #F87171;border-radius:6px;padding:12px 16px;margin-bottom:12px;">';
+    errorBanner += '<div style="font-size:14px;font-weight:700;color:#C53030;margin-bottom:8px;">校验异常 — 以下CN存在无效数据，请修正后重新处理</div>';
+    for (var ei = 0; ei < computedResults.validationErrors.length; ei++) {
+      var ve = computedResults.validationErrors[ei];
+      errorBanner += '<div style="font-size:13px;color:#9B2C2C;margin-bottom:2px;">';
+      errorBanner += '<strong>' + ve.cn + '</strong>：' + ve.errors.join('；') + ' &mdash; 请检查：单点克重设置是否正确，总包裹重量是否大于总本体重量';
+      errorBanner += '</div>';
+    }
+    errorBanner += '</div>';
+  }
+
+  var html = errorBanner + '<table class="preview-table">';
+  html += '<thead>';
+  html += '<tr><th colspan="5" style="background:' + themeColors.titleBg + ';color:' + themeColors.titleFg + ';font-size:15px;padding:12px;letter-spacing:2px;text-align:center">' + title + '</th></tr>';
+  html += '<tr>';
+  for (var h = 0; h < headers.length; h++) {
+    html += '<th style="background:' + themeColors.headerBg + '">' + headers[h] + '</th>';
+  }
+  html += '</tr></thead><tbody>';
+
+  // Build error CN set for row highlighting
+  var errorCNs = {};
+  if (computedResults.hasValidationError) {
+    for (var ei2 = 0; ei2 < computedResults.validationErrors.length; ei2++) {
+      errorCNs[computedResults.validationErrors[ei2].cn] = true;
+    }
+  }
+
+  for (var r = 0; r < computedResults.rows.length; r++) {
+    var row = computedResults.rows[r];
+    var isErrorRow = !!errorCNs[row.cn];
+    var bg = r % 2 === 0 ? themeColors.rowEven : themeColors.rowOdd;
+    var errStyle = isErrorRow ? 'border-left:3px solid #E53E3E;' : '';
+    var cellBg = isErrorRow ? '#FEF2F2' : bg;
+    html += '<tr style="' + errStyle + '">';
+    html += '<td class="col-name" style="background:' + cellBg + '">' + row.cn + '</td>';
+    html += '<td style="background:' + cellBg + ';' + (row.bodyWeight <= 0 ? 'color:#E53E3E;font-weight:700' : '') + '">' + row.bodyWeight.toFixed(1) + '</td>';
+    html += '<td style="background:' + cellBg + ';' + (row.boxAllocation < 0 ? 'color:#E53E3E;font-weight:700' : '') + '">' + row.boxAllocation.toFixed(1) + '</td>';
+    html += '<td style="background:' + cellBg + '">' + row.totalWeight.toFixed(1) + '</td>';
+    html += '<td class="col-fee" style="background:' + cellBg + '">' + row.internationalFee.toFixed(2) + '</td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+
+  previewWrap.innerHTML = html;
+  previewWrap.style.display = 'block';
+  emptyState.style.display = 'none';
+
+  // Summary
+  var totalFee = 0;
+  for (var ti = 0; ti < computedResults.rows.length; ti++) {
+    totalFee += computedResults.rows[ti].internationalFee;
+  }
+  var sumHtml = '<span>总人数：<strong>' + computedResults.rows.length + '</strong></span>';
+  sumHtml += '<span>总本体重量：<strong>' + computedResults.totalBodyWeightAll.toFixed(1) + ' g</strong></span>';
+  sumHtml += '<span>箱摊总重：<strong>' + computedResults.totalBoxAllocation.toFixed(1) + ' g</strong></span>';
+  sumHtml += '<span>总包裹重量：<strong>' + computedResults.totalPackageWeight.toFixed(1) + ' g</strong></span>';
+  sumHtml += '<span>总国际运费：<strong>' + totalFee.toFixed(2) + ' 元</strong></span>';
+  if (computedResults.rate > 0) {
+    sumHtml += '<span>费率：<strong>' + computedResults.rate.toFixed(4) + ' 元/克</strong></span>';
+  }
+  previewSummary.innerHTML = sumHtml;
+  previewSummary.style.display = 'flex';
+}
+
+// ==================== EXPORT ====================
+exportBtn.addEventListener('click', function() {
+  if (!computedResults || !computedResults.rows.length) {
+    showToast('请先处理数据', true);
+    return;
+  }
+  var title = fileNameInput.value.trim() || '国际表';
+  var themeColors = getThemeColors(currentTheme);
+  var headers = ['cn', '本体(g)', '箱摊(g)', '总重(g)', '国际(元)'];
+  var colCount = 5;
+
+  var wb = new ExcelJS.Workbook();
+  var safeSheet = title.substring(0, 31);
+  var ws = wb.addWorksheet(safeSheet);
+
+  // Title row
+  ws.mergeCells(1, 1, 1, colCount);
+  var titleCell = ws.getCell('A1');
+  titleCell.value = title;
+  titleCell.font = {size:15, bold:true, color:{argb:themeColors.titleFg.replace('#','')}};
+  titleCell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:themeColors.titleBg.replace('#','')}};
+  titleCell.alignment = {horizontal:'center', vertical:'middle'};
+  ws.getRow(1).height = 36;
+
+  // Header row
+  var headerBg = themeColors.headerBg.replace('#','');
+  for (var h = 0; h < colCount; h++) {
+    var cell = ws.getCell(2, h + 1);
+    cell.value = headers[h];
+    cell.font = {size:11, bold:true, color:{argb:'FFFFFF'}};
+    cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:headerBg}};
+    cell.alignment = {horizontal:'center', vertical:'middle'};
+  }
+  ws.getRow(2).height = 28;
+
+  // Data rows
+  var rowEvenColor = themeColors.rowEven.replace('#','');
+  var rowOddColor = themeColors.rowOdd.replace('#','');
+  for (var r = 0; r < computedResults.rows.length; r++) {
+    var row = computedResults.rows[r];
+    var bg = r % 2 === 0 ? rowEvenColor : rowOddColor;
+    var excelRow = ws.getRow(r + 3);
+
+    var cells = [
+      row.cn,
+      Number(row.bodyWeight.toFixed(1)),
+      Number(row.boxAllocation.toFixed(1)),
+      Number(row.totalWeight.toFixed(1)),
+      Number(row.internationalFee.toFixed(2))
+    ];
+
+    for (var c = 0; c < colCount; c++) {
+      var ecell = ws.getCell(r + 3, c + 1);
+      ecell.value = cells[c];
+      ecell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:bg}};
+      ecell.border = {bottom:{style:'thin', color:{argb:'D0D5DD'}}};
+      ecell.alignment = {horizontal:'center', vertical:'middle'};
+      if (c === 0) {
+        ecell.font = {bold:true, size:11};
+      } else if (c === colCount - 1) {
+        ecell.font = {bold:true, size:11, color:{argb:themeColors.titleBg.replace('#','')}};
+      }
+    }
+    excelRow.height = 22;
+  }
+
+  // Column widths
+  ws.getColumn(1).width = 12;
+  ws.getColumn(2).width = 14;
+  ws.getColumn(3).width = 14;
+  ws.getColumn(4).width = 14;
+  ws.getColumn(5).width = 14;
+
+  wb.xlsx.writeBuffer().then(function(buffer) {
+    var blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = title + '.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('国际表已导出');
+    clearDraft();
+  }).catch(function(err) {
+    showToast('导出失败：' + err.message, true);
+  });
+});
+
+
+// ==================== DRAFT AUTO-SAVE ====================
+var DRAFT_KEY = 'renshet_guoji_draft';
+
+function buildDraftObject() {
+  return {
+    savedAt: Date.now(),
+    parsedFileCount: parsedFiles.length,
+    parsedFileNames: parsedFiles.map(function(f) { return f.name; }),
+    parsedFilesMeta: parsedFiles.map(function(f) {
+      return {
+        id: f.id, name: f.name, kind: f.kind,
+        gramWeight: f.gramWeight, verifyPoints: f.verifyPoints,
+        parsed: f.parsed, cnCount: f.cnCount,
+        totalPoints: f.totalPoints, totalBodyWeight: f.totalBodyWeight
+      };
+    }),
+    parsedFilesData: parsedFiles.filter(function(f) { return f.parsed; }).map(function(f) {
+      return { id: f.id, purchases: f.purchases, cnPoints: f.cnPoints, cnBodyWeight: f.cnBodyWeight };
+    }),
+    manualEntries: manualEntries,
+    currentTheme: currentTheme,
+    fileName: fileNameInput.value,
+    shippingFee: shippingFeeEl.value,
+    packageWeight: packageWeightEl.value,
+    hasComputedResults: computedResults !== null,
+    computedResults: computedResults
+  };
+}
+
+function saveDraft() {
+  try {
+    var draft = buildDraftObject();
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch(e) {}
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+}
+
+function restoreDraft() {
+  var raw;
+  try { raw = localStorage.getItem(DRAFT_KEY); } catch(e) { return false; }
+  if (!raw) return false;
+  var saved;
+  try { saved = JSON.parse(raw); } catch(e) { clearDraft(); return false; }
+  if (!saved || !saved.savedAt) { clearDraft(); return false; }
+
+  // Restore theme
+  currentTheme = saved.currentTheme || 'blue';
+  var swatches = document.querySelectorAll('.color-swatch');
+  for (var si = 0; si < swatches.length; si++) {
+    swatches[si].classList.remove('active');
+    if (swatches[si].dataset.theme === currentTheme) swatches[si].classList.add('active');
+  }
+
+  // Restore file name
+  if (saved.fileName) fileNameInput.value = saved.fileName;
+
+  // Restore basic params
+  if (saved.shippingFee) shippingFeeEl.value = saved.shippingFee;
+  if (saved.packageWeight) packageWeightEl.value = saved.packageWeight;
+  updateRate();
+
+  // Restore manual entries
+  if (saved.manualEntries && saved.manualEntries.length) {
+    manualEntries = saved.manualEntries;
+    var maxId = 0;
+    for (var mi = 0; mi < manualEntries.length; mi++) {
+      if (manualEntries[mi].id > maxId) maxId = manualEntries[mi].id;
+    }
+    manualIdCounter = maxId + 1;
+    renderManualEntries();
+  }
+
+  // Restore computed results
+  if (saved.hasComputedResults && saved.computedResults) {
+    computedResults = saved.computedResults;
+    renderPreview();
+    exportBtn.disabled = false;
+  }
+
+  // Show banner
+  if (saved.parsedFileCount > 0 || (saved.manualEntries && saved.manualEntries.length)) {
+    showRestoreBanner(saved);
+  }
+
+  return true;
+}
+
+function showRestoreBanner(saved) {
+  var existing = document.getElementById('draftBanner');
+  if (existing) existing.remove();
+
+  var banner = document.createElement('div');
+  banner.id = 'draftBanner';
+  banner.style.cssText = 'background:#F0FFF4;border:1px solid #9AE6B4;border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;font-size:13px;color:#276749;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;';
+
+  var msg = '检测到上次未完成的草稿，已自动恢复';
+  if (saved.parsedFileCount > 0 && !saved.hasComputedResults) {
+    msg += '，请重新上传文件';
+  }
+  var text = document.createElement('span');
+  text.textContent = msg;
+
+  var clearBtn = document.createElement('button');
+  clearBtn.textContent = '清除草稿';
+  clearBtn.style.cssText = 'padding:4px 12px;font-size:12px;border:1px solid #9AE6B4;background:#fff;color:#276749;border-radius:4px;cursor:pointer;';
+  clearBtn.addEventListener('click', function() {
+    clearDraft();
+    banner.remove();
+    parsedFiles = [];
+    renderParseEntries();
+    manualEntries = [];
+    renderManualEntries();
+    manualIdCounter = 1;
+    computedResults = null;
+    exportBtn.disabled = true;
+    processBtn.disabled = true;
+    previewWrap.style.display = 'none';
+    previewSummary.style.display = 'none';
+    emptyState.style.display = 'block';
+    fileNameInput.value = '国际表';
+    shippingFeeEl.value = '';
+    packageWeightEl.value = '';
+    updateRate();
+    currentTheme = 'blue';
+    document.querySelectorAll('.color-swatch').forEach(function(s) { s.classList.remove('active'); });
+    var blueSwatch = document.querySelector('.color-swatch[data-theme="blue"]');
+    if (blueSwatch) blueSwatch.classList.add('active');
+    showToast('草稿已清除');
+  });
+
+  banner.appendChild(text);
+  banner.appendChild(clearBtn);
+
+  var container = document.querySelector('.container');
+  if (container && container.children.length > 0) {
+    container.insertBefore(banner, container.children[1]);
+  }
+}
+
+// ==================== INIT ====================
+processBtn.disabled = true;
+exportBtn.disabled = true;
+restoreDraft();
+</script>
+
+</body>
+</html>

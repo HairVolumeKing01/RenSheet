@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RenSheet</title>
+<style>
+:root {
+  --blue-900: #0D2137;
+  --blue-700: #1A4570;
+  --blue-500: #2B6FA8;
+  --blue-300: #7BB3DD;
+  --blue-100: #D6EAF5;
+  --blue-50: #EDF5FA;
+  --water: #B8D8E3;
+  --gray-700: #4A5568;
+  --gray-400: #A0AEC0;
+  --gray-200: #E2E8F0;
+  --gray-100: #F7FAFC;
+  --white: #FFFFFF;
+  --radius: 8px;
+  --font: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--gray-100);
+  color: var(--gray-700);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.container {
+  max-width: 840px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 64px 24px;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 0 0 56px;
+}
+.header h1 {
+  font-size: 36px;
+  font-weight: 300;
+  color: var(--blue-900);
+  letter-spacing: 4px;
+  margin-bottom: 14px;
+}
+.header p {
+  font-size: 17px;
+  color: var(--blue-700);
+  letter-spacing: 1px;
+  font-weight: 350;
+}
+
+/* Tool grid */
+.tool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Tool card */
+.tool-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  padding: 44px 32px 40px;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--gray-700);
+  transition: all 0.25s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  position: relative;
+  overflow: hidden;
+}
+.tool-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--blue-300);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.tool-card:hover {
+  border-color: var(--blue-300);
+  box-shadow: 0 4px 16px rgba(26,69,112,0.10);
+  transform: translateY(-2px);
+}
+.tool-card:hover::before {
+  opacity: 1;
+}
+
+.tool-icon {
+  width: 58px;
+  height: 58px;
+  margin-bottom: 20px;
+  color: var(--blue-500);
+  transition: color 0.25s ease;
+}
+.tool-card:hover .tool-icon {
+  color: var(--blue-700);
+}
+
+.tool-title {
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--blue-900);
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+  transition: color 0.25s ease;
+}
+
+.tool-desc {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gray-700);
+  text-align: center;
+  line-height: 1.6;
+  letter-spacing: 0.5px;
+}
+
+/* Placeholder card — dimmed */
+.tool-card.placeholder {
+  opacity: 0.55;
+  cursor: default;
+  pointer-events: none;
+}
+.tool-card.placeholder .tool-icon { color: var(--gray-400); }
+.tool-card.placeholder .tool-title { color: var(--gray-400); }
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding-top: 48px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-700);
+  letter-spacing: 1px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .container { padding: 40px 20px; }
+  .header { padding: 0 0 40px; }
+  .header h1 { font-size: 28px; }
+  .tool-grid { grid-template-columns: 1fr; gap: 14px; }
+  .tool-card { padding: 34px 22px 30px; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <h1>RenSheet</h1>
+    <p>团长大人，欢迎来到RenSheet，快开始今天的工作吧！</p>
+  </div>
+
+  <div class="tool-grid">
+
+    <!-- 国际表 -->
+    <a class="tool-card" href="guoji.html">
+      <svg class="tool-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6">
+        <circle cx="26" cy="26" r="19"/>
+        <ellipse cx="26" cy="26" rx="10" ry="19"/>
+        <line x1="7" y1="26" x2="45" y2="26"/>
+        <line x1="26" y1="7" x2="26" y2="11"/>
+        <line x1="26" y1="41" x2="26" y2="45"/>
+      </svg>
+      <div class="tool-title">国际表</div>
+      <div class="tool-desc">拼团国际运费分摊计算</div>
+    </a>
+
+    <!-- 肾表 -->
+    <a class="tool-card" href="shenbiao.html">
+      <svg class="tool-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6">
+        <rect x="7" y="9" width="38" height="34" rx="3"/>
+        <line x1="16" y1="9" x2="16" y2="43"/>
+        <line x1="26" y1="9" x2="26" y2="43"/>
+        <line x1="36" y1="9" x2="36" y2="43"/>
+        <line x1="7" y1="19" x2="45" y2="19"/>
+      </svg>
+      <div class="tool-title">肾表</div>
+      <div class="tool-desc">拼团金额清单计算</div>
+    </a>
+
+    <!-- 二调退补表 -->
+    <a class="tool-card" href="RatioFix.html">
+      <svg class="tool-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6">
+        <path d="M38 14L26 26L38 38"/>
+        <path d="M14 38L26 26L14 14"/>
+        <circle cx="26" cy="26" r="3" fill="currentColor"/>
+      </svg>
+      <div class="tool-title">二调退补表</div>
+      <div class="tool-desc">爆配/隐藏二调退补明细计算</div>
+    </a>
+
+    <!-- 打赏页面 -->
+    <a class="tool-card" href="dashang.html">
+      <svg class="tool-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6">
+        <path d="M26 11L31.5 22.5L44 24.5L34.5 33L36.5 45.5L26 40L15.5 45.5L17.5 33L8 24.5L20.5 22.5Z"/>
+      </svg>
+      <div class="tool-title">打赏页面</div>
+      <div class="tool-desc">用心打磨，随缘赞赏</div>
+    </a>
+
+  </div>
+
+  <div class="footer">RenSheet · 高效打表，纯净体验</div>
+  <div class="footer">作者小红书id：591529972@无敌头铁王</div>
+
+</div>
+
+</body>
+</html>

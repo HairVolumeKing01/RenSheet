@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RenSheet — 打赏</title>
+<style>
+:root {
+  --blue-900: #0D2137;
+  --blue-700: #1A4570;
+  --blue-500: #2B6FA8;
+  --blue-300: #7BB3DD;
+  --blue-100: #D6EAF5;
+  --blue-50: #EDF5FA;
+  --water: #B8D8E3;
+  --gray-700: #4A5568;
+  --gray-400: #A0AEC0;
+  --gray-200: #E2E8F0;
+  --gray-100: #F7FAFC;
+  --white: #FFFFFF;
+  --radius: 8px;
+  --font: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--gray-100);
+  color: var(--gray-700);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.container {
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 60px 24px;
+  text-align: center;
+}
+
+.header {
+  margin-bottom: 40px;
+}
+.header a {
+  display: inline-block;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--blue-500);
+  text-decoration: none;
+  letter-spacing: 1px;
+  transition: color 0.15s;
+}
+.header a:hover { color: var(--blue-700); }
+.header h1 {
+  font-size: 32px;
+  font-weight: 300;
+  color: var(--blue-900);
+  letter-spacing: 4px;
+}
+
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 40px 32px;
+  border: 1px solid var(--gray-200);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.qr-img {
+  width: 220px;
+  height: 220px;
+  border-radius: var(--radius);
+  border: 1px solid var(--gray-200);
+  margin-bottom: 24px;
+}
+
+.card p {
+  font-size: 15px;
+  color: var(--gray-700);
+  line-height: 1.8;
+  letter-spacing: 0.5px;
+}
+.card .hint {
+  font-size: 13px;
+  color: var(--gray-700);
+  font-weight: 500;
+  margin-top: 16px;
+  letter-spacing: 1px;
+}
+
+.footer {
+  margin-top: 40px;
+  font-size: 13px;
+  color: var(--gray-700);
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <a href="index.html">&larr; 返回首页</a>
+    <h1>打赏</h1>
+  </div>
+
+  <div class="card">
+    <img class="qr-img" src="images/赞赏码.jpg" alt="赞赏码">
+    <p>如果这个小工具帮到了你，<br>可以请我喝杯雪王 :)</p>
+    <p class="hint">每一份心意都是对RenSheet的温柔托举，<br>不赏也完全没关系，用得开心最重要。</p>
+  </div>
+
+  <div class="footer">RenSheet · 高效打表，纯净体验</div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RenSheet — 二调退补表</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+:root {
+  --blue-900: #0D2137;
+  --blue-700: #1A4570;
+  --blue-500: #2B6FA8;
+  --blue-300: #7BB3DD;
+  --blue-100: #D6EAF5;
+  --blue-50: #EDF5FA;
+  --water: #B8D8E3;
+  --gray-700: #4A5568;
+  --gray-400: #A0AEC0;
+  --gray-200: #E2E8F0;
+  --gray-100: #F7FAFC;
+  --white: #FFFFFF;
+  --radius: 8px;
+  --font: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--gray-100);
+  color: var(--gray-700);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 48px 0 40px;
+}
+.header a {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--blue-500);
+  text-decoration: none;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+  transition: color 0.15s;
+}
+.header a:hover { color: var(--blue-700); }
+.header h1 {
+  font-size: 36px;
+  font-weight: 300;
+  color: var(--blue-900);
+  letter-spacing: 4px;
+}
+.header .intro {
+  margin-top: 12px;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--blue-700);
+  letter-spacing: 1px;
+}
+
+/* Step Indicator */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  gap: 0;
+}
+.step-dot {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  background: var(--gray-200); color: var(--gray-500);
+  transition: all 0.25s;
+  flex-shrink: 0;
+}
+.step-dot.active { background: var(--blue-700); color: var(--white); box-shadow: 0 0 0 3px rgba(26,69,112,0.2); }
+.step-dot.done { background: var(--blue-300); color: var(--white); }
+.step-line { width: 36px; height: 2px; background: var(--gray-200); flex-shrink: 0; }
+.step-line.done { background: var(--blue-300); }
+.step-labels {
+  display: flex; justify-content: center;
+  max-width: 420px; margin: 0 auto 24px;
+  font-size: 11px; color: var(--gray-400); letter-spacing: 0.5px;
+}
+.step-labels span {
+  flex: 1; text-align: center;
+  transition: color 0.25s;
+  font-size: 12px; color: var(--gray-700); font-weight: 500;
+}
+.step-labels span.active { color: var(--blue-700); font-weight: 600; }
+
+/* Cards */
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 32px 36px;
+  margin-bottom: 20px;
+  border: 1px solid var(--gray-200);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  text-align: center;
+}
+.card-title {
+  font-size: 14px; font-weight: 600; color: var(--blue-700);
+  text-transform: uppercase; letter-spacing: 2px; margin-bottom: 18px;
+}
+
+/* Step cards visibility */
+.step-card { display: none; }
+.step-card.active { display: block; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+/* Drop zones — dual column */
+.drop-zones {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+}
+.drop-zone-sm {
+  border: 2px dashed var(--gray-400);
+  border-radius: var(--radius);
+  padding: 28px 16px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  text-align: center;
+}
+.drop-zone-sm:hover, .drop-zone-sm.drag-over { border-color: var(--blue-300); background: var(--blue-50); }
+.drop-zone-sm .dz-icon { font-size: 24px; color: var(--blue-500); margin-bottom: 8px; }
+.drop-zone-sm .dz-icon svg { width: 28px; height: 28px; }
+.drop-zone-label {
+  font-size: 12px; font-weight: 600; color: var(--blue-700); margin-bottom: 4px; letter-spacing: 1px;
+}
+.drop-zone-sm .dz-hint { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
+
+.file-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--blue-50); border: 1px solid var(--blue-300); border-radius: 4px;
+  padding: 5px 10px; font-size: 12px; color: var(--blue-700); margin: 4px;
+}
+.file-tag .remove-file { cursor: pointer; font-weight: 700; color: var(--gray-400); }
+.file-tag .remove-file:hover { color: #E53E3E; }
+
+.file-preview-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+.file-preview-stats {
+  font-size: 11px;
+  color: var(--gray-400);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+.file-preview-stats.error { color: #E53E3E; }
+
+/* Parameter inputs */
+.param-row { display: flex; justify-content: center; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+.param-group { display: flex; align-items: center; gap: 8px; }
+.param-group label { font-size: 13px; font-weight: 600; color: var(--gray-700); white-space: nowrap; }
+.param-input {
+  width: 110px; border: 1px solid var(--gray-200); border-radius: 6px;
+  padding: 7px 10px; font-size: 13px; font-family: var(--font);
+  color: var(--gray-700); text-align: center; outline: none; transition: border-color 0.15s;
+}
+.param-input:focus { border-color: var(--blue-300); }
+.param-input-sm { width: 80px; }
+
+/* Step navigation */
+.step-nav {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--gray-200);
+}
+.btn-step {
+  padding: 8px 24px; font-size: 13px; font-family: var(--font); font-weight: 600;
+  border: none; border-radius: 6px; cursor: pointer; letter-spacing: 0.5px;
+  transition: all 0.15s;
+}
+.btn-step-prev {
+  background: var(--white); color: var(--blue-700); border: 1px solid var(--blue-300);
+}
+.btn-step-prev:hover { background: var(--blue-50); }
+.btn-step-next { background: var(--blue-700); color: var(--white); }
+.btn-step-next:hover { background: var(--blue-900); }
+.btn-step-next:disabled { background: var(--gray-400); cursor: not-allowed; }
+.btn-step-download {
+  background: var(--blue-500); color: var(--white);
+}
+.btn-step-download:hover { background: var(--blue-700); }
+
+/* Balancer table */
+.balancer-wrap {
+  overflow-x: auto; margin: 14px 0;
+  border: 1px solid var(--gray-200); border-radius: var(--radius);
+}
+.balancer-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 500px; }
+.balancer-table th {
+  background: var(--blue-900); color: var(--white); padding: 10px 12px;
+  font-weight: 500; text-align: center; font-size: 12px; letter-spacing: 1px; white-space: nowrap;
+}
+.balancer-table td { padding: 8px 12px; text-align: center; border-bottom: 1px solid var(--gray-200); }
+.balancer-table .row-label {
+  font-weight: 600; color: var(--blue-700); font-size: 12px; background: var(--blue-50);
+}
+.balancer-input {
+  width: 70px; border: 1px solid var(--gray-200); border-radius: 4px;
+  padding: 5px 8px; font-size: 13px; font-family: var(--font);
+  color: var(--gray-700); text-align: center; outline: none; transition: border-color 0.15s;
+}
+.balancer-input:focus { border-color: var(--blue-300); }
+.balancer-input.modified { background: #FFF8E1; border-color: #F0C040; }
+
+.balance-status {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; letter-spacing: 0.5px;
+}
+.balance-status.balanced { background: #F0FFF4; color: #276749; border: 1px solid #9AE6B4; }
+.balance-status.unbalanced { background: #FEE2E2; color: #C53030; border: 1px solid #F87171; }
+
+/* New price summary table */
+.summary-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 14px 0; }
+.summary-table th {
+  background: var(--blue-700); color: var(--white); padding: 8px 10px;
+  text-align: center; font-size: 11px; letter-spacing: 0.5px;
+}
+.summary-table td { padding: 7px 10px; text-align: center; border-bottom: 1px solid var(--gray-200); }
+.summary-table .hl-row td { font-weight: 700; color: var(--blue-900); background: var(--blue-50); }
+
+/* Data preview */
+.data-preview { max-height: 280px; overflow-y: auto; margin: 12px 0; }
+.data-preview table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.data-preview th { background: var(--gray-200); color: var(--gray-700); padding: 5px 8px; text-align: center; position: sticky; top: 0; }
+.data-preview td { padding: 4px 8px; text-align: center; border-bottom: 1px solid var(--gray-200); }
+
+.confirm-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; }
+.confirm-row input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+.confirm-row label { font-size: 13px; color: var(--gray-700); cursor: pointer; }
+
+/* Format select — reused from shenbiao */
+.format-select { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.format-option { position: relative; }
+.format-option input { position: absolute; opacity: 0; }
+.format-option label {
+  display: block; padding: 8px 22px; border-radius: var(--radius);
+  border: 1px solid var(--gray-200); font-size: 13px; font-weight: 500;
+  color: var(--gray-400); cursor: pointer; background: var(--white); transition: all 0.2s;
+}
+.format-option input:checked + label {
+  background: var(--white); border-color: var(--blue-700); color: var(--blue-700); font-weight: 700;
+  box-shadow: 0 0 0 1px var(--blue-700);
+}
+
+/* Color swatches */
+.color-swatches { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.color-swatch {
+  width: 24px; height: 24px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; transition: all 0.2s;
+}
+.color-swatch.active { border-color: var(--blue-900); transform: scale(1.3); box-shadow: 0 0 0 2px rgba(13,33,55,0.2); }
+
+/* Form rows */
+.form-row { margin-bottom: 16px; }
+.form-row:last-child { margin-bottom: 0; }
+.form-label {
+  display: block; font-size: 12px; font-weight: 600; color: var(--gray-700);
+  margin-bottom: 8px; letter-spacing: 1px;
+}
+
+/* File name input row */
+.filename-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.filename-input {
+  border: 1px solid var(--gray-200); border-radius: 6px;
+  padding: 8px 14px; font-size: 14px; font-family: var(--font);
+  width: 260px; outline: none; transition: border-color 0.15s;
+}
+.filename-input:focus { border-color: var(--blue-300); }
+.btn-rename {
+  padding: 8px 18px; font-size: 13px; font-family: var(--font);
+  background: var(--blue-500); color: var(--white);
+  border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
+}
+.btn-rename:hover { background: var(--blue-700); }
+
+/* Preview table — reused from shenbiao */
+.preview-section { margin-bottom: 24px; }
+.preview-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.preview-table th {
+  background: var(--blue-700); color: var(--white); padding: 10px 10px;
+  font-weight: 600; font-size: 12px; letter-spacing: 1px; text-align: center;
+}
+.preview-table td {
+  padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--gray-200);
+}
+.preview-table .col-name { text-align: left; font-weight: 600; color: var(--blue-900); }
+.preview-table .col-detail { text-align: left; font-size: 12px; white-space: pre-wrap; }
+.preview-table .col-cost { font-weight: 700; }
+.preview-table .col-count { font-weight: 600; }
+
+/* 红补蓝退 column cells */
+.col-refund { font-weight: 700; }
+.col-refund.positive { background: #FEE2E2; color: #991B1B; }
+.col-refund.negative { background: #DBEAFE; color: #1E40AF; }
+.col-refund.zero { color: var(--gray-400); }
+
+/* Description note */
+.desc-note { font-size: 13px; font-weight: 500; color: var(--gray-700); margin-top: 12px; line-height: 1.6; }
+.sample-link { color: var(--blue-500); text-decoration: none; font-weight: 600; }
+.sample-link:hover { color: var(--blue-700); text-decoration: underline; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+  padding: 12px 28px; background: var(--blue-900); color: var(--white);
+  border-radius: 6px; font-size: 14px; font-family: var(--font);
+  font-weight: 500; letter-spacing: 0.5px; opacity: 0; pointer-events: none;
+  transition: opacity 0.25s; z-index: 999; white-space: pre-line; text-align: center;
+}
+.toast.error { background: #C53030; }
+.toast.show { opacity: 1; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container { padding: 28px 16px 60px; }
+  .header { padding: 32px 0 28px; }
+  .header h1 { font-size: 28px; }
+  .drop-zones { grid-template-columns: 1fr; }
+  .card { padding: 24px 22px; }
+  .param-row { gap: 14px; }
+  .balancer-table { font-size: 11px; }
+  .balancer-input { width: 56px; font-size: 11px; }
+  .summary-table { font-size: 11px; }
+}
+@media (max-width: 480px) {
+  .step-indicator { gap: 4px; }
+  .step-dot { width: 26px; height: 26px; font-size: 10px; }
+  .step-line { width: 18px; }
+  .step-labels { font-size: 10px; max-width: 320px; }
+  .filename-input { width: 180px; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <a href="index.html">&larr; 返回首页</a>
+    <h1>二调退补表</h1>
+    <div class="intro">二次调价 · 退补款明细</div>
+  </div>
+
+  <!-- Step Indicator -->
+  <div class="step-indicator">
+    <div class="step-dot active" id="dot1">1</div>
+    <div class="step-line" id="line1"></div>
+    <div class="step-dot" id="dot2">2</div>
+    <div class="step-line" id="line2"></div>
+    <div class="step-dot" id="dot3">3</div>
+    <div class="step-line" id="line3"></div>
+    <div class="step-dot" id="dot4">4</div>
+    <div class="step-line" id="line4"></div>
+    <div class="step-dot" id="dot5">5</div>
+  </div>
+  <div class="step-labels">
+    <span class="active" id="lbl1">导入排表</span>
+    <span id="lbl2">调价配平</span>
+    <span id="lbl3">确认新排表</span>
+    <span id="lbl4">输出设置</span>
+    <span id="lbl5">预览导出</span>
+  </div>
+
+  <!-- STEP 1 — 导入排表与参数 -->
+  <div class="step-card active" id="step1">
+    <div class="card">
+      <div class="card-title">STEP 1/5 — 导入排表与参数</div>
+
+      <div class="desc-note">
+        请按照示例格式编辑排表后再上传。下载示例：
+        <a href="sample/肾表，国际表，二调原表示例.xlsx" class="sample-link" download>下载原排表模板</a>
+        &nbsp;|&nbsp;
+        <a href="sample/二调拆配实际排表示例.xlsx" class="sample-link" download>下载拆配排表模板</a>
+      </div>
+
+      <div class="drop-zones">
+        <div>
+          <div class="drop-zone-sm" id="dzOriginal">
+            <div class="dz-icon">
+              <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="2" width="22" height="24" rx="2"/><line x1="9" y1="10" x2="19" y2="10"/><line x1="9" y1="14" x2="19" y2="14"/><line x1="9" y1="18" x2="14" y2="18"/></svg>
+            </div>
+            <div class="drop-zone-label">原排表</div>
+            <div class="dz-hint">第一轮价格排表</div>
+          </div>
+          <div id="tagOriginal" style="margin-top:6px;"></div>
+        </div>
+        <div>
+          <div class="drop-zone-sm" id="dzActual">
+            <div class="dz-icon">
+              <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="2" width="22" height="24" rx="2"/><line x1="9" y1="10" x2="19" y2="10"/><line x1="9" y1="14" x2="19" y2="14"/><line x1="9" y1="18" x2="14" y2="18"/></svg>
+            </div>
+            <div class="drop-zone-label">拆配后实际排表</div>
+            <div class="dz-hint">拆配后的排表</div>
+          </div>
+          <div id="tagActual" style="margin-top:6px;"></div>
+        </div>
+      </div>
+
+      <div class="param-row">
+        <div class="param-group">
+          <label for="avgPriceOrig">原排表均价（元）</label>
+          <input type="number" id="avgPriceOrig" class="param-input" step="0.01" min="0" placeholder="如 28.00">
+        </div>
+        <div class="param-group">
+          <label for="avgPriceActual">拆配表均价（元）</label>
+          <input type="number" id="avgPriceActual" class="param-input" step="0.01" min="0" placeholder="如 26.00">
+        </div>
+        <div class="param-group">
+          <label for="totalPoints">拆配表总点数（校验）</label>
+          <input type="number" id="totalPoints" class="param-input" step="1" min="0" placeholder="如 100">
+        </div>
+      </div>
+
+      <div class="step-nav">
+        <div></div>
+        <button class="btn-step btn-step-next" id="btnNext1" onclick="goToStep(2)">下一步</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 — 调价配平器 -->
+  <div class="step-card" id="step2">
+    <div class="card">
+      <div class="card-title">STEP 2/5 — 调价配平器</div>
+      <div class="desc-note">角色取自两表并集。调整调价值使 &Sigma;(拆配点数 &times; 调价) = 0。</div>
+      <div class="balancer-wrap" id="balancerWrap"></div>
+      <div id="balanceDisplay" style="margin-top:8px;"></div>
+      <div class="step-nav">
+        <button class="btn-step btn-step-prev" onclick="goToStep(1)">上一步</button>
+        <button class="btn-step btn-step-next" id="btnNext2" onclick="goToStep(3)" disabled>下一步</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 — 确认新排表 -->
+  <div class="step-card" id="step3">
+    <div class="card">
+      <div class="card-title">STEP 3/5 — 确认新排表</div>
+      <div id="summaryKind" style="font-size:14px;font-weight:600;color:var(--blue-900);margin-bottom:10px;"></div>
+      <div id="summaryTable"></div>
+      <div class="data-preview" id="dataPreview"></div>
+      <div class="confirm-row">
+        <input type="checkbox" id="confirmPrices">
+        <label for="confirmPrices">我已确认新排表调价无误</label>
+      </div>
+      <div class="step-nav">
+        <button class="btn-step btn-step-prev" onclick="goToStep(2)">上一步</button>
+        <div style="display:flex;gap:10px;">
+          <button class="btn-step btn-step-download" id="btnDownload" onclick="downloadNewSheet()">下载新排表</button>
+          <button class="btn-step btn-step-next" id="btnNext3" onclick="goToStep(4)" disabled>下一步</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4 — 输出设置 -->
+  <div class="step-card" id="step4">
+    <div class="card">
+      <div class="card-title">STEP 4/5 — 输出设置</div>
+      <div class="form-row">
+        <div class="form-label">肾表样式 — 清单式</div>
+      </div>
+      <div class="form-row">
+        <div class="form-label">文件名称</div>
+        <div class="filename-row">
+          <input type="text" class="filename-input" id="rFileName" value="二调退补表">
+          <button class="btn-rename" onclick="renameFile()">重命名</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-label">颜色风格</div>
+        <div class="color-swatches" id="colorSwatches"></div>
+      </div>
+      <div class="desc-note">最终表将在肾表基础上增加「原肾」「实肾」「红补蓝退」三列，红补蓝退不随主题色变化</div>
+      <div class="step-nav">
+        <button class="btn-step btn-step-prev" onclick="goToStep(3)">上一步</button>
+        <button class="btn-step btn-step-next" id="btnNext4" onclick="goToStep(5)">下一步</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 5 — 最终表预览与导出 -->
+  <div class="step-card" id="step5">
+    <div class="card">
+      <div class="card-title">STEP 5/5 — 最终表预览与导出</div>
+      <div id="finalPreview"></div>
+      <div class="step-nav">
+        <button class="btn-step btn-step-prev" onclick="goToStep(4)">上一步</button>
+        <button class="btn-step btn-step-next" id="btnExport" onclick="exportFinalTable()">导出最终表</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<input type="file" id="fileInputOrig" accept=".xlsx" style="display:none">
+<input type="file" id="fileInputActual" accept=".xlsx" style="display:none">
+
+<script>
+// ==================== STATE ====================
+var currentStep = 1;
+var currentTheme = 'blue';
+
+// Step 1 state
+var originalFile = null;   // {name, workbook}
+var actualFile = null;     // {name, workbook}
+var avgPriceOrig = 0;
+var avgPriceActual = 0;
+var totalPointsInput = 0;
+
+// Step 2 state
+var characters = [];           // unique sorted char names (union)
+var pointsPerChar = {};        // from actual table
+var originalPrices = {};       // from original table, may be missing some chars
+var adjustments = {};          // user-editable
+var isBalanced = false;
+var kindName = '';
+
+// Step 3 state
+var newPrices = {};            // adjusted + avgPriceActual
+
+// Step 4/5 state
+var finalTableData = null;     // computed when entering step 5
+var originalShenMap = null;
+var actualShenMap = null;
+
+// ==================== DOM REFS ====================
+var dzOriginal = document.getElementById('dzOriginal');
+var dzActual = document.getElementById('dzActual');
+var fileInputOrig = document.getElementById('fileInputOrig');
+var fileInputActual = document.getElementById('fileInputActual');
+var tagOriginal = document.getElementById('tagOriginal');
+var tagActual = document.getElementById('tagActual');
+var toast = document.getElementById('toast');
+var confirmPrices = document.getElementById('confirmPrices');
+
+// ==================== TOAST ====================
+var toastTimer;
+function showToast(msg, isError) {
+  clearTimeout(toastTimer);
+  toast.textContent = msg;
+  toast.className = 'toast ' + (isError ? 'error' : '') + ' show';
+  toastTimer = setTimeout(function() { toast.classList.remove('show'); }, 3000);
+}
+
+// ==================== STEP WIZARD ====================
+function goToStep(step) {
+  // Validate before forward move
+  if (step > currentStep) {
+    var err = validateStep(currentStep);
+    if (err) { showToast(err, true); return; }
+  }
+
+  // On entering step 2, build balancer
+  if (step === 2) {
+    if (characters.length > 0) { renderBalancer(); } else { buildBalancer(); }
+  }
+  // On entering step 3, build new price sheet
+  if (step === 3) buildNewPriceSheet();
+  // On entering step 5, compute final table
+  if (step === 5) computeAndRenderFinal();
+
+  // Update visibility
+  for (var s = 1; s <= 5; s++) {
+    var card = document.getElementById('step' + s);
+    card.classList.toggle('active', s === step);
+  }
+  currentStep = step;
+
+  // Update step indicator
+  for (var d = 1; d <= 5; d++) {
+    var dot = document.getElementById('dot' + d);
+    var lbl = document.getElementById('lbl' + d);
+    dot.className = 'step-dot';
+    lbl.className = '';
+    if (d < step) { dot.classList.add('done'); }
+    if (d === step) { dot.classList.add('active'); lbl.classList.add('active'); }
+  }
+  for (var l = 1; l <= 4; l++) {
+    var line = document.getElementById('line' + l);
+    line.classList.toggle('done', l < step);
+  }
+
+  window.scrollTo({top: 0, behavior: 'smooth'});
+  saveDraft();
+}
+
+function validateStep(step) {
+  if (step === 1) {
+    if (!originalFile) return '请先上传原排表';
+    if (!actualFile) return '请先上传拆配后实际排表';
+    var avg1 = parseFloat(document.getElementById('avgPriceOrig').value);
+    var avg2 = parseFloat(document.getElementById('avgPriceActual').value);
+    var tp = parseInt(document.getElementById('totalPoints').value);
+    if (isNaN(avg1) || avg1 <= 0) return '请输入原排表均价（需大于0）';
+    if (isNaN(avg2) || avg2 <= 0) return '请输入拆配表均价（需大于0）';
+    if (isNaN(tp) || tp <= 0) return '请输入拆配表总点数（用于双重校验）';
+
+    // Parse total points from both tables
+    var actualExtract = extractPointsPerChar(actualFile.workbook);
+    var actualChars = Object.keys(actualExtract.points);
+    var parsedActualTotal = 0;
+    for (var c = 0; c < actualChars.length; c++) {
+      parsedActualTotal += actualExtract.points[actualChars[c]];
+    }
+
+    var origExtract = extractPointsPerChar(originalFile.workbook);
+    var origChars = Object.keys(origExtract.points);
+    var parsedOrigTotal = 0;
+    for (var d = 0; d < origChars.length; d++) {
+      parsedOrigTotal += origExtract.points[origChars[d]];
+    }
+
+    // Check 1: user-input total points must match parsed actual total
+    if (parsedActualTotal !== tp) {
+      return '拆配表总点数校验不通过！\n您输入 ' + tp + ' 点，系统解析拆配表为 ' + parsedActualTotal + ' 点，两者不一致。\n请核对排表数据或修改输入值。';
+    }
+
+    // Check 2: actualTotal × avgActual ≈ originalTotal × avgOrig
+    var actualSum = parsedActualTotal * avg2;
+    var origSum = parsedOrigTotal * avg1;
+    if (Math.abs(actualSum - origSum) > 0.01) {
+      return '跨表总价校验不通过！\n拆配表 ' + parsedActualTotal + ' 点 × ' + avg2.toFixed(2) + ' = ' + actualSum.toFixed(2) + '\n原排表 ' + parsedOrigTotal + ' 点 × ' + avg1.toFixed(2) + ' = ' + origSum.toFixed(2) + '\n两者差值 ' + (actualSum - origSum).toFixed(2) + '，请检查两表均价或排表数据。';
+    }
+
+    avgPriceOrig = avg1;
+    avgPriceActual = avg2;
+    totalPointsInput = tp;
+    return null;
+  }
+  if (step === 2) {
+    if (!isBalanced) return '请先调整调价使 Σ(点数×调价) = 0';
+    return null;
+  }
+  if (step === 3) {
+    if (!confirmPrices.checked) return '请先勾选确认新排表调价无误';
+    return null;
+  }
+  if (step === 4) {
+    var fn = document.getElementById('rFileName').value.trim();
+    if (!fn) return '请输入文件名称';
+    return null;
+  }
+  return null;
+}
+
+// ==================== FILE HANDLING ====================
+function setupDropZone(dz, fileInput, tagEl, isOriginal) {
+  dz.addEventListener('click', function() { fileInput.click(); });
+  dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', function() { dz.classList.remove('drag-over'); });
+  dz.addEventListener('drop', function(e) {
+    e.preventDefault();
+    dz.classList.remove('drag-over');
+    handleFile(e.dataTransfer.files[0], isOriginal, tagEl, dz);
+  });
+  fileInput.addEventListener('change', function(e) {
+    if (e.target.files.length) handleFile(e.target.files[0], isOriginal, tagEl, dz);
+  });
+}
+
+function handleFile(file, isOriginal, tagEl, dz) {
+  if (!file.name.match(/\.xlsx$/i)) {
+    showToast('仅支持 .xlsx 文件', true);
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var wb = XLSX.read(e.target.result, {type:'array'});
+      // Validate format
+      var kind = getSheetKind(wb);
+      // Validate both character sets
+      var sheetData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''});
+      if (!sheetData[1] || !sheetData[1].slice(1).some(function(v) { return v !== '' && String(v).trim(); })) {
+        throw new Error('格式错误：第二行角色名不能全为空');
+      }
+
+      if (isOriginal) {
+        originalFile = {name: file.name, workbook: wb};
+        var preview = tryParsePreview(wb);
+        var previewTagHtml = '';
+        if (preview) {
+          if (preview.error) {
+            previewTagHtml = '<div class="file-preview-stats error">' + preview.error + '</div>';
+          } else {
+            previewTagHtml = '<div class="file-preview-stats">识别到 ' + preview.cnCount + ' 个CN、' + preview.roleCount + ' 个角色、' + preview.recordCount + ' 个点数</div>';
+          }
+        }
+        tagEl.innerHTML = '<div class="file-preview-item"><span class="file-tag">' + file.name + ' <span class="remove-file" onclick="removeFile(true)">&times;</span></span>' + previewTagHtml + '</div>';
+        dz.style.borderColor = '#9AE6B4';
+        saveDraft();
+      } else {
+        actualFile = {name: file.name, workbook: wb};
+        var preview = tryParsePreview(wb);
+        var previewTagHtml = '';
+        if (preview) {
+          if (preview.error) {
+            previewTagHtml = '<div class="file-preview-stats error">' + preview.error + '</div>';
+          } else {
+            previewTagHtml = '<div class="file-preview-stats">识别到 ' + preview.cnCount + ' 个CN、' + preview.roleCount + ' 个角色、' + preview.recordCount + ' 个点数</div>';
+          }
+        }
+        tagEl.innerHTML = '<div class="file-preview-item"><span class="file-tag">' + file.name + ' <span class="remove-file" onclick="removeFile(false)">&times;</span></span>' + previewTagHtml + '</div>';
+        dz.style.borderColor = '#9AE6B4';
+        saveDraft();
+      }
+
+      // Check A1 consistency if both loaded
+      if (originalFile && actualFile) {
+        var k1 = getSheetKind(originalFile.workbook);
+        var k2 = getSheetKind(actualFile.workbook);
+        if (k1 !== k2) {
+          showToast('两表品类名不一致：原表「' + k1 + '」vs 实际表「' + k2 + '」', true);
+        }
+      }
+      showToast('已导入 ' + file.name);
+    } catch(ex) {
+      showToast('文件「' + file.name + '」' + ex.message, true);
+    }
+  };
+  reader.onerror = function() { showToast('文件「' + file.name + '」读取失败', true); };
+  reader.readAsArrayBuffer(file);
+}
+
+function removeFile(isOriginal) {
+  if (isOriginal) {
+    originalFile = null;
+    tagOriginal.innerHTML = '';
+    dzOriginal.style.borderColor = '';
+    saveDraft();
+  } else {
+    actualFile = null;
+    tagActual.innerHTML = '';
+    dzActual.style.borderColor = '';
+    saveDraft();
+  }
+}
+
+function colToLetter(col) {
+  var s = "";
+  while (col >= 0) {
+    s = String.fromCharCode(65 + (col % 26)) + s;
+    col = Math.floor(col / 26) - 1;
+  }
+  return s;
+}
+
+
+function tryParsePreview(wb) {
+  try {
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    if (data.length < 4) return {error: '数据行不足（仅' + data.length + '行，需要至少4行）'};
+    var kind = getSheetKind(wb);
+    var rawHeaders = (data[1] || []).slice(1);
+    var headers = rawHeaders.filter(function(h) { return h !== ''; });
+    var roleCount = headers.length;
+    var cnSet = {};
+    var recordCount = 0;
+    for (var r = 3; r < data.length; r++) {
+      var row = data[r];
+      if (!row || !row.length) continue;
+      for (var c = 1; c <= headers.length; c++) {
+        var name = String(row[c] || '').trim();
+        if (!name) continue;
+        cnSet[name] = true;
+        recordCount++;
+      }
+    }
+    return {
+      cnCount: Object.keys(cnSet).length,
+      roleCount: roleCount,
+      recordCount: recordCount,
+      kind: kind
+    };
+  } catch(e) {
+    return {error: e.message};
+  }
+}
+// ==================== PARSE FUNCTIONS (reused from shenbiao) ====================
+function getSheetKind(wb) {
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  if (!data.length || !data[0].length) throw new Error('格式错误：A1单元格（品类名）为空');
+  var kind = String(data[0][0] || '').trim();
+  if (!kind) throw new Error('格式错误：A1单元格（品类名）为空');
+  for (var c = 1; c < data[0].length; c++) {
+    if (String(data[0][c] || '').trim()) throw new Error('格式错误：第一行仅A1可填写品类名，B1及其他单元格请留空（当前' + colToLetter(c) + '1单元格有值）');
+  }
+  return kind;
+}
+
+function parseSheet(wb) {
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  if (data.length < 4) throw new Error('格式错误：数据行不足（表内仅' + data.length + '行，至少需要4行——第1行品类名、第2行角色、第3行单价、第4+行数据）');
+
+  var kind = getSheetKind(wb);
+  var rawHeaders = data[1].slice(1);
+  var headers = rawHeaders.filter(function(h) { return h !== ''; });
+  var seen = {};
+  var seenAtCol = {};
+  for (var rh = 0; rh < rawHeaders.length; rh++) {
+    var hdr = String(rawHeaders[rh] || '').trim();
+    if (!hdr) continue;
+    if (seen[hdr]) {
+      var firstCol = seenAtCol[hdr];
+      throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名"' + hdr + '"重复（首次出现于第' + colToLetter(firstCol) + '列）');
+    }
+    seen[hdr] = true;
+    seenAtCol[hdr] = rh + 1;
+  }
+  var prices = data[2].slice(1, 1 + headers.length);
+  var purchases = [];
+
+  for (var r = 3; r < data.length; r++) {
+    var row = data[r];
+    if (!row || !row.length) continue;
+    for (var c = 1; c <= headers.length; c++) {
+      var name = String(row[c] || '').trim();
+      if (!name) continue;
+      var rawLabel = String(headers[c - 1] || '').trim();
+      var price = parseFloat(prices[c - 1]) || 0;
+      purchases.push({
+        person: name,
+        character: rawLabel,
+        label: rawLabel,
+        kind: kind,
+        price: price
+      });
+    }
+  }
+  return purchases;
+}
+
+function parseSheetWithPrices(wb, priceMap) {
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  if (data.length < 4) throw new Error('格式错误：数据行不足（表内仅' + data.length + '行，至少需要4行——第1行品类名、第2行角色、第3行单价、第4+行数据）');
+
+  var kind = getSheetKind(wb);
+  var headers = data[1].slice(1).filter(function(h) { return h !== ''; });
+  var purchases = [];
+
+  for (var r = 3; r < data.length; r++) {
+    var row = data[r];
+    if (!row || !row.length) continue;
+    for (var c = 1; c <= headers.length; c++) {
+      var name = String(row[c] || '').trim();
+      if (!name) continue;
+      var rawLabel = String(headers[c - 1] || '').trim();
+      var price = priceMap[rawLabel] || 0;
+      purchases.push({
+        person: name,
+        character: rawLabel,
+        label: rawLabel,
+        kind: kind,
+        price: price
+      });
+    }
+  }
+  return purchases;
+}
+
+function extractPointsPerChar(wb) {
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  var headers = data[1].slice(1).filter(function(h) { return h !== ''; });
+  var points = {};
+  for (var c = 1; c <= headers.length; c++) {
+    var count = 0;
+    for (var r = 3; r < data.length; r++) {
+      if (String(data[r][c] || '').trim()) count++;
+    }
+    points[String(headers[c - 1] || '').trim()] = count;
+  }
+  return {points: points, headers: headers.map(function(h) { return String(h).trim(); })};
+}
+
+function extractPrices(wb) {
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  var headers = data[1].slice(1).filter(function(h) { return h !== ''; });
+  var prices = {};
+  for (var c = 1; c <= headers.length; c++) {
+    prices[String(headers[c - 1] || '').trim()] = parseFloat(data[2][c]) || 0;
+  }
+  return prices;
+}
+
+// ==================== STEP 2: BALANCER ====================
+function buildBalancer() {
+  kindName = getSheetKind(actualFile.workbook);
+
+  // Extract data
+  var actualData = extractPointsPerChar(actualFile.workbook);
+  var origPrices = extractPrices(originalFile.workbook);
+  var origChars = extractPointsPerChar(originalFile.workbook);
+
+  // Union of characters from both tables
+  var charSet = {};
+  actualData.headers.forEach(function(ch) { charSet[ch] = true; });
+  Object.keys(origPrices).forEach(function(ch) { charSet[ch] = true; });
+  characters = Object.keys(charSet).sort();
+  pointsPerChar = {};
+  originalPrices = {};
+  adjustments = {};
+
+  for (var i = 0; i < characters.length; i++) {
+    var ch = characters[i];
+    pointsPerChar[ch] = actualData.points[ch] || 0;
+    originalPrices[ch] = origPrices[ch] !== undefined ? origPrices[ch] : avgPriceOrig;
+    // Initial adjustment = original price - original avg price (for chars in original table)
+    // For chars only in actual table, adjustment starts at 0
+    var initAdj = (origPrices[ch] !== undefined) ? origPrices[ch] - avgPriceOrig : 0;
+    adjustments[ch] = Math.round(initAdj * 100) / 100;
+  }
+
+  renderBalancer();
+}
+
+function renderBalancer() {
+  var html = '<table class="balancer-table"><thead><tr><th style="min-width:60px;"></th>';
+  for (var i = 0; i < characters.length; i++) {
+    html += '<th>' + characters[i] + '</th>';
+  }
+  html += '</tr></thead><tbody>';
+
+  // Points row (read-only)
+  html += '<tr><td class="row-label">点数</td>';
+  for (var j = 0; j < characters.length; j++) {
+    html += '<td style="font-weight:600;">' + (pointsPerChar[characters[j]] || 0) + '</td>';
+  }
+  html += '</tr>';
+
+  // Adjustment row (editable)
+  html += '<tr><td class="row-label">调价</td>';
+  for (var k = 0; k < characters.length; k++) {
+    var ch = characters[k];
+    var val = adjustments[ch];
+    html += '<td><input type="number" class="balancer-input" data-char="' + ch + '" value="' + val + '" step="0.01" onchange="onAdjChange(this)" oninput="onAdjInput(this)"></td>';
+  }
+  html += '</tr>';
+
+  // New price reference row (newPrice = adjustment + avgPriceActual)
+  html += '<tr><td class="row-label">新单价</td>';
+  for (var m = 0; m < characters.length; m++) {
+    var och = characters[m];
+    var np = (adjustments[och] || 0) + avgPriceActual;
+    html += '<td class="new-price-ref" style="font-weight:600;color:var(--blue-700);">' + np.toFixed(2) + '</td>';
+  }
+  html += '</tr>';
+
+  html += '</tbody></table>';
+  document.getElementById('balancerWrap').innerHTML = html;
+  updateBalanceDisplay();
+}
+
+function onAdjInput(input) {
+  input.classList.add('modified');
+  var ch = input.dataset.char;
+  adjustments[ch] = parseFloat(input.value) || 0;
+  updateBalanceDisplay();
+}
+
+function onAdjChange(input) {
+  var ch = input.dataset.char;
+  adjustments[ch] = parseFloat(input.value) || 0;
+  updateBalanceDisplay();
+  saveDraft();
+}
+
+function computeSumProduct() {
+  var sum = 0;
+  for (var i = 0; i < characters.length; i++) {
+    var ch = characters[i];
+    sum += (pointsPerChar[ch] || 0) * (adjustments[ch] || 0);
+  }
+  return sum;
+}
+
+function updateBalanceDisplay() {
+  var sum = computeSumProduct();
+  isBalanced = Math.abs(sum) < 0.005;
+  var display = document.getElementById('balanceDisplay');
+  var cls = isBalanced ? 'balanced' : 'unbalanced';
+  var icon = isBalanced ? '&#10003;' : '&#10007;';
+  var text = isBalanced ? '已平衡' : '未平衡，目标值 0.00';
+  display.innerHTML = '<div class="balance-status ' + cls + '">' +
+    '<span>' + icon + '</span> &Sigma;(点数&times;调价) = ' + sum.toFixed(2) + ' <span>' + text + '</span>' +
+    '</div>';
+  document.getElementById('btnNext2').disabled = !isBalanced;
+
+  // Update新单价 reference cells
+  var refCells = document.querySelectorAll('.new-price-ref');
+  for (var i = 0; i < refCells.length; i++) {
+    var ch = characters[i];
+    var np = (adjustments[ch] || 0) + avgPriceActual;
+    refCells[i].textContent = np.toFixed(2);
+  }
+}
+
+// ==================== STEP 3: NEW PRICE SHEET ====================
+function buildNewPriceSheet() {
+  // newPrices = adjusted + avgPriceActual
+  newPrices = {};
+  for (var i = 0; i < characters.length; i++) {
+    var ch = characters[i];
+    newPrices[ch] = Math.round((adjustments[ch] + avgPriceActual) * 100) / 100;
+  }
+
+  document.getElementById('summaryKind').textContent = '';
+
+  // Build summary table — only character row + new price row
+  var html = '<table class="summary-table"><thead><tr>';
+  for (var j = 0; j < characters.length; j++) {
+    html += '<th>' + characters[j] + '</th>';
+  }
+  html += '</tr></thead><tbody>';
+
+  html += '<tr class="hl-row">';
+  for (var p = 0; p < characters.length; p++) {
+    html += '<td>' + newPrices[characters[p]].toFixed(2) + '</td>';
+  }
+  html += '</tr>';
+
+  html += '</tbody></table>';
+  document.getElementById('summaryTable').innerHTML = html;
+
+  // Build data preview (first 10 rows from actual table)
+  buildDataPreview();
+
+  // Reset confirm checkbox
+  confirmPrices.checked = false;
+  document.getElementById('btnNext3').disabled = true;
+  confirmPrices.onchange = function() {
+    document.getElementById('btnNext3').disabled = !confirmPrices.checked;
+  };
+}
+
+function buildDataPreview() {
+  var ws = actualFile.workbook.Sheets[actualFile.workbook.SheetNames[0]];
+  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  var headers = data[1].slice(1).filter(function(h) { return h !== ''; });
+  var maxRows = Math.min(data.length - 3, 10);
+  var totalDataRows = 0;
+  for (var r = 3; r < data.length; r++) {
+    var hasData = false;
+    for (var c = 1; c <= headers.length; c++) {
+      if (String(data[r][c] || '').trim()) { hasData = true; break; }
+    }
+    if (hasData) totalDataRows++;
+  }
+
+  var html = '<table><thead><tr>';
+  // First column is row label column
+  html += '<th></th>';
+  for (var h = 0; h < headers.length; h++) {
+    html += '<th>' + String(headers[h]).trim() + '</th>';
+  }
+  html += '</tr></thead><tbody>';
+
+  // New price row
+  html += '<tr style="font-weight:700;color:var(--blue-900);background:var(--blue-50);">';
+  html += '<td style="font-weight:600;color:var(--blue-700);">新单价</td>';
+  for (var p = 0; p < headers.length; p++) {
+    var ch = String(headers[p]).trim();
+    html += '<td>' + (newPrices[ch] !== undefined ? newPrices[ch].toFixed(2) : '—') + '</td>';
+  }
+  html += '</tr>';
+
+  // Data rows
+  var shown = 0;
+  for (var dr = 3; dr < data.length && shown < maxRows; dr++) {
+    var row = data[dr];
+    var rowHasData = false;
+    for (var dc = 1; dc <= headers.length; dc++) {
+      if (String(row[dc] || '').trim()) { rowHasData = true; break; }
+    }
+    if (!rowHasData) continue;
+    shown++;
+    html += '<tr>';
+    html += '<td></td>';
+    for (var dc2 = 1; dc2 <= headers.length; dc2++) {
+      html += '<td>' + (String(row[dc2] || '').trim() || '') + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+
+  if (totalDataRows > maxRows) {
+    html += '<div style="font-size:11px;color:var(--gray-400);margin-top:4px;">...共 ' + totalDataRows + ' 行数据，仅显示前 ' + maxRows + ' 行</div>';
+  }
+  document.getElementById('dataPreview').innerHTML = html;
+}
+
+function downloadNewSheet() {
+  var ws = actualFile.workbook.Sheets[actualFile.workbook.SheetNames[0]];
+  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  var headers = data[1].slice(1).filter(function(h) { return h !== ''; });
+
+  // Deep clone data
+  var newData = [];
+  for (var r = 0; r < data.length; r++) {
+    newData[r] = data[r].slice();
+  }
+
+  // Update row 2 (index 2) with new prices
+  for (var c = 1; c <= headers.length; c++) {
+    var ch = String(headers[c - 1] || '').trim();
+    if (newPrices[ch] !== undefined) {
+      newData[2][c] = newPrices[ch];
+    }
+  }
+
+  // Write with ExcelJS
+  var wb = new ExcelJS.Workbook();
+  var safeName = kindName.substring(0, 31);
+  var ws2 = wb.addWorksheet(safeName);
+
+  for (var r2 = 0; r2 < newData.length; r2++) {
+    var excelRow = ws2.getRow(r2 + 1);
+    for (var c2 = 0; c2 < newData[r2].length; c2++) {
+      var cell = excelRow.getCell(c2 + 1);
+      cell.value = newData[r2][c2] !== undefined && newData[r2][c2] !== '' ? newData[r2][c2] : '';
+      cell.alignment = {horizontal:'center', vertical:'middle'};
+    }
+  }
+
+  wb.xlsx.writeBuffer().then(function(buffer) {
+    var blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = '新排表-' + kindName + '.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('新排表已下载');
+  });
+}
+
+// ==================== STEP 4: SETTINGS ====================
+function getSelectedFormats() {
+  return ['list'];
+}
+
+function renameFile() {
+  var newName = document.getElementById('rFileName').value.trim();
+  if (!newName) { showToast('请输入文件名', true); return; }
+  showToast('已重命名为 ' + newName);
+  saveDraft();
+}
+
+function getThemeColors(theme) {
+  var themes = {
+    blue:   {titleBg:'#0D2137', titleFg:'#FFFFFF', headerBg:'#1A4570', rowEven:'#EDF5FA', rowOdd:'#FFFFFF'},
+    teal:   {titleBg:'#1D4044', titleFg:'#FFFFFF', headerBg:'#285E61', rowEven:'#E6FFFA', rowOdd:'#FFFFFF'},
+    slate:  {titleBg:'#1A202C', titleFg:'#FFFFFF', headerBg:'#2D3748', rowEven:'#EDF2F7', rowOdd:'#FFFFFF'},
+    indigo: {titleBg:'#2A204A', titleFg:'#FFFFFF', headerBg:'#44337A', rowEven:'#EBF4FF', rowOdd:'#FFFFFF'},
+    cyan:   {titleBg:'#0F4C6A', titleFg:'#FFFFFF', headerBg:'#0E7490', rowEven:'#E0F2FE', rowOdd:'#FFFFFF'},
+    sage:   {titleBg:'#1F4532', titleFg:'#FFFFFF', headerBg:'#256D46', rowEven:'#E6FFFA', rowOdd:'#FFFFFF'},
+    sea:    {titleBg:'#164E63', titleFg:'#FFFFFF', headerBg:'#0F766E', rowEven:'#D9F2F9', rowOdd:'#FFFFFF'},
+    violet: {titleBg:'#2D1B4E', titleFg:'#FFFFFF', headerBg:'#553C9A', rowEven:'#F5F0FF', rowOdd:'#FFFFFF'},
+    navy:   {titleBg:'#0A1628', titleFg:'#FFFFFF', headerBg:'#1E3A5F', rowEven:'#EBF0F7', rowOdd:'#FFFFFF'},
+    steel:  {titleBg:'#1E2D3D', titleFg:'#FFFFFF', headerBg:'#3B5C7A', rowEven:'#EDF2F7', rowOdd:'#FFFFFF'},
+    moss:   {titleBg:'#1C2A1C', titleFg:'#FFFFFF', headerBg:'#3A5A3A', rowEven:'#F2F7F2', rowOdd:'#FFFFFF'},
+    graphite:{titleBg:'#1A1A1A', titleFg:'#FFFFFF', headerBg:'#3D3D3D', rowEven:'#F5F5F5', rowOdd:'#FFFFFF'}
+  };
+  return themes[theme] || themes.blue;
+}
+
+function buildColorSwatches() {
+  var themes = ['blue','teal','slate','indigo','cyan','sage','sea','violet','navy','steel','moss','graphite'];
+  var tc = getThemeColors('blue');
+  var html = '';
+  for (var i = 0; i < themes.length; i++) {
+    var t = themes[i];
+    var colors = getThemeColors(t);
+    var active = t === currentTheme ? ' active' : '';
+    html += '<div class="color-swatch' + active + '" data-theme="' + t + '" style="background:' + colors.titleBg + ';" title="' + t + '"></div>';
+  }
+  document.getElementById('colorSwatches').innerHTML = html;
+}
+
+// ==================== STEP 5: FINAL TABLE ====================
+function getSortedKinds(personMap) {
+  var kindSet = {};
+  var persons = Object.keys(personMap);
+  for (var i = 0; i < persons.length; i++) {
+    var kinds = Object.keys(personMap[persons[i]].byKind);
+    for (var k = 0; k < kinds.length; k++) {
+      kindSet[kinds[k]] = true;
+    }
+  }
+  var allKinds = Object.keys(kindSet);
+  var pref = {'吧唧':0, '透卡':1, '立牌':2};
+  allKinds.sort(function(a, b) {
+    var oa = pref[a] !== undefined ? pref[a] : 99;
+    var ob = pref[b] !== undefined ? pref[b] : 99;
+    if (oa !== ob) return oa - ob;
+    return a.localeCompare(b);
+  });
+  return allKinds;
+}
+
+function aggregatePersonMap(purchases) {
+  var personMap = {};
+  for (var i = 0; i < purchases.length; i++) {
+    var p = purchases[i];
+    if (!personMap[p.person]) {
+      personMap[p.person] = {totalCount:0, totalCost:0, byKind:{}};
+    }
+    var pm = personMap[p.person];
+    pm.totalCount += 1;
+    pm.totalCost += p.price;
+    var charMap = pm.byKind[p.kind] || {};
+    charMap[p.label] = (charMap[p.label] || 0) + 1;
+    pm.byKind[p.kind] = charMap;
+  }
+  return personMap;
+}
+
+function computeAndRenderFinal() {
+  // Parse original purchases with original prices → 原肾 map
+  var origPurchases = parseSheet(originalFile.workbook);
+  originalShenMap = aggregatePersonMap(origPurchases);
+
+  // Parse actual purchases with NEW prices → 实肾 map
+  var actualPurchases = parseSheetWithPrices(actualFile.workbook, newPrices);
+  actualShenMap = aggregatePersonMap(actualPurchases);
+
+  // Build merged person list (union)
+  var allPersons = {};
+  Object.keys(actualShenMap).forEach(function(p) { allPersons[p] = true; });
+  Object.keys(originalShenMap).forEach(function(p) { allPersons[p] = true; });
+  var persons = Object.keys(allPersons).sort();
+
+  // Build final data structure
+  var mergedMap = {};
+  for (var i = 0; i < persons.length; i++) {
+    var person = persons[i];
+    var am = actualShenMap[person] || {totalCount:0, totalCost:0, byKind:{}};
+    var om = originalShenMap[person] || {totalCount:0, totalCost:0, byKind:{}};
+    mergedMap[person] = {
+      totalCount: am.totalCount,
+      totalCost: am.totalCost,  // 肾 = 实肾
+      byKind: am.byKind,
+      originalShen: om.totalCost,
+      actualShen: am.totalCost,
+      diff: om.totalCost - am.totalCost
+    };
+  }
+
+  saveDraft();
+  finalTableData = {
+    personMap: mergedMap,
+    persons: persons,
+    originalShenMap: originalShenMap,
+    actualShenMap: actualShenMap
+  };
+
+  renderFinalPreview();
+}
+
+function buildFinalListTable(data) {
+  var headers = ['cn', '明细', '点数', '原肾', '实肾', '红补蓝退'];
+  var rows = [];
+  var allKinds = getSortedKinds(data.personMap);
+
+  for (var i = 0; i < data.persons.length; i++) {
+    var person = data.persons[i];
+    var pm = data.personMap[person];
+    var details = [];
+
+    for (var k = 0; k < allKinds.length; k++) {
+      var kind = allKinds[k];
+      var charMap = pm.byKind[kind] || {};
+      var labels = Object.keys(charMap).sort();
+      for (var l = 0; l < labels.length; l++) {
+        var label = labels[l];
+        var count = charMap[label];
+        details.push(kind + '-' + label + '-' + count);
+      }
+    }
+
+    var detailStr = details.join(',');
+    // Wrap when commas > 4 (i.e. more than 5 items)
+    if (details.length > 5) {
+      var breaks = [];
+      var group = [];
+      for (var d = 0; d < details.length; d++) {
+        group.push(details[d]);
+        if (group.length >= 4) { breaks.push(group.join(',')); group = []; }
+      }
+      if (group.length) breaks.push(group.join(','));
+      detailStr = breaks.join('\n');
+    }
+    var row = [person, detailStr, String(pm.totalCount),
+               pm.originalShen.toFixed(1), pm.actualShen.toFixed(1), pm.diff.toFixed(1)];
+    rows.push(row);
+  }
+  return {headers: headers, rows: rows};
+}
+
+function buildFinalTableHtml(tableData, title, themeColors) {
+  var html = '<table class="preview-table" style="border-collapse:collapse;width:100%;margin-bottom:20px">';
+  var colspan = tableData.headers.length;
+  html += '<thead>';
+  html += '<tr><th colspan="' + colspan + '" style="background:' + themeColors.titleBg + ';color:' + themeColors.titleFg + ';font-size:15px;padding:12px;letter-spacing:2px;text-align:center;border-radius:0">' + title + '</th></tr>';
+  html += '<tr>';
+  for (var h = 0; h < tableData.headers.length; h++) {
+    html += '<th style="background:' + themeColors.headerBg + '">' + tableData.headers[h] + '</th>';
+  }
+  html += '</tr></thead><tbody>';
+
+  for (var r = 0; r < tableData.rows.length; r++) {
+    var row = tableData.rows[r];
+    var bg = r % 2 === 0 ? themeColors.rowEven : themeColors.rowOdd;
+    html += '<tr>';
+    for (var c = 0; c < row.length; c++) {
+      var cellClass = '';
+      var cellStyle = 'background:' + bg + ';';
+      if (c === 0) cellClass = 'col-name';
+      else if (c === 1) cellClass = 'col-detail';
+      else if (c === 2) cellClass = 'col-count';
+      else if (c === row.length - 1) {
+        cellClass = 'col-refund';
+        var val = parseFloat(row[c]);
+        if (val > 0.005) {
+          cellClass += ' positive';
+          cellStyle = 'background:#FEE2E2;';
+        } else if (val < -0.005) {
+          cellClass += ' negative';
+          cellStyle = 'background:#DBEAFE;';
+        } else {
+          cellClass += ' zero';
+        }
+      } else if (c <= row.length - 2) cellClass = 'col-cost';
+      html += '<td class="' + cellClass + '" style="' + cellStyle + '">' + row[c] + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  return html;
+}
+
+function renderFinalPreview() {
+  if (!finalTableData) return;
+  var title = document.getElementById('rFileName').value.trim() || '二调退补表';
+  var themeColors = getThemeColors(currentTheme);
+  var html = '';
+
+  // Summary stats
+  var totalPersons = finalTableData.persons.length;
+  var totalDiff = 0;
+  var sumOrig = 0, sumActual = 0;
+  for (var i = 0; i < finalTableData.persons.length; i++) {
+    var pm = finalTableData.personMap[finalTableData.persons[i]];
+    totalDiff += pm.diff;
+    sumOrig += pm.originalShen;
+    sumActual += pm.actualShen;
+  }
+  var supplement = 0; var refund = 0;
+  for (var j = 0; j < finalTableData.persons.length; j++) {
+    var d = finalTableData.personMap[finalTableData.persons[j]].diff;
+    if (d > 0.005) supplement++;
+    else if (d < -0.005) refund++;
+  }
+
+  // Validation
+  var origVsActualOk = Math.abs(sumOrig - sumActual) < 0.01;
+  var diffSumOk = Math.abs(totalDiff) < 0.01;
+  var validationPassed = origVsActualOk && diffSumOk;
+
+  html += '<div style="font-size:12px;color:var(--gray-400);margin-bottom:16px;">';
+  html += totalPersons + ' 人 | 补款 ' + supplement + ' 人 | 退款 ' + refund + ' 人';
+  html += '</div>';
+
+  // Validation banner
+  if (validationPassed) {
+    html += '<div style="background:#F0FFF4;border:1px solid #9AE6B4;border-radius:6px;padding:10px 16px;margin-bottom:16px;text-align:left;">';
+    html += '<div style="font-size:13px;font-weight:600;color:#276749;">校验通过</div>';
+    html += '<div style="font-size:12px;color:#276749;margin-top:4px;">原肾和=' + sumOrig.toFixed(1) + ' = 实肾和=' + sumActual.toFixed(1) + ' | 红补蓝退和=' + totalDiff.toFixed(1) + ' &asymp; 0</div>';
+    html += '</div>';
+  } else {
+    html += '<div style="background:#FEE2E2;border:1px solid #F87171;border-radius:6px;padding:10px 16px;margin-bottom:16px;text-align:left;">';
+    html += '<div style="font-size:13px;font-weight:700;color:#C53030;">校验异常</div>';
+    if (!origVsActualOk) html += '<div style="font-size:12px;color:#9B2C2C;margin-top:2px;">原肾和=' + sumOrig.toFixed(1) + ' &ne; 实肾和=' + sumActual.toFixed(1) + '（差' + (sumOrig - sumActual).toFixed(1) + '）</div>';
+    if (!diffSumOk) html += '<div style="font-size:12px;color:#9B2C2C;margin-top:2px;">红补蓝退和=' + totalDiff.toFixed(1) + ' &ne; 0（差' + totalDiff.toFixed(1) + '）</div>';
+    html += '</div>';
+  }
+
+  // List table only
+  var tableData = buildFinalListTable(finalTableData);
+  html += buildFinalTableHtml(tableData, title, themeColors);
+
+  document.getElementById('finalPreview').innerHTML = html;
+}
+
+// ==================== EXPORT ====================
+function exportFinalTable() {
+  if (!finalTableData) { showToast('请先完成前面步骤', true); return; }
+  var title = document.getElementById('rFileName').value.trim() || '二调退补表';
+  var themeColors = getThemeColors(currentTheme);
+
+  var wb = new ExcelJS.Workbook();
+  var tableData = buildFinalListTable(finalTableData);
+  var safeSheet = title.substring(0, 31);
+  var ws = wb.addWorksheet(safeSheet);
+
+  ws.mergeCells(1, 1, 1, tableData.headers.length);
+  var titleCell = ws.getCell('A1');
+  titleCell.value = title;
+  titleCell.font = {size:15, bold:true, color:{argb:themeColors.titleFg.replace('#','')}};
+  titleCell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:themeColors.titleBg.replace('#','')}};
+  titleCell.alignment = {horizontal:'center', vertical:'middle'};
+  ws.getRow(1).height = 36;
+
+  var headerBg = themeColors.headerBg.replace('#','');
+  for (var h = 0; h < tableData.headers.length; h++) {
+    var cell = ws.getCell(2, h + 1);
+    cell.value = tableData.headers[h];
+    cell.font = {size:11, bold:true, color:{argb:'FFFFFF'}};
+    cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:headerBg}};
+    cell.alignment = {horizontal:'center', vertical:'middle'};
+  }
+  ws.getRow(2).height = 28;
+
+  var rowEvenColor = themeColors.rowEven.replace('#','');
+  var rowOddColor = themeColors.rowOdd.replace('#','');
+
+  for (var r = 0; r < tableData.rows.length; r++) {
+    var row = tableData.rows[r];
+    var bg = r % 2 === 0 ? rowEvenColor : rowOddColor;
+    var detailLines = 1;
+    for (var c = 0; c < row.length; c++) {
+      var cell = ws.getCell(r + 3, c + 1);
+
+      // Columns 2-5 are numeric
+      if (c >= 2) {
+        cell.value = Number(row[c]);
+        cell.numFmt = c === 2 ? '0' : '0.0';
+        cell.alignment = {horizontal:'center', vertical:'middle'};
+      } else if (c === 1) {
+        // Detail column: wrap text
+        cell.value = row[c];
+        var lines = (String(row[c]).match(/\n/g) || []).length + 1;
+        if (lines > detailLines) detailLines = lines;
+        cell.alignment = {horizontal:'center', vertical:'center', wrapText:true};
+      } else {
+        cell.value = row[c];
+        cell.alignment = {horizontal:'center', vertical:'middle'};
+      }
+      cell.font = {size:11, color:{argb:'4A5568'}};
+
+      if (c === row.length - 1) {
+        var val = Number(row[c]);
+        if (val > 0.005) {
+          cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FEE2E2'}};
+          cell.font = {bold:true, size:11, color:{argb:'991B1B'}};
+        } else if (val < -0.005) {
+          cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'DBEAFE'}};
+          cell.font = {bold:true, size:11, color:{argb:'1E40AF'}};
+        } else {
+          cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:bg}};
+          cell.font = {size:11, color:{argb:'A0AEC0'}};
+        }
+      } else {
+        cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:bg}};
+      }
+      cell.border = {bottom:{style:'thin', color:{argb:'E2E8F0'}}};
+    }
+    ws.getRow(r + 3).height = Math.max(22, detailLines * 18);
+  }
+
+  // Column widths
+  ws.getColumn(1).width = 12;
+  ws.getColumn(2).width = 45;
+  ws.getColumn(3).width = 8;
+  ws.getColumn(4).width = 10;
+  ws.getColumn(5).width = 10;
+  ws.getColumn(6).width = 12;
+
+  wb.xlsx.writeBuffer().then(function(buffer) {
+    var blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = title + '.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('导出成功！');
+    clearDraft();
+  });
+}
+
+
+// ==================== DRAFT AUTO-SAVE ====================
+var DRAFT_KEY = 'renshet_ratiofix_draft';
+
+function buildDraftObject() {
+  return {
+    savedAt: Date.now(),
+    currentStep: currentStep,
+    currentTheme: currentTheme,
+    origFileName: originalFile ? originalFile.name : '',
+    actualFileName: actualFile ? actualFile.name : '',
+    avgPriceOrig: avgPriceOrig,
+    avgPriceActual: avgPriceActual,
+    totalPointsInput: totalPointsInput,
+    characters: characters,
+    pointsPerChar: pointsPerChar,
+    originalPrices: originalPrices,
+    adjustments: adjustments,
+    isBalanced: isBalanced,
+    kindName: kindName,
+    newPrices: newPrices,
+    confirmPrices: confirmPrices.checked,
+    fileName: document.getElementById('rFileName').value,
+    hasFinalData: finalTableData !== null,
+    finalTableData: finalTableData,
+    originalShenMap: originalShenMap,
+    actualShenMap: actualShenMap
+  };
+}
+
+function saveDraft() {
+  try {
+    var draft = buildDraftObject();
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch(e) {}
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+}
+
+function restoreDraft() {
+  var raw;
+  try { raw = localStorage.getItem(DRAFT_KEY); } catch(e) { return false; }
+  if (!raw) return false;
+  var saved;
+  try { saved = JSON.parse(raw); } catch(e) { clearDraft(); return false; }
+  if (!saved || !saved.savedAt) { clearDraft(); return false; }
+
+  // Restore theme
+  currentTheme = saved.currentTheme || 'blue';
+  var swatches = document.querySelectorAll('.color-swatch');
+  for (var si = 0; si < swatches.length; si++) {
+    swatches[si].classList.remove('active');
+    if (swatches[si].dataset.theme === currentTheme) swatches[si].classList.add('active');
+  }
+
+  // Restore file name
+  if (saved.fileName) document.getElementById('rFileName').value = saved.fileName;
+
+  // Restore parameters
+  if (saved.avgPriceOrig) document.getElementById('avgPriceOrig').value = saved.avgPriceOrig;
+  if (saved.avgPriceActual) document.getElementById('avgPriceActual').value = saved.avgPriceActual;
+  if (saved.totalPointsInput) document.getElementById('totalPoints').value = saved.totalPointsInput;
+
+  // Show original file name tag (workbook not restorable)
+  if (saved.origFileName) {
+    tagOriginal.innerHTML = '<div class="file-preview-item"><span class="file-tag">' + saved.origFileName + ' <span class="remove-file" onclick="removeFile(true)">&times;</span></span><div class="file-preview-stats" style="color:#E53E3E">需重新上传文件</div></div>';
+    dzOriginal.style.borderColor = '#FBBF24';
+  }
+  if (saved.actualFileName) {
+    tagActual.innerHTML = '<div class="file-preview-item"><span class="file-tag">' + saved.actualFileName + ' <span class="remove-file" onclick="removeFile(false)">&times;</span></span><div class="file-preview-stats" style="color:#E53E3E">需重新上传文件</div></div>';
+    dzActual.style.borderColor = '#FBBF24';
+  }
+
+  showRestoreBanner(saved);
+  return true;
+}
+
+function showRestoreBanner(saved) {
+  var existing = document.getElementById('draftBanner');
+  if (existing) existing.remove();
+
+  var banner = document.createElement('div');
+  banner.id = 'draftBanner';
+  banner.style.cssText = 'background:#F0FFF4;border:1px solid #9AE6B4;border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;font-size:13px;color:#276749;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;';
+
+  var msg = '检测到上次未完成的草稿，已自动恢复。文件需重新上传，参数已保留。';
+  var text = document.createElement('span');
+  text.textContent = msg;
+
+  var clearBtn = document.createElement('button');
+  clearBtn.textContent = '清除草稿';
+  clearBtn.style.cssText = 'padding:4px 12px;font-size:12px;border:1px solid #9AE6B4;background:#fff;color:#276749;border-radius:4px;cursor:pointer;';
+  clearBtn.addEventListener('click', function() {
+    clearDraft();
+    banner.remove();
+    originalFile = null;
+    actualFile = null;
+    tagOriginal.innerHTML = '';
+    tagActual.innerHTML = '';
+    dzOriginal.style.borderColor = '';
+    dzActual.style.borderColor = '';
+    finalTableData = null;
+    originalShenMap = null;
+    actualShenMap = null;
+    characters = [];
+    pointsPerChar = {};
+    originalPrices = {};
+    adjustments = {};
+    isBalanced = false;
+    kindName = '';
+    newPrices = {};
+    document.getElementById('avgPriceOrig').value = '';
+    document.getElementById('avgPriceActual').value = '';
+    document.getElementById('totalPoints').value = '';
+    document.getElementById('rFileName').value = '二调退补表';
+    document.getElementById('confirmPrices').checked = false;
+    currentTheme = 'blue';
+    document.querySelectorAll('.color-swatch').forEach(function(s) { s.classList.remove('active'); });
+    var blueSwatch = document.querySelector('.color-swatch[data-theme="blue"]');
+    if (blueSwatch) blueSwatch.classList.add('active');
+    document.getElementById('step2').classList.remove('active');
+    document.getElementById('step3').classList.remove('active');
+    document.getElementById('step4').classList.remove('active');
+    document.getElementById('step5').classList.remove('active');
+    document.getElementById('step1').classList.add('active');
+    currentStep = 1;
+    showToast('草稿已清除');
+  });
+
+  banner.appendChild(text);
+  banner.appendChild(clearBtn);
+
+  var container = document.querySelector('.container');
+  if (container && container.children.length > 0) {
+    container.insertBefore(banner, container.children[1]);
+  }
+}
+
+// ==================== INIT ====================
+function init() {
+  setupDropZone(dzOriginal, fileInputOrig, tagOriginal, true);
+  setupDropZone(dzActual, fileInputActual, tagActual, false);
+  buildColorSwatches();
+
+  // Color swatch click handler
+  document.getElementById('colorSwatches').addEventListener('click', function(e) {
+    var swatch = e.target.closest('.color-swatch');
+    if (!swatch) return;
+    this.querySelectorAll('.color-swatch').forEach(function(s) { s.classList.remove('active'); });
+    swatch.classList.add('active');
+    currentTheme = swatch.dataset.theme;
+    saveDraft();
+    if (currentStep === 5 && finalTableData) renderFinalPreview();
+  });
+
+  // Auto-save on parameter changes
+  document.getElementById('avgPriceOrig').addEventListener('input', saveDraft);
+  document.getElementById('avgPriceActual').addEventListener('input', saveDraft);
+  document.getElementById('totalPoints').addEventListener('input', saveDraft);
+  document.getElementById('confirmPrices').addEventListener('change', saveDraft);
+
+  // File name input change on step 5
+  document.getElementById('rFileName').addEventListener('input', function() {
+    if (currentStep === 5 && finalTableData) renderFinalPreview();
+  });
+}
+
+init();
+restoreDraft();
+</script>
+
+</body>
+</html>

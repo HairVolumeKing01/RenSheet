@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RenSheet — 肾表生成器</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+:root {
+  --blue-900: #0D2137;
+  --blue-700: #1A4570;
+  --blue-500: #2B6FA8;
+  --blue-300: #7BB3DD;
+  --blue-100: #D6EAF5;
+  --blue-50: #EDF5FA;
+  --water: #B8D8E3;
+  --gray-700: #4A5568;
+  --gray-400: #A0AEC0;
+  --gray-200: #E2E8F0;
+  --gray-100: #F7FAFC;
+  --white: #FFFFFF;
+  --radius: 8px;
+  --font: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--gray-100);
+  color: var(--gray-700);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 44px 28px 80px;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 48px 0 40px;
+}
+.header h1 {
+  font-size: 36px;
+  font-weight: 300;
+  color: var(--blue-900);
+  letter-spacing: 4px;
+}
+.header .intro {
+  margin-top: 12px;
+  font-size: 16px;
+  color: var(--blue-700);
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+/* Card */
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 32px 36px;
+  margin-bottom: 20px;
+  border: 1px solid var(--gray-200);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  text-align: center;
+}
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blue-700);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 18px;
+}
+
+/* Instructions */
+.instructions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.inst-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 12px;
+  background: var(--blue-50);
+  border-radius: var(--radius);
+}
+.inst-step .step-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--blue-300);
+  letter-spacing: 1px;
+}
+.inst-step .step-text {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--blue-700);
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* File drop zone */
+.drop-zone {
+  border: 2px dashed var(--blue-300);
+  border-radius: var(--radius);
+  padding: 36px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--blue-50);
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--blue-500);
+  background: var(--blue-100);
+}
+.drop-zone .dz-icon {
+  font-size: 28px;
+  color: var(--blue-300);
+  margin-bottom: 8px;
+}
+.drop-zone .dz-text {
+  font-size: 14px;
+  color: var(--blue-700);
+}
+.drop-zone .dz-hint {
+  font-size: 12px;
+  color: var(--gray-700);
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+/* File list */
+.file-list {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.file-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--blue-50);
+  border: 1px solid var(--blue-100);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 13px;
+  color: var(--blue-700);
+}
+.file-tag .remove-file {
+  cursor: pointer;
+  color: var(--gray-400);
+  font-size: 15px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.file-tag .remove-file:hover { color: #E53E3E; }
+.file-preview-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+.file-preview-stats {
+  font-size: 11px;
+  color: var(--gray-400);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+.file-preview-stats.error { color: #E53E3E; }
+
+/* Form controls */
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.form-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-700);
+  white-space: nowrap;
+}
+
+/* Radio group */
+.checkbox-group {
+  display: flex;
+  gap: 4px;
+  background: var(--gray-100);
+  border-radius: 6px;
+  padding: 3px;
+}
+.checkbox-group input { display: none; }
+.checkbox-group label {
+  padding: 7px 18px;
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--gray-400);
+  transition: all 0.15s;
+}
+.checkbox-group input:checked + label {
+  background: var(--white);
+  color: var(--gray-900);
+  font-weight: 700;
+  box-shadow: 0 0 0 2px #1a1a1a;
+}
+
+/* Color swatches */
+.color-swatches {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s;
+}
+.color-swatch:hover { transform: scale(1.15); }
+.color-swatch.active { border-color: #1a1a1a; box-shadow: 0 0 0 3px #1a1a1a; transform: scale(1.2); }
+
+/* Input */
+.input-text {
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-family: var(--font);
+  color: var(--gray-700);
+  outline: none;
+  transition: border-color 0.15s;
+  width: 220px;
+}
+.input-text:focus { border-color: var(--blue-300); }
+
+/* Buttons */
+.btn {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-family: var(--font);
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
+}
+.btn-primary {
+  background: var(--blue-700);
+  color: var(--white);
+}
+.btn-primary:hover { background: var(--blue-900); }
+.btn-primary:disabled { background: var(--gray-400); cursor: not-allowed; }
+.btn-secondary {
+  background: var(--white);
+  color: var(--blue-700);
+  border: 1px solid var(--blue-300);
+}
+.btn-secondary:hover { background: var(--blue-50); }
+.btn-export {
+  background: var(--blue-500);
+  color: var(--white);
+}
+.btn-export:hover { background: var(--blue-700); }
+.btn-export:disabled { background: var(--gray-400); cursor: not-allowed; }
+
+.btn-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* Preview table */
+.preview-wrap {
+  overflow-x: auto;
+  margin-top: 16px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+}
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 700px;
+}
+.preview-table th {
+  background: var(--blue-900);
+  color: var(--white);
+  padding: 10px 12px;
+  font-weight: 500;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.preview-table td {
+  padding: 8px 12px;
+  text-align: center;
+  border-bottom: 1px solid var(--gray-200);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.preview-table tr:nth-child(even) td { background: var(--blue-50); }
+.preview-table tr:nth-child(odd) td { background: var(--white); }
+.preview-table .col-name { font-weight: 600; color: var(--blue-900); }
+.preview-table .col-detail { font-size: 12px; }
+.preview-table .col-cost { font-weight: 600; color: var(--blue-700); }
+.preview-table .col-count { color: var(--gray-700); }
+
+/* Toast */
+.toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--blue-900);
+  color: var(--white);
+  padding: 12px 28px;
+  border-radius: 6px;
+  font-size: 14px;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  letter-spacing: 1px;
+}
+.toast.show { opacity: 1; }
+.toast.error { background: #C53030; }
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--gray-700);
+  font-weight: 500;
+}
+.empty-state .empty-icon { font-size: 36px; margin-bottom: 8px; }
+
+/* Step links */
+.step-links { display:inline-block; margin-top:4px; }
+.step-link { color:var(--blue-500); text-decoration:none; font-size:12px; letter-spacing:0.5px; }
+.step-link:hover { color:var(--blue-700); text-decoration:underline; }
+.step-sep { color:var(--gray-400); margin:0 6px; font-size:11px; }
+
+/* Lightbox */
+.lightbox { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:2000; align-items:center; justify-content:center; }
+.lightbox.show { display:flex; }
+.lightbox img { max-width:92vw; max-height:92vh; border-radius:4px; box-shadow:0 4px 24px rgba(0,0,0,0.5); cursor:zoom-out; }
+.lightbox-close { position:absolute; top:20px; right:30px; color:#fff; font-size:32px; cursor:pointer; opacity:0.7; transition:opacity 0.15s; line-height:1; }
+.lightbox-close:hover { opacity:1; }
+
+/* Validation */
+.validation-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  background: var(--blue-50);
+  border-radius: var(--radius);
+  flex-wrap: wrap;
+}
+.validation-file-row .vf-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blue-700);
+  min-width: 100px;
+  text-align: left;
+}
+.validation-input {
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--gray-700);
+  outline: none;
+  width: 100px;
+  transition: border-color 0.15s;
+}
+.validation-input:focus { border-color: var(--blue-300); }
+.validation-pass { color:#38A169; font-weight:600; font-size:13px; }
+.validation-fail { color:#E53E3E; font-weight:600; font-size:13px; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .instructions { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+  .container { padding: 24px 16px 60px; }
+  .header { padding: 32px 0 24px; }
+  .header h1 { font-size: 28px; }
+  .instructions { grid-template-columns: repeat(2, 1fr); }
+  .card { padding: 24px 22px; }
+  .form-row { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .preview-table { font-size: 12px; }
+  .color-swatches { max-width: 300px; }
+}
+@media (max-width: 480px) {
+  .instructions { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <a href="index.html" style="display:inline-block;margin-bottom:12px;font-size:13px;color:var(--blue-500);text-decoration:none;letter-spacing:1px;transition:color 0.15s;" onmouseover="this.style.color='var(--blue-700)'" onmouseout="this.style.color='var(--blue-500)'">&larr; 返回首页</a>
+    <h1>RenSheet</h1>
+    <p class="intro">肾表生成器</p>
+  </div>
+
+  <!-- Usage Guide -->
+  <div class="card">
+    <div class="card-title">使用说明</div>
+    <div class="instructions">
+      <div class="inst-step">
+        <div class="step-num">STEP 1</div>
+        <div class="step-text">编辑排表格式，确认A1单元格填入品类名（如"吧唧"），A1不可为空,注意一张排表只能对应一个谷子种类，如果有多种类请分开上传<br>
+          <span class="step-links">
+            <a href="sample/肾表，国际表，二调原表示例.xlsx" class="step-link" download>下载排表模板</a>
+          </span>
+        </div>
+      </div>
+      <div class="inst-step">
+        <div class="step-num">STEP 2</div>
+        <div class="step-text">导入排表文件（.xlsx，最多10个）</div>
+      </div>
+      <div class="inst-step">
+        <div class="step-num">STEP 3</div>
+        <div class="step-text">选择肾表样式与颜色风格</div>
+      </div>
+      <div class="inst-step">
+        <div class="step-num">STEP 4</div>
+        <div class="step-text">点击开始处理，预览肾表</div>
+      </div>
+      <div class="inst-step">
+        <div class="step-num">STEP 5</div>
+        <div class="step-text">导出肾表保存至本地</div>
+      </div>
+      <div class="inst-step">
+        <div class="step-num">STEP 6</div>
+        <div class="step-text">可选择输入各排表的预期单价和点数，校验单表总肾及全部合计</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- File Import -->
+  <div class="card">
+    <div class="card-title">STEP 2 — 导入排表</div>
+    <div class="drop-zone" id="dropZone">
+      <div class="dz-icon">&#x2903;</div>
+      <div class="dz-text">拖拽 .xlsx 文件至此，或点击选择</div>
+      <div class="dz-hint">支持 .xlsx 格式，单次最多 10 个文件</div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx" multiple style="display:none">
+    <div class="file-list" id="fileList"></div>
+  </div>
+
+  <!-- Settings -->
+  <div class="card">
+    <div class="card-title">STEP 3 — 输出设置</div>
+    <div class="form-row" style="justify-content:center;">
+      <div class="form-group">
+        <label>肾表样式</label>
+        <div class="checkbox-group" id="formatGroup">
+          <input type="checkbox" name="format" id="fmtCat" value="categorized" checked>
+          <label for="fmtCat">分类式</label>
+          <input type="checkbox" name="format" id="fmtList" value="list" checked>
+          <label for="fmtList">清单式</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>文件名称</label>
+        <input type="text" class="input-text" id="fileName" value="肾表" placeholder="输入文件名">
+        <button class="btn btn-secondary" id="renameBtn" style="padding:8px 14px;font-size:13px;">重命名</button>
+      </div>
+      <div class="form-group">
+        <label>颜色风格</label>
+        <div class="color-swatches" id="colorSwatches">
+          <span class="color-swatch active" data-theme="blue" style="background:linear-gradient(135deg, #1A4570, #2B6FA8)" title="医用蓝"></span>
+          <span class="color-swatch" data-theme="teal" style="background:linear-gradient(135deg, #234E52, #319795)" title="水色"></span>
+          <span class="color-swatch" data-theme="slate" style="background:linear-gradient(135deg, #2D3748, #4A5568)" title="暗灰"></span>
+          <span class="color-swatch" data-theme="indigo" style="background:linear-gradient(135deg, #3C366B, #5A4FCF)" title="紫蓝"></span>
+          <span class="color-swatch" data-theme="cyan" style="background:linear-gradient(135deg, #0E7490, #38BDF8)" title="青蓝"></span>
+          <span class="color-swatch" data-theme="sage" style="background:linear-gradient(135deg, #22543D, #68D391)" title="薄荷"></span>
+          <span class="color-swatch" data-theme="sea" style="background:linear-gradient(135deg, #164E63, #38BDF8)" title="海蓝"></span>
+          <span class="color-swatch" data-theme="violet" style="background:linear-gradient(135deg, #44337A, #805AD5)" title="暮紫"></span>
+          <span class="color-swatch" data-theme="navy" style="background:linear-gradient(135deg, #0A1628, #1E3A5F)" title="海军蓝"></span>
+          <span class="color-swatch" data-theme="steel" style="background:linear-gradient(135deg, #2D3748, #4A6578)" title="钢蓝"></span>
+          <span class="color-swatch" data-theme="moss" style="background:linear-gradient(135deg, #1C2A1C, #3A5A3A)" title="苔绿"></span>
+          <span class="color-swatch" data-theme="graphite" style="background:linear-gradient(135deg, #1A1A1A, #3D3D3D)" title="石墨"></span>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row" style="justify-content:center;">
+      <button class="btn btn-primary" id="processBtn">开始处理</button>
+      <button class="btn btn-export" id="exportBtn" disabled>导出肾表</button>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="card" id="previewCard">
+    <div class="card-title">STEP 4/5 — 肾表预览</div>
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">&#x25A3;</div>
+      <p>导入文件并点击「开始处理」后，肾表将显示在此处</p>
+    </div>
+    <div class="preview-wrap" id="previewWrap" style="display:none"></div>
+  </div>
+
+  <!-- Validation -->
+  <div class="card" id="validationCard">
+    <div class="card-title">STEP 6 — 校验总肾</div>
+    <div class="form-row" style="justify-content:center;">
+      <label style="font-size:13px;font-weight:600;color:var(--gray-700);">是否需要校验总肾？</label>
+      <div class="checkbox-group" id="validationToggle">
+        <input type="checkbox" name="validate" id="valNo" value="no" checked>
+        <label for="valNo">否</label>
+        <input type="checkbox" name="validate" id="valYes" value="yes">
+        <label for="valYes">是</label>
+      </div>
+    </div>
+    <div id="validationInputs" style="display:none;margin-top:16px;"></div>
+    <div id="validationBtnRow" style="display:none;margin-top:14px;">
+      <button class="btn btn-primary" id="validateBtn">开始校验</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+
+<script>
+// ==================== STATE ====================
+const MAX_FILES = 10;
+let importedFiles = [];       // [{name, workbook}]
+let processedData = null;    // {title, headers, rows, format, theme}
+let currentTheme = 'blue';
+let validationEnabled = false;
+let fileValidationInputs = {};  // {fileIndex: {unitPrice, points}}
+let validationResults = null;   // stored separately from processedData
+
+// ==================== DOM REFS ====================
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const fileList = document.getElementById('fileList');
+const processBtn = document.getElementById('processBtn');
+const exportBtn = document.getElementById('exportBtn');
+const previewWrap = document.getElementById('previewWrap');
+const emptyState = document.getElementById('emptyState');
+const fileNameInput = document.getElementById('fileName');
+const renameBtn = document.getElementById('renameBtn');
+const toast = document.getElementById('toast');
+const validationToggle = document.getElementById('validationToggle');
+const validationInputs = document.getElementById('validationInputs');
+const validationBtnRow = document.getElementById('validationBtnRow');
+const validateBtn = document.getElementById('validateBtn');
+
+// ==================== TOAST ====================
+let toastTimer;
+function showToast(msg, isError) {
+  clearTimeout(toastTimer);
+  toast.textContent = msg;
+  toast.className = 'toast ' + (isError ? 'error' : '') + ' show';
+  toastTimer = setTimeout(function() { toast.classList.remove('show'); }, 2500);
+}
+
+// ==================== FILE HANDLING ====================
+dropZone.addEventListener('click', function() { fileInput.click(); });
+fileInput.addEventListener('change', function(e) { handleFiles(e.target.files); });
+dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('drag-over'); });
+dropZone.addEventListener('drop', function(e) {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  handleFiles(e.dataTransfer.files);
+});
+
+function handleFiles(files) {
+  if (!files || !files.length) return;
+  var remaining = MAX_FILES - importedFiles.length;
+  if (files.length > remaining) {
+    showToast('最多还能导入 ' + remaining + ' 个文件', true);
+    return;
+  }
+  var pending = files.length;
+  var errors = [];
+  for (var i = 0; i < files.length; i++) {
+    (function(file) {
+      if (!file.name.match(/\.xlsx$/i)) {
+        errors.push('文件「' + file.name + '」不是 .xlsx 文件');
+        pending--; if (!pending) finish();
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          var wb = XLSX.read(e.target.result, {type:'array'});
+          var preview = tryParsePreview(wb);
+	          importedFiles.push({name: file.name, workbook: wb, preview: preview});
+        } catch(ex) {
+          errors.push('文件「' + file.name + '」文件解析失败');
+        }
+        pending--; if (!pending) finish();
+      };
+      reader.onerror = function() {
+        errors.push('文件「' + file.name + '」读取失败');
+        pending--; if (!pending) finish();
+      };
+      reader.readAsArrayBuffer(file);
+    })(files[i]);
+  }
+  function finish() {
+    renderFileList();
+    if (errors.length) showToast(errors.join('\n'), true);
+    else if (importedFiles.length) showToast('已导入 ' + importedFiles.length + ' 个文件');
+    fileInput.value = '';
+    saveDraft();
+  }
+}
+
+function renderFileList() {
+  fileList.innerHTML = importedFiles.map(function(f, i) {
+    var previewHtml = '';
+    if (f.preview) {
+      if (f.preview.error) {
+        previewHtml = '<div class="file-preview-stats error">' + f.preview.error + '</div>';
+      } else {
+        previewHtml = '<div class="file-preview-stats">识别到 ' + f.preview.cnCount + ' 个CN、' + f.preview.roleCount + ' 个角色、' + f.preview.recordCount + ' 个点数</div>';
+      }
+    }
+    return '<div class="file-preview-item">' +
+      '<span class="file-tag">' + f.name + '<span class="remove-file" data-idx="' + i + '">&times;</span></span>' +
+      previewHtml +
+      '</div>';
+  }).join('');
+  fileList.querySelectorAll('.remove-file').forEach(function(el) {
+    el.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var idx = parseInt(this.dataset.idx);
+      importedFiles.splice(idx, 1);
+      renderFileList();
+    });
+  });
+  processBtn.disabled = !importedFiles.length;
+  exportBtn.disabled = true;
+}
+
+// ==================== RENAME ====================
+renameBtn.addEventListener('click', function() {
+  var newName = fileNameInput.value.trim();
+  if (!newName) { showToast('请输入文件名', true); return; }
+  if (processedData) {
+    processedData.title = newName;
+    renderPreview();
+  }
+  showToast('已重命名为 ' + newName);
+    saveDraft();
+});
+
+// ==================== COLOR THEME ====================
+document.getElementById('colorSwatches').addEventListener('click', function(e) {
+  var swatch = e.target.closest('.color-swatch');
+  if (!swatch) return;
+  this.querySelectorAll('.color-swatch').forEach(function(s) { s.classList.remove('active'); });
+  swatch.classList.add('active');
+  currentTheme = swatch.dataset.theme;
+      saveDraft();
+  if (processedData) {
+    processedData.theme = currentTheme;
+    renderPreview();
+  }
+});
+
+function colToLetter(col) {
+  var s = "";
+  while (col >= 0) {
+    s = String.fromCharCode(65 + (col % 26)) + s;
+    col = Math.floor(col / 26) - 1;
+  }
+  return s;
+}
+
+
+function tryParsePreview(wb) {
+  try {
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    if (data.length < 4) return {error: '数据行不足（仅' + data.length + '行，需要至少4行）'};
+    var kind = getSheetKind(wb);
+    var rawHeaders = (data[1] || []).slice(1);
+    var headers = rawHeaders.filter(function(h) { return h !== ''; });
+    var roleCount = headers.length;
+    var cnSet = {};
+    var recordCount = 0;
+    for (var r = 3; r < data.length; r++) {
+      var row = data[r];
+      if (!row || !row.length) continue;
+      for (var c = 1; c <= headers.length; c++) {
+        var name = String(row[c] || '').trim();
+        if (!name) continue;
+        cnSet[name] = true;
+        recordCount++;
+      }
+    }
+    return {
+      cnCount: Object.keys(cnSet).length,
+      roleCount: roleCount,
+      recordCount: recordCount,
+      kind: kind
+    };
+  } catch(e) {
+    return {error: e.message};
+  }
+}
+// ==================== PARSE INPUT SHEETS ====================
+function getSheetKind(wb) {
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  if (!data.length || !data[0].length) throw new Error('格式错误：A1单元格（品类名）为空');
+  var kind = String(data[0][0] || '').trim();
+  if (!kind) throw new Error('格式错误：A1单元格（品类名）为空');
+  for (var c = 1; c < data[0].length; c++) {
+    if (String(data[0][c] || '').trim()) throw new Error('格式错误：第一行仅A1可填写品类名，B1及其他单元格请留空（当前' + colToLetter(c) + '1单元格有值）');
+  }
+  return kind;
+}
+
+function parseSheet(wb) {
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  if (data.length < 4) throw new Error('格式错误：数据行不足（表内仅' + data.length + '行，至少需要4行——第1行品类名、第2行角色、第3行单价、第4+行数据）');
+
+  var kind = getSheetKind(wb);
+  var rawHeaders = data[1].slice(1);
+  var headers = rawHeaders.filter(function(h) { return h !== ''; });
+  var seen = {};
+  var seenAtCol = {};
+  for (var rh = 0; rh < rawHeaders.length; rh++) {
+    var hdr = String(rawHeaders[rh] || '').trim();
+    if (!hdr) continue;
+    if (seen[hdr]) {
+      var firstCol = seenAtCol[hdr];
+      throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名"' + hdr + '"重复（首次出现于第' + colToLetter(firstCol) + '列）');
+    }
+    seen[hdr] = true;
+    seenAtCol[hdr] = rh + 1;
+  }
+  var prices = data[2].slice(1, 1 + headers.length);
+  var purchases = [];
+
+  for (var r = 3; r < data.length; r++) {
+    var row = data[r];
+    if (!row || !row.length) continue;
+    for (var c = 1; c <= headers.length; c++) {
+      var name = String(row[c] || '').trim();
+      if (!name) continue;
+      var rawLabel = String(headers[c - 1] || '').trim();
+      var price = parseFloat(prices[c - 1]) || 0;
+      purchases.push({
+        person: name,
+        character: rawLabel,
+        label: rawLabel,
+        kind: kind,
+        price: price
+      });
+    }
+  }
+  return purchases;
+}
+
+// ==================== PROCESS DATA ====================
+function processAllFiles() {
+  var allPurchases = [];
+  var parseErrors = [];
+  var charPriceMap = {};  // {kind: {label: price}}
+  var sheetStats = [];    // [{name, kind, totalCount, totalCost}]
+
+  for (var i = 0; i < importedFiles.length; i++) {
+    try {
+      var wb = importedFiles[i].workbook;
+      var purchases = parseSheet(wb);
+      // Per-sheet stats
+      var sTotalCount = purchases.length;
+      var sTotalCost = 0;
+      for (var j = 0; j < purchases.length; j++) {
+        sTotalCost += purchases[j].price;
+      }
+      sheetStats.push({
+        name: importedFiles[i].name,
+        kind: purchases.length ? purchases[0].kind : '',
+        totalCount: sTotalCount,
+        totalCost: sTotalCost
+      });
+      // Track per-character unit prices
+      for (var j = 0; j < purchases.length; j++) {
+        var p = purchases[j];
+        if (!charPriceMap[p.kind]) charPriceMap[p.kind] = {};
+        var prevPrice = charPriceMap[p.kind][p.label];
+        if (prevPrice === undefined) {
+          charPriceMap[p.kind][p.label] = p.price;
+        }
+      }
+      allPurchases = allPurchases.concat(purchases);
+    } catch(e) {
+      parseErrors.push('文件「' + importedFiles[i].name + '」' + e.message);
+    }
+  }
+
+  if (parseErrors.length) {
+    showToast(parseErrors.join('\n'), true);
+    return null;
+  }
+
+  var personMap = {};
+  for (var j = 0; j < allPurchases.length; j++) {
+    var p = allPurchases[j];
+    if (!personMap[p.person]) {
+      personMap[p.person] = {totalCount:0, totalCost:0, byKind:{}};
+    }
+    var pm = personMap[p.person];
+    pm.totalCount += 1;
+    pm.totalCost += p.price;
+    var charMap = pm.byKind[p.kind] || {};
+    charMap[p.label] = (charMap[p.label] || 0) + 1;
+    pm.byKind[p.kind] = charMap;
+  }
+
+  // --- Renal amount validation ---
+  var validationErrors = [];  // {person, totalCost, expectedCost, diff}
+  var persons = Object.keys(personMap).sort();
+
+  for (var pi = 0; pi < persons.length; pi++) {
+    var person = persons[pi];
+    var pm = personMap[person];
+    var expectedCost = 0;
+    var kinds = Object.keys(pm.byKind);
+    for (var ki = 0; ki < kinds.length; ki++) {
+      var kind = kinds[ki];
+      var chars = Object.keys(pm.byKind[kind]);
+      for (var ci = 0; ci < chars.length; ci++) {
+        var ch = chars[ci];
+        var count = pm.byKind[kind][ch];
+        var unitPrice = (charPriceMap[kind] && charPriceMap[kind][ch] !== undefined) ? charPriceMap[kind][ch] : 0;
+        expectedCost += count * unitPrice;
+      }
+    }
+    if (Math.abs(expectedCost - pm.totalCost) > 0.005) {
+      validationErrors.push({
+        person: person,
+        totalCost: pm.totalCost,
+        expectedCost: expectedCost,
+        diff: pm.totalCost - expectedCost
+      });
+    }
+  }
+
+  return {
+    personMap: personMap,
+    persons: persons,
+    validationErrors: validationErrors,
+    hasValidationError: validationErrors.length > 0,
+    sheetStats: sheetStats
+  };
+}
+
+// ==================== BUILD TABLE DATA ====================
+function getSortedKinds(personMap) {
+  var kindSet = {};
+  var persons = Object.keys(personMap);
+  for (var i = 0; i < persons.length; i++) {
+    var kinds = Object.keys(personMap[persons[i]].byKind);
+    for (var k = 0; k < kinds.length; k++) {
+      kindSet[kinds[k]] = true;
+    }
+  }
+  var allKinds = Object.keys(kindSet);
+  var pref = {'吧唧':0, '透卡':1, '立牌':2};
+  allKinds.sort(function(a, b) {
+    var oa = pref[a] !== undefined ? pref[a] : 99;
+    var ob = pref[b] !== undefined ? pref[b] : 99;
+    if (oa !== ob) return oa - ob;
+    return a.localeCompare(b);
+  });
+  return allKinds;
+}
+
+function buildCategorizedTable(data) {
+  var allKinds = getSortedKinds(data.personMap);
+  var headers = ['cn'].concat(allKinds).concat(['点数', '肾']);
+  var rows = [];
+
+  for (var i = 0; i < data.persons.length; i++) {
+    var person = data.persons[i];
+    var pm = data.personMap[person];
+    var row = [person];
+
+    for (var s = 0; s < allKinds.length; s++) {
+      var kind = allKinds[s];
+      var charMap = pm.byKind[kind] || {};
+      var parts = [];
+      var chars = Object.keys(charMap).sort();
+      for (var c = 0; c < chars.length; c++) {
+        parts.push(chars[c] + charMap[chars[c]]);
+      }
+      var cellStr = parts.join(',');
+      if (parts.length > 5) {
+        var brs = [];
+        var grp = [];
+        for (var d = 0; d < parts.length; d++) {
+          grp.push(parts[d]);
+          if (grp.length >= 4) {
+            brs.push(grp.join(','));
+            grp = [];
+          }
+        }
+        if (grp.length) brs.push(grp.join(','));
+        cellStr = brs.join('\n');
+      }
+      row.push(cellStr);
+    }
+
+    row.push(String(pm.totalCount));
+    row.push(pm.totalCost.toFixed(1));
+    rows.push(row);
+  }
+  return {headers: headers, rows: rows};
+}
+
+function buildListTable(data) {
+  var headers = ['cn', '明细', '点数', '肾'];
+  var rows = [];
+  var allKinds = getSortedKinds(data.personMap);
+
+  for (var i = 0; i < data.persons.length; i++) {
+    var person = data.persons[i];
+    var pm = data.personMap[person];
+    var details = [];
+
+    for (var k = 0; k < allKinds.length; k++) {
+      var kind = allKinds[k];
+      var charMap = pm.byKind[kind] || {};
+      var labels = Object.keys(charMap).sort();
+      for (var l = 0; l < labels.length; l++) {
+        var label = labels[l];
+        var count = charMap[label];
+        details.push(kind + '-' + label + '-' + count);
+      }
+    }
+
+    var detailStr = details.join(',');
+    if (details.length > 5) {
+      var breaks = [];
+      var group = [];
+      for (var d = 0; d < details.length; d++) {
+        group.push(details[d]);
+        if (group.length >= 4) {
+          breaks.push(group.join(','));
+          group = [];
+        }
+      }
+      if (group.length) breaks.push(group.join(','));
+      detailStr = breaks.join('\n');
+    }
+    var row = [person, detailStr, String(pm.totalCount), pm.totalCost.toFixed(1)];
+    rows.push(row);
+  }
+  return {headers: headers, rows: rows};
+}
+
+function getSelectedFormats() {
+  return Array.from(document.querySelectorAll('input[name="format"]:checked')).map(function(input) {
+    return input.value;
+  });
+}
+
+function buildTableHtml(tableData, fmt, title, themeColors) {
+  var html = '<table class="preview-table" style="border-collapse:collapse;width:100%;margin-bottom:20px">';
+  var colspan = tableData.headers.length;
+  html += '<thead>';
+  html += '<tr><th colspan="' + colspan + '" style="background:' + themeColors.titleBg + ';color:' + themeColors.titleFg + ';font-size:15px;padding:12px;letter-spacing:2px;text-align:center;border-radius:0">' + title + '</th></tr>';
+  html += '<tr>';
+  for (var h = 0; h < tableData.headers.length; h++) {
+    html += '<th style="background:' + themeColors.headerBg + '">' + tableData.headers[h] + '</th>';
+  }
+  html += '</tr></thead><tbody>';
+
+  for (var r = 0; r < tableData.rows.length; r++) {
+    var row = tableData.rows[r];
+    var bg = r % 2 === 0 ? themeColors.rowEven : themeColors.rowOdd;
+    html += '<tr>';
+    for (var c = 0; c < row.length; c++) {
+      var cellClass = '';
+      if (c === 0) cellClass = 'col-name';
+      else if (c === 1 && fmt === 'list') cellClass = 'col-detail';
+      else if (c === row.length - 1) cellClass = 'col-cost';
+      else if (c === row.length - 2) cellClass = 'col-count';
+      html += '<td class="' + cellClass + '" style="background:' + bg + '">' + row[c] + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  return html;
+}
+
+function renderPreview() {
+  if (!processedData) return;
+  var formats = getSelectedFormats();
+  if (!formats.length) {
+    previewWrap.style.display = 'none';
+    emptyState.style.display = 'block';
+    emptyState.querySelector('p').textContent = '请先选择肾表样式后预览';
+    return;
+  }
+
+  var title = fileNameInput.value.trim() || '肾表';
+  var themeColors = getThemeColors(currentTheme);
+  var html = '';
+
+  // Build validation error banner
+  if (processedData.hasValidationError) {
+    html += '<div style="background:#FEE2E2;border:1px solid #F87171;border-radius:6px;padding:12px 16px;margin-bottom:12px;">';
+    html += '<div style="font-size:14px;font-weight:700;color:#C53030;margin-bottom:8px;">肾额校验异常 — 以下CN的合计肾额与（点数×单价）不一致，请检查排表单价是否一致</div>';
+    for (var ei = 0; ei < processedData.validationErrors.length; ei++) {
+      var ve = processedData.validationErrors[ei];
+      html += '<div style="font-size:13px;color:#9B2C2C;margin-bottom:2px;">';
+      html += '<strong>' + ve.person + '</strong>：肾额 ' + ve.totalCost.toFixed(1) + ' vs 预期 ' + ve.expectedCost.toFixed(1) + '（差' + (ve.diff > 0 ? '+' : '') + ve.diff.toFixed(1) + '）';
+      html += '</div>';
+    }
+    html += '<div style="font-size:12px;color:#9B2C2C;margin-top:6px;">可能原因：同一角色在不同排表中单价不一致，或排表数据有误</div>';
+    html += '</div>';
+  }
+
+  formats.forEach(function(fmt) {
+    var tableData = fmt === 'categorized' ? buildCategorizedTable(processedData) : buildListTable(processedData);
+    var sectionTitle = fmt === 'categorized' ? '分类式预览' : '清单式预览';
+    html += '<div class="preview-section"><div class="card-title" style="margin:16px 0 8px;font-size:14px;padding:0;background:transparent;border:none;color:' + themeColors.titleBg + '">' + sectionTitle + '</div>';
+    html += buildTableHtml(tableData, fmt, title, themeColors);
+    html += '</div>';
+  });
+
+  // Sheet validation results at bottom
+  if (validationResults && validationResults.rows.length) {
+    var sv = validationResults.rows;
+    var allPass = true;
+    for (var si = 0; si < sv.length; si++) {
+      if (!sv[si].pass) { allPass = false; break; }
+    }
+    var svBg = allPass ? '#F0FFF4' : '#FFF3CD';
+    var svBorder = allPass ? '#9AE6B4' : '#E6C631';
+    var svColor = allPass ? '#276749' : '#856404';
+    html += '<div style="background:' + svBg + ';border:1px solid ' + svBorder + ';border-radius:6px;padding:10px 16px;margin-top:16px;">';
+    var valTitle = validationResults.allSelected ? '全表总肾校验' : '单表校验';
+    html += '<div style="font-size:14px;font-weight:700;color:' + svColor + ';margin-bottom:8px;">' + valTitle + (allPass ? ' — 通过' : ' — 异常') + '</div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+    html += '<thead><tr style="background:' + (allPass ? '#C6F6D5' : '#FBD38D') + ';">';
+    html += '<th style="padding:5px 8px;text-align:left;">排表</th><th style="padding:5px 8px;">品类</th><th style="padding:5px 8px;">实际点数</th><th style="padding:5px 8px;">实际总肾</th><th style="padding:5px 8px;">预期均价</th><th style="padding:5px 8px;">预期点数</th><th style="padding:5px 8px;">预期总肾</th><th style="padding:5px 8px;">差额</th><th style="padding:5px 8px;">结果</th>';
+    html += '</tr></thead><tbody>';
+    for (var si2 = 0; si2 < sv.length; si2++) {
+      var row = sv[si2];
+      var rowBg = row.isTotal ? (allPass ? '#C6F6D5' : '#FBD38D') : 'transparent';
+      var rowWeight = row.isTotal ? 'font-weight:700;' : '';
+      html += '<tr style="' + rowWeight + 'background:' + rowBg + ';">';
+      html += '<td style="padding:4px 8px;text-align:left;">' + row.name + '</td>';
+      html += '<td style="padding:4px 8px;text-align:center;">' + row.kind + '</td>';
+      html += '<td style="padding:4px 8px;text-align:center;">' + row.totalCount + '</td>';
+      html += '<td style="padding:4px 8px;text-align:center;">' + row.totalCost.toFixed(1) + '</td>';
+      html += '<td style="padding:4px 8px;text-align:center;">' + (row.isTotal ? '--' : row.unitPrice.toFixed(2)) + '</td>';
+      html += '<td style="padding:4px 8px;text-align:center;">' + (row.isTotal ? '--' : row.points) + '</td>';
+      html += '<td style="padding:4px 8px;text-align:center;">' + row.expectedCost.toFixed(1) + '</td>';
+      html += '<td style="padding:4px 8px;text-align:center;' + (row.diff > 0.005 ? 'color:#E53E3E;font-weight:700' : '') + '">' + (row.diff > 0.005 ? (row.totalCost > row.expectedCost ? '+' : '') + row.diff.toFixed(1) : '0') + '</td>';
+      html += '<td style="padding:4px 8px;text-align:center;">' + (row.pass ? '<span class="validation-pass">通过</span>' : '<span class="validation-fail">不符</span>') + '</td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table></div>';
+  }
+
+  previewWrap.innerHTML = html;
+  previewWrap.style.display = 'block';
+  emptyState.style.display = 'none';
+}
+
+// ==================== THEME COLORS ====================
+function getThemeColors(theme) {
+  var themes = {
+    blue:   {titleBg:'#0D2137', titleFg:'#FFFFFF', headerBg:'#1A4570', rowEven:'#EDF5FA', rowOdd:'#FFFFFF'},
+    teal:   {titleBg:'#1D4044', titleFg:'#FFFFFF', headerBg:'#285E61', rowEven:'#E6FFFA', rowOdd:'#FFFFFF'},
+    slate:  {titleBg:'#1A202C', titleFg:'#FFFFFF', headerBg:'#2D3748', rowEven:'#EDF2F7', rowOdd:'#FFFFFF'},
+    indigo: {titleBg:'#2A204A', titleFg:'#FFFFFF', headerBg:'#44337A', rowEven:'#EBF4FF', rowOdd:'#FFFFFF'},
+    cyan:    {titleBg:'#0F4C6A', titleFg:'#FFFFFF', headerBg:'#0E7490', rowEven:'#E0F2FE', rowOdd:'#FFFFFF'},
+    sage:    {titleBg:'#1F4532', titleFg:'#FFFFFF', headerBg:'#256D46', rowEven:'#E6FFFA', rowOdd:'#FFFFFF'},
+    sea:     {titleBg:'#164E63', titleFg:'#FFFFFF', headerBg:'#0F766E', rowEven:'#D9F2F9', rowOdd:'#FFFFFF'},
+    violet:  {titleBg:'#2D1B4E', titleFg:'#FFFFFF', headerBg:'#553C9A', rowEven:'#F5F0FF', rowOdd:'#FFFFFF'},
+    navy:    {titleBg:'#0A1628', titleFg:'#FFFFFF', headerBg:'#1E3A5F', rowEven:'#EBF0F7', rowOdd:'#FFFFFF'},
+    steel:   {titleBg:'#1E2D3D', titleFg:'#FFFFFF', headerBg:'#3B5C7A', rowEven:'#EDF2F7', rowOdd:'#FFFFFF'},
+    moss:    {titleBg:'#1C2A1C', titleFg:'#FFFFFF', headerBg:'#3A5A3A', rowEven:'#F2F7F2', rowOdd:'#FFFFFF'},
+    graphite:{titleBg:'#1A1A1A', titleFg:'#FFFFFF', headerBg:'#3D3D3D', rowEven:'#F5F5F5', rowOdd:'#FFFFFF'}
+  };
+  return themes[theme] || themes.blue;
+}
+
+// ==================== PROCESS BUTTON ====================
+processBtn.addEventListener('click', function() {
+  if (!importedFiles.length) { showToast('请先导入文件', true); return; }
+  var formats = getSelectedFormats();
+  if (!formats.length) { showToast('请先选择肾表样式', true); return; }
+  var result = processAllFiles();
+  if (!result) return;
+  processedData = result;
+  processedData.title = fileNameInput.value.trim() || '肾表';
+  processedData.theme = currentTheme;
+  renderPreview();
+  exportBtn.disabled = false;
+  saveDraft();
+  var toastMsg = '处理完成！共 ' + result.persons.length + ' 人';
+  if (result.hasValidationError) toastMsg += '\n肾额校验发现 ' + result.validationErrors.length + ' 个异常，请查看预览区';
+  showToast(toastMsg, result.hasValidationError);
+});
+
+// ==================== EXPORT ====================
+exportBtn.addEventListener('click', function() {
+  if (!processedData) { showToast('请先处理数据', true); return; }
+  var formats = getSelectedFormats();
+  if (!formats.length) { showToast('请先选择肾表样式', true); return; }
+  var title = fileNameInput.value.trim() || '肾表';
+  var themeColors = getThemeColors(currentTheme);
+
+  var wb = new ExcelJS.Workbook();
+  formats.forEach(function(fmt) {
+    var tableData = fmt === 'categorized' ? buildCategorizedTable(processedData) : buildListTable(processedData);
+    var sheetName = title + (formats.length > 1 ? (fmt === 'categorized' ? '-分类' : '-清单') : '');
+    var safeSheet = sheetName.substring(0, 31);
+    var ws = wb.addWorksheet(safeSheet);
+
+    ws.mergeCells(1, 1, 1, tableData.headers.length);
+    var titleCell = ws.getCell('A1');
+    titleCell.value = sheetName;
+    titleCell.font = {size:15, bold:true, color:{argb:themeColors.titleFg.replace('#','')}};
+    titleCell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:themeColors.titleBg.replace('#','')}};
+    titleCell.alignment = {horizontal:'center', vertical:'middle'};
+    ws.getRow(1).height = 36;
+
+    var headerBg = themeColors.headerBg.replace('#','');
+    for (var h = 0; h < tableData.headers.length; h++) {
+      var cell = ws.getCell(2, h + 1);
+      cell.value = tableData.headers[h];
+      cell.font = {size:11, bold:true, color:{argb:'FFFFFF'}};
+      cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:headerBg}};
+      cell.alignment = {horizontal:'center', vertical:'middle'};
+    }
+    ws.getRow(2).height = 28;
+
+    var rowEvenColor = themeColors.rowEven.replace('#','');
+    var rowOddColor = themeColors.rowOdd.replace('#','');
+    for (var r = 0; r < tableData.rows.length; r++) {
+      var row = tableData.rows[r];
+      var bg = r % 2 === 0 ? rowEvenColor : rowOddColor;
+      var excelRow = ws.getRow(r + 3);
+      for (var c = 0; c < row.length; c++) {
+        var cell = ws.getCell(r + 3, c + 1);
+        cell.value = row[c];
+        cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:bg}};
+        cell.border = {bottom:{style:'thin', color:{argb:'D0D5DD'}}};
+        if (c === 0) {
+          cell.font = {bold:true, size:11};
+          cell.alignment = {horizontal:'center', vertical:'middle', wrapText:true};
+        } else if (c === row.length - 1) {
+          cell.font = {bold:true, size:11, color:{argb:themeColors.titleBg.replace('#','')}};
+          cell.alignment = {horizontal:'center', vertical:'middle'};
+        } else if (c === 1 && fmt === 'list') {
+          cell.alignment = {horizontal:'center', vertical:'middle', wrapText:true};
+        } else {
+          cell.alignment = {horizontal:'center', vertical:'middle', wrapText:true};
+        }
+      }
+      excelRow.height = Math.max(22, Math.ceil((row[1] || '').length / 40) * 18);
+    }
+
+    ws.getColumn(1).width = 12;
+    if (fmt === 'categorized') {
+      var kindCols = tableData.headers.length - 2;
+      for (var kc = 0; kc < kindCols; kc++) {
+        ws.getColumn(2 + kc).width = 28;
+      }
+      ws.getColumn(tableData.headers.length - 1).width = 10;
+      ws.getColumn(tableData.headers.length).width = 12;
+    } else {
+      ws.getColumn(2).width = 50;
+      ws.getColumn(3).width = 10;
+      ws.getColumn(4).width = 12;
+    }
+  });
+
+  wb.xlsx.writeBuffer().then(function(buffer) {
+    var blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = title + '.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('肾表已导出');
+    clearDraft();
+  }).catch(function(err) {
+    showToast('导出失败：' + err.message, true);
+  });
+});
+
+// ==================== VALIDATION TOGGLE ====================
+validationToggle.addEventListener('change', function(e) {
+  if (e.target.type !== 'checkbox') return;
+  var checked = this.querySelectorAll('input[type="checkbox"]:checked');
+  if (!checked.length) { e.target.checked = true; return; }
+  this.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+    if (cb !== e.target) cb.checked = false;
+  });
+  validationEnabled = e.target.value === 'yes';
+  if (validationEnabled) {
+    validationInputs.style.display = 'block';
+    validationBtnRow.style.display = 'block';
+    renderValidationInputs();
+    saveDraft();
+  } else {
+    validationInputs.style.display = 'none';
+    validationBtnRow.style.display = 'none';
+    validationResults = null;
+    if (processedData) renderPreview();
+  }
+});
+
+function renderValidationInputs() {
+  if (!importedFiles.length) {
+    validationInputs.innerHTML = '<div style="font-size:13px;color:var(--gray-400);padding:12px;">请先导入排表文件</div>';
+    validationBtnRow.style.display = 'none';
+    return;
+  }
+  validationBtnRow.style.display = 'block';
+  var html = '';
+  for (var i = 0; i < importedFiles.length; i++) {
+    var f = importedFiles[i];
+    var vi = fileValidationInputs[i] || {unitPrice:'', points:'', checked: true};
+    var kind = '';
+    try { kind = getSheetKind(f.workbook); } catch(e) {}
+    html += '<div class="validation-file-row">';
+    html += '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">';
+    html += '<input type="checkbox" class="v-checked" data-idx="' + i + '"' + (vi.checked !== false ? ' checked' : '') + ' style="width:14px;height:14px;cursor:pointer;">';
+    html += '<span class="vf-name">' + f.name + (kind ? '（' + kind + '）' : '') + '</span>';
+    html += '</label>';
+    html += '<div class="form-group"><label style="font-size:12px;">预期均价</label><input type="number" class="validation-input v-unit-price" data-idx="' + i + '" value="' + vi.unitPrice + '" placeholder="如：15" step="0.01" min="0"></div>';
+    html += '<div class="form-group"><label style="font-size:12px;">预期点数</label><input type="number" class="validation-input v-points" data-idx="' + i + '" value="' + vi.points + '" placeholder="如：20" step="1" min="0"></div>';
+    html += '</div>';
+  }
+  validationInputs.innerHTML = html;
+
+  // Checkbox listeners
+  var cbs = validationInputs.querySelectorAll('.v-checked');
+  for (var cb = 0; cb < cbs.length; cb++) {
+    cbs[cb].addEventListener('change', function() {
+      var idx = parseInt(this.dataset.idx);
+      if (!fileValidationInputs[idx]) fileValidationInputs[idx] = {};
+      fileValidationInputs[idx].checked = this.checked;
+    });
+  }
+  // Unit price listeners
+  var upInputs = validationInputs.querySelectorAll('.v-unit-price');
+  for (var ui = 0; ui < upInputs.length; ui++) {
+    upInputs[ui].addEventListener('input', function() {
+      var idx = parseInt(this.dataset.idx);
+      if (!fileValidationInputs[idx]) fileValidationInputs[idx] = {};
+      fileValidationInputs[idx].unitPrice = this.value;
+    });
+  }
+  // Points listeners
+  var ptInputs = validationInputs.querySelectorAll('.v-points');
+  for (var pi = 0; pi < ptInputs.length; pi++) {
+    ptInputs[pi].addEventListener('input', function() {
+      var idx = parseInt(this.dataset.idx);
+      if (!fileValidationInputs[idx]) fileValidationInputs[idx] = {};
+      fileValidationInputs[idx].points = this.value;
+    });
+  }
+}
+
+// Update renderFileList to also refresh validation inputs
+var _originalRenderFileList = renderFileList;
+renderFileList = function() {
+  _originalRenderFileList();
+  validationResults = null;
+  if (validationEnabled) renderValidationInputs();
+};
+
+// ==================== RUN VALIDATION ====================
+validateBtn.addEventListener('click', function() {
+  if (!processedData || !processedData.sheetStats || !processedData.sheetStats.length) {
+    showToast('请先处理排表数据', true);
+    return;
+  }
+  var sheetStats = processedData.sheetStats;
+  var selectedIndices = [];
+  for (var i = 0; i < sheetStats.length; i++) {
+    var vi = fileValidationInputs[i] || {};
+    if (vi.checked !== false) selectedIndices.push(i);
+  }
+  if (!selectedIndices.length) {
+    showToast('请至少勾选一个排表', true);
+    return;
+  }
+
+  var allSelected = selectedIndices.length === sheetStats.length;
+  var results = [];
+
+  if (allSelected) {
+    // All selected → combined total validation
+    var allTotalCount = 0;
+    var allTotalCost = 0;
+    var allExpectedCost = 0;
+    var totalAvgPrice = 0;
+    var totalPoints = 0;
+    for (var s = 0; s < selectedIndices.length; s++) {
+      var si = selectedIndices[s];
+      var ss = sheetStats[si];
+      var v = fileValidationInputs[si] || {};
+      var up = parseFloat(v.unitPrice) || 0;
+      var pt = parseInt(v.points) || 0;
+      allTotalCount += ss.totalCount;
+      allTotalCost += ss.totalCost;
+      if (up > 0 && pt > 0) {
+        allExpectedCost += up * pt;
+        totalAvgPrice = up;  // last one wins for display
+        totalPoints += pt;
+      }
+    }
+    if (allExpectedCost > 0) {
+      var allDiff = Math.abs(allExpectedCost - allTotalCost);
+      results.push({
+        name: '全部排表合计（' + selectedIndices.length + '张）',
+        kind: '',
+        totalCount: allTotalCount,
+        totalCost: allTotalCost,
+        unitPrice: totalAvgPrice,
+        points: totalPoints,
+        expectedCost: allExpectedCost,
+        diff: allDiff,
+        pass: allDiff < 0.005,
+        isTotal: true
+      });
+    }
+  } else {
+    // Partial → individual sheet validation
+    for (var p = 0; p < selectedIndices.length; p++) {
+      var idx = selectedIndices[p];
+      var ss2 = sheetStats[idx];
+      var vi2 = fileValidationInputs[idx] || {};
+      var up2 = parseFloat(vi2.unitPrice) || 0;
+      var pt2 = parseInt(vi2.points) || 0;
+      if (up2 > 0 && pt2 > 0) {
+        var expectedCost2 = up2 * pt2;
+        var diff2 = Math.abs(expectedCost2 - ss2.totalCost);
+        results.push({
+          name: ss2.name,
+          kind: ss2.kind,
+          totalCount: ss2.totalCount,
+          totalCost: ss2.totalCost,
+          unitPrice: up2,
+          points: pt2,
+          expectedCost: expectedCost2,
+          diff: diff2,
+          pass: diff2 < 0.005
+        });
+      }
+    }
+  }
+
+  if (!results.length) {
+    showToast('所选排表均未填写预期均价和点数', true);
+    return;
+  }
+
+  validationResults = { rows: results, allSelected: allSelected };
+  renderPreview();
+  saveDraft();
+  var allPass = true;
+  for (var r = 0; r < results.length; r++) {
+    if (!results[r].pass) { allPass = false; break; }
+  }
+  showToast('校验完成：' + (allPass ? '全部通过' : '存在异常，请查看预览区底部'), !allPass);
+});
+
+// ==================== FORMAT CHANGE ====================
+document.getElementById('formatGroup').addEventListener('change', function(e) {
+  if (e.target.type !== 'checkbox') return;
+  var checked = this.querySelectorAll('input[type="checkbox"]:checked');
+  if (!checked.length) { e.target.checked = true; return; }
+  if (processedData) renderPreview();
+  saveDraft();
+});
+
+
+
+
+// ==================== DRAFT AUTO-SAVE ====================
+var DRAFT_KEY = 'renshet_shenbiao_draft';
+
+function buildDraftObject() {
+  return {
+    savedAt: Date.now(),
+    fileCount: importedFiles.length,
+    fileNames: importedFiles.map(function(f) { return f.name; }),
+    currentTheme: currentTheme,
+    selectedFormats: getSelectedFormats(),
+    fileName: fileNameInput.value,
+    validationEnabled: validationEnabled,
+    fileValidationInputs: fileValidationInputs,
+    hasProcessedData: processedData !== null,
+    processedData: processedData,
+    validationResults: validationResults
+  };
+}
+
+function saveDraft() {
+  try {
+    var draft = buildDraftObject();
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch(e) {}
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+}
+
+function restoreDraft() {
+  var raw;
+  try { raw = localStorage.getItem(DRAFT_KEY); } catch(e) { return false; }
+  if (!raw) return false;
+  var saved;
+  try { saved = JSON.parse(raw); } catch(e) { clearDraft(); return false; }
+  if (!saved || !saved.savedAt) { clearDraft(); return false; }
+
+  // Restore theme
+  currentTheme = saved.currentTheme || 'blue';
+  var swatches = document.querySelectorAll('.color-swatch');
+  for (var si = 0; si < swatches.length; si++) {
+    swatches[si].classList.remove('active');
+    if (swatches[si].dataset.theme === currentTheme) swatches[si].classList.add('active');
+  }
+
+  // Restore file name
+  if (saved.fileName) fileNameInput.value = saved.fileName;
+
+  // Restore formats
+  var formats = saved.selectedFormats || ['categorized', 'list'];
+  var cbs = document.querySelectorAll('input[name="format"]');
+  for (var fi = 0; fi < cbs.length; fi++) {
+    cbs[fi].checked = formats.indexOf(cbs[fi].value) !== -1;
+  }
+
+  // Restore validation
+  validationEnabled = saved.validationEnabled || false;
+  fileValidationInputs = saved.fileValidationInputs || {};
+  if (validationEnabled) {
+    document.getElementById('valYes').checked = true;
+    document.getElementById('valNo').checked = false;
+    validationInputs.style.display = 'block';
+    validationBtnRow.style.display = 'block';
+    renderValidationInputs();
+  }
+
+  // Restore processed data
+  if (saved.hasProcessedData && saved.processedData) {
+    processedData = saved.processedData;
+    validationResults = saved.validationResults || null;
+    renderPreview();
+    exportBtn.disabled = false;
+  }
+
+  // Show banner if there were imported files
+  if (saved.fileCount > 0) {
+    showRestoreBanner(saved);
+  }
+
+  return true;
+}
+
+function showRestoreBanner(saved) {
+  var existing = document.getElementById('draftBanner');
+  if (existing) existing.remove();
+
+  var banner = document.createElement('div');
+  banner.id = 'draftBanner';
+  banner.style.cssText = 'background:#F0FFF4;border:1px solid #9AE6B4;border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;font-size:13px;color:#276749;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;';
+
+  var msg = '检测到上次未完成的草稿，已自动恢复';
+  if (!saved.hasProcessedData) {
+    msg += '，请重新上传文件';
+  }
+  var text = document.createElement('span');
+  text.textContent = msg;
+
+  var clearBtn = document.createElement('button');
+  clearBtn.textContent = '清除草稿';
+  clearBtn.style.cssText = 'padding:4px 12px;font-size:12px;border:1px solid #9AE6B4;background:#fff;color:#276749;border-radius:4px;cursor:pointer;';
+  clearBtn.addEventListener('click', function() {
+    clearDraft();
+    banner.remove();
+    importedFiles = [];
+    renderFileList();
+    processedData = null;
+    validationResults = null;
+    exportBtn.disabled = true;
+    processBtn.disabled = true;
+    previewWrap.style.display = 'none';
+    emptyState.style.display = 'block';
+    fileNameInput.value = '肾表';
+    currentTheme = 'blue';
+    document.querySelectorAll('.color-swatch').forEach(function(s) { s.classList.remove('active'); });
+    var blueSwatch = document.querySelector('.color-swatch[data-theme="blue"]');
+    if (blueSwatch) blueSwatch.classList.add('active');
+    document.getElementById('fmtCat').checked = true;
+    document.getElementById('fmtList').checked = true;
+    validationEnabled = false;
+    fileValidationInputs = {};
+    document.getElementById('valNo').checked = true;
+    document.getElementById('valYes').checked = false;
+    validationInputs.style.display = 'none';
+    validationBtnRow.style.display = 'none';
+    showToast('草稿已清除');
+  });
+
+  banner.appendChild(text);
+  banner.appendChild(clearBtn);
+
+  var container = document.querySelector('.container');
+  if (container && container.children.length > 0) {
+    container.insertBefore(banner, container.children[1]);
+  }
+}
+
+// ==================== INIT ====================
+processBtn.disabled = true;
+restoreDraft();
+</script>
+
+</body>
+</html>

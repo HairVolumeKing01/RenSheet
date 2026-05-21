@@ -1,0 +1,10 @@
+_add_*.py
+_fix_*.py
+_debug_*.txt
+.claude/
+node_modules/
+.idea/
+package.json
+package-lock.json
+.DS_Store
+Thumbs.db
