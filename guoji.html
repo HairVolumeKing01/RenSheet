@@ -472,7 +472,7 @@ body {
     <div class="instructions">
       <div class="inst-step">
         <div class="step-num">STEP 1</div>
-        <div class="step-text">编辑排表格式，确认A1单元格填入品类名（如"xx系列吧唧"），A1不可为空，，B1及其他单元格请留空，不同谷子类型的排表请分开上传
+        <div class="step-text">编辑排表格式，确认A1单元格填入品类名（如"xx系列吧唧"），A1不可为空，B1及其他单元格留空。支持两种上传方式：①多sheet单文件——一个Excel含多个品类sheet；②分表上传——多个Excel各对应一个品类
           <span class="step-links">
             <a href="sample/肾表，国际表，二调原表示例.xlsx" class="step-link" download>下载格式示例</a>
           </span>
@@ -484,7 +484,7 @@ body {
       </div>
       <div class="inst-step">
         <div class="step-num">STEP 3</div>
-        <div class="step-text">上传排表文件（最多50个，若谷子不按排表统计可直接进入下一步），填写必要参数并逐个解析</div>
+        <div class="step-text">选择上传模式，导入排表文件（分表模式最多50个，多sheet模式一个品类对应一个sheet上传1个文件即可），填写必要参数并逐个解析</div>
       </div>
       <div class="inst-step">
         <div class="step-num">STEP 4</div>
@@ -528,12 +528,20 @@ body {
   <div class="card">
     <div class="card-title">STEP 3 — 导入排表</div>
     <a href="sample/导入文件格式示例.xlsx" class="step-link" download>下载格式示例</a>
+    <div class="form-row" style="justify-content:center;gap:24px;margin-bottom:14px;flex-wrap:wrap;">
+      <label class="radio-label" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="radio" name="uploadMode" value="multiSheet" checked onchange="switchUploadMode()"> 多 sheet 单文件
+      </label>
+      <label class="radio-label" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="radio" name="uploadMode" value="multiFile" onchange="switchUploadMode()"> 分表上传
+      </label>
+    </div>
     <div class="drop-zone" id="dropZone">
       <div class="dz-icon">&#x2903;</div>
       <div class="dz-text">拖拽 .xlsx 文件至此，或点击选择</div>
-      <div class="dz-hint">支持 .xlsx 格式，单次最多 50 个文件</div>
+      <div class="dz-hint" id="dzHint">支持 .xlsx 格式，一个文件含多个品类 sheet</div>
     </div>
-    <input type="file" id="fileInput" accept=".xlsx" multiple style="display:none">
+    <input type="file" id="fileInput" accept=".xlsx" style="display:none">
     <div id="parseEntries"></div>
   </div>
 
@@ -607,12 +615,30 @@ body {
 <script>
 // ==================== STATE ====================
 var MAX_FILES = 50;
+var uploadMode = 'multiSheet'; // 'multiSheet' | 'multiFile'
 var parsedFiles = [];         // [{id, name, kind, gramWeight, verifyPoints, workbook, parsed, purchases, cnPoints, cnBodyWeight, totalPoints, totalBodyWeight, cnCount}]
 var manualEntries = [];       // [{id, cn, grams}]
 var computedResults = null;   // {rows, totalBodyWeightAll, totalBoxAllocation, totalPackageWeight, rate}
 var currentTheme = 'blue';
 var fileIdCounter = 0;
 var manualIdCounter = 0;
+
+function switchUploadMode() {
+  var radios = document.getElementsByName('uploadMode');
+  for (var r = 0; r < radios.length; r++) {
+    if (radios[r].checked) { uploadMode = radios[r].value; break; }
+  }
+  parsedFiles = [];
+  renderParseEntries();
+  var hint = document.getElementById('dzHint');
+  if (uploadMode === 'multiSheet') {
+    document.getElementById('fileInput').removeAttribute('multiple');
+    hint.textContent = '支持 .xlsx 格式，一个文件含多个品类 sheet';
+  } else {
+    document.getElementById('fileInput').setAttribute('multiple', '');
+    hint.textContent = '支持 .xlsx 格式，单次最多 50 个文件';
+  }
+}
 
 // ==================== DOM REFS ====================
 var dropZone = document.getElementById('dropZone');
@@ -659,22 +685,34 @@ shippingFeeEl.addEventListener('input', function() { updateRate(); saveDraft(); 
 packageWeightEl.addEventListener('input', function() { updateRate(); saveDraft(); });
 
 // ==================== FILE HANDLING ====================
-dropZone.addEventListener('click', function() { fileInput.click(); });
+dropZone.addEventListener('click', function() {
+  if (uploadMode === 'multiSheet' && parsedFiles.length) {
+    showToast('多 sheet 模式只适配一个文件多个 sheet 噢，如需要多个文件请切换为分表上传模式', true);
+    return;
+  }
+  fileInput.click();
+});
 fileInput.addEventListener('change', function(e) { handleFiles(e.target.files); });
 dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('drag-over'); });
 dropZone.addEventListener('drop', function(e) {
   e.preventDefault();
   dropZone.classList.remove('drag-over');
+  if (uploadMode === 'multiSheet' && parsedFiles.length) {
+    showToast('多 sheet 模式只适配一个文件多个 sheet 噢，如需要多个文件请切换为分表上传模式', true);
+    return;
+  }
   handleFiles(e.dataTransfer.files);
 });
 
 function handleFiles(files) {
   if (!files || !files.length) return;
-  var remaining = MAX_FILES - parsedFiles.length;
-  if (files.length > remaining) {
-    showToast('最多还能导入 ' + remaining + ' 个文件', true);
-    return;
+  processBtn.disabled = true;
+  if (uploadMode === 'multiSheet') {
+    if (files.length > 1) { showToast('多 sheet 模式只支持单文件，请选择一个文件', true); return; }
+  } else {
+    var remaining = MAX_FILES - parsedFiles.length;
+    if (files.length > remaining) { showToast('最多还能导入 ' + remaining + ' 个文件', true); return; }
   }
   var pending = files.length;
   var errors = [];
@@ -689,24 +727,57 @@ function handleFiles(files) {
       reader.onload = function(e) {
         try {
           var wb = XLSX.read(e.target.result, {type:'array'});
-          var kind = '';
-          try { kind = getSheetKind(wb); } catch(ex) { kind = ''; }
-          parsedFiles.push({
-            id: fileIdCounter++,
-            name: file.name,
-            kind: kind,
-            gramWeight: 0,
-            verifyPoints: 0,
-            workbook: wb,
-            preview: tryParsePreview(wb),
-            parsed: false,
-            purchases: [],
-            cnPoints: {},
-            cnBodyWeight: {},
-            totalPoints: 0,
-            totalBodyWeight: 0,
-            cnCount: 0
-          });
+          if (uploadMode === 'multiFile' && wb.SheetNames.length > 1) {
+            errors.push('文件「' + file.name + '」含' + wb.SheetNames.length + '个sheet，分表上传模式不支持多sheet文件，请切换为"多 sheet 单文件"模式');
+            pending--; if (!pending) finish();
+            return;
+          }
+          if (uploadMode === 'multiSheet') {
+            parsedFiles = [];
+            for (var si = 0; si < wb.SheetNames.length; si++) {
+              var ws = wb.Sheets[wb.SheetNames[si]];
+              var sd = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+              var sheetKind = String((sd[0] || [])[0] || '').trim();
+              if (!sheetKind) continue;
+              parsedFiles.push({
+                id: fileIdCounter++,
+                name: file.name + ' / ' + wb.SheetNames[si],
+                kind: sheetKind,
+                sheetIndex: si,
+                gramWeight: 0,
+                verifyPoints: 0,
+                workbook: wb,
+                preview: { cnCount: 0, roleCount: 0, recordCount: 0, kind: sheetKind },
+                parsed: false,
+                purchases: [],
+                cnPoints: {},
+                cnBodyWeight: {},
+                totalPoints: 0,
+                totalBodyWeight: 0,
+                cnCount: 0
+              });
+            }
+            if (!parsedFiles.length) throw new Error('所有sheet均无有效品类数据');
+          } else {
+            var kind = '';
+            try { kind = getSheetKind(wb); } catch(ex) { kind = ''; }
+            parsedFiles.push({
+              id: fileIdCounter++,
+              name: file.name,
+              kind: kind,
+              gramWeight: 0,
+              verifyPoints: 0,
+              workbook: wb,
+              preview: tryParsePreview(wb),
+              parsed: false,
+              purchases: [],
+              cnPoints: {},
+              cnBodyWeight: {},
+              totalPoints: 0,
+              totalBodyWeight: 0,
+              cnCount: 0
+            });
+          }
         } catch(ex) {
           errors.push('文件「' + file.name + '」文件解析失败');
         }
@@ -883,31 +954,30 @@ function colToLetter(col) {
 
 function tryParsePreview(wb) {
   try {
-    var ws = wb.Sheets[wb.SheetNames[0]];
-    var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-    if (data.length < 4) return {error: '数据行不足（仅' + data.length + '行，需要至少4行）'};
-    var kind = getSheetKind(wb);
-    var rawHeaders = (data[1] || []).slice(1);
-    var headers = rawHeaders.filter(function(h) { return h !== ''; });
-    var roleCount = headers.length;
-    var cnSet = {};
-    var recordCount = 0;
-    for (var r = 3; r < data.length; r++) {
-      var row = data[r];
-      if (!row || !row.length) continue;
-      for (var c = 1; c <= headers.length; c++) {
-        var name = String(row[c] || '').trim();
-        if (!name) continue;
-        cnSet[name] = true;
-        recordCount++;
+    var totalCnSet = {}; var totalRole = 0; var totalRec = 0; var kinds = [];
+    for (var si = 0; si < wb.SheetNames.length; si++) {
+      var ws = wb.Sheets[wb.SheetNames[si]];
+      var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      if (!data.length || !data[0].length) continue;
+      var kind = String(data[0][0] || '').trim();
+      if (!kind) continue;
+      kinds.push(kind);
+      var rawHeaders = (data[1] || []).slice(1);
+      var headers = rawHeaders.filter(function(h) { return h !== ''; });
+      totalRole += headers.length;
+      for (var r = 3; r < data.length; r++) {
+        var row = data[r];
+        if (!row || !row.length) continue;
+        for (var c = 1; c <= headers.length; c++) {
+          var name = String(row[c] || '').trim();
+          if (!name) continue;
+          totalCnSet[name] = true; totalRec++;
+        }
       }
     }
-    return {
-      cnCount: Object.keys(cnSet).length,
-      roleCount: roleCount,
-      recordCount: recordCount,
-      kind: kind
-    };
+    if (!kinds.length) return {error: '未找到有效品类数据'};
+    var cnCount = Object.keys(totalCnSet).length;
+    return { cnCount: cnCount, roleCount: totalRole, recordCount: totalRec, kind: kinds.join('+') };
   } catch(e) {
     return {error: e.message};
   }
@@ -925,12 +995,13 @@ function getSheetKind(wb) {
   return kind;
 }
 
-function parseSheet(wb) {
-  var ws = wb.Sheets[wb.SheetNames[0]];
-  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-  if (data.length < 4) throw new Error('格式错误：数据行不足（表内仅' + data.length + '行，至少需要4行——第1行品类名、第2行角色、第3行单价、第4+行数据）');
-
-  var kind = getSheetKind(wb);
+function parseSheetData(data) {
+  if (data.length < 4) throw new Error('数据行不足（表内仅' + data.length + '行，至少需要4行——第1行品类名、第2行角色、第3行单价、第4+行数据）');
+  var kind = String(data[0][0] || '').trim();
+  if (!kind) throw new Error('格式错误：A1单元格（品类名）为空');
+  for (var c = 1; c < data[0].length; c++) {
+    if (String(data[0][c] || '').trim()) throw new Error('格式错误：第一行仅A1可填写品类名，B1及其他单元格请留空（当前' + colToLetter(c) + '1单元格有值）');
+  }
   var rawHeaders = data[1].slice(1);
   var headers = rawHeaders.filter(function(h) { return h !== ''; });
   var seen = {};
@@ -947,7 +1018,6 @@ function parseSheet(wb) {
   }
   var prices = data[2].slice(1, 1 + headers.length);
   var purchases = [];
-
   for (var r = 3; r < data.length; r++) {
     var row = data[r];
     if (!row || !row.length) continue;
@@ -966,6 +1036,33 @@ function parseSheet(wb) {
     }
   }
   return purchases;
+}
+
+function parseSheet(wb, sheetIndex) {
+  if (sheetIndex !== undefined) {
+    var ws = wb.Sheets[wb.SheetNames[sheetIndex]];
+    var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    return parseSheetData(data);
+  }
+  if (uploadMode === 'multiFile') {
+    if (wb.SheetNames.length > 1) throw new Error('格式错误：分表上传模式不支持多 sheet 文件（当前文件含' + wb.SheetNames.length + '个sheet），请切换为"多 sheet 单文件"模式或拆分文件');
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    return parseSheetData(data);
+  }
+  var all = [];
+  for (var si = 0; si < wb.SheetNames.length; si++) {
+    var ws2 = wb.Sheets[wb.SheetNames[si]];
+    var data2 = XLSX.utils.sheet_to_json(ws2, {header:1, defval:''});
+    try {
+      var purchases = parseSheetData(data2);
+      all = all.concat(purchases);
+    } catch(e) {
+      if (wb.SheetNames.length === 1) throw e;
+    }
+  }
+  if (!all.length) throw new Error('所有sheet均无有效数据');
+  return all;
 }
 
 // ==================== PARSE SINGLE FILE ====================
@@ -987,7 +1084,15 @@ function parseFileEntry(id) {
 
   // Check kind consistency with A1
   var a1kind = '';
-  try { a1kind = getSheetKind(entry.workbook); } catch(e) {
+  try {
+    if (entry.sheetIndex !== undefined) {
+      var ws = entry.workbook.Sheets[entry.workbook.SheetNames[entry.sheetIndex]];
+      var sd = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      a1kind = String((sd[0] || [])[0] || '').trim();
+    } else {
+      a1kind = getSheetKind(entry.workbook);
+    }
+  } catch(e) {
     showToast('文件「' + entry.name + '」' + e.message, true);
     return;
   }
@@ -1000,7 +1105,7 @@ function parseFileEntry(id) {
   // Parse
   var purchases;
   try {
-    purchases = parseSheet(entry.workbook);
+    purchases = parseSheet(entry.workbook, entry.sheetIndex);
   } catch(e) {
     showToast('文件「' + entry.name + '」' + e.message, true);
     return;

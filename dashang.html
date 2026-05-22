@@ -14,6 +14,7 @@
   --blue-50: #EDF5FA;
   --water: #B8D8E3;
   --gray-700: #4A5568;
+  --gray-500: #718096;
   --gray-400: #A0AEC0;
   --gray-200: #E2E8F0;
   --gray-100: #F7FAFC;
@@ -37,19 +38,19 @@ body {
 }
 
 .container {
-  max-width: 480px;
+  max-width: 720px;
   width: 100%;
   margin: 0 auto;
   padding: 60px 24px;
-  text-align: center;
 }
 
 .header {
-  margin-bottom: 40px;
+  text-align: center;
+  margin-bottom: 36px;
 }
 .header a {
   display: inline-block;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   font-size: 13px;
   color: var(--blue-500);
   text-decoration: none;
@@ -58,44 +59,144 @@ body {
 }
 .header a:hover { color: var(--blue-700); }
 .header h1 {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 300;
   color: var(--blue-900);
   letter-spacing: 4px;
 }
 
-.card {
+.main-row {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+@media (max-width: 640px) {
+  .main-row { flex-direction: column; align-items: center; }
+}
+
+/* ===== Left: Donation Card ===== */
+.card-qr {
+  flex: 0 0 280px;
   background: var(--white);
   border-radius: var(--radius);
-  padding: 40px 32px;
+  padding: 32px 24px;
   border: 1px solid var(--gray-200);
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  text-align: center;
 }
 
 .qr-img {
-  width: 220px;
-  height: 220px;
+  width: 200px;
+  height: 200px;
   border-radius: var(--radius);
   border: 1px solid var(--gray-200);
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
-.card p {
-  font-size: 15px;
-  color: var(--gray-700);
-  line-height: 1.8;
-  letter-spacing: 0.5px;
-}
-.card .hint {
-  font-size: 13px;
-  color: var(--gray-700);
-  font-weight: 500;
-  margin-top: 16px;
+.card-qr .title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--blue-900);
+  margin-bottom: 8px;
   letter-spacing: 1px;
 }
 
+.card-qr .cry-text {
+  font-size: 13px;
+  color: var(--gray-500);
+  line-height: 2;
+  text-align: left;
+  padding: 0 4px;
+}
+
+.card-qr .cry-text .kao {
+  white-space: nowrap;
+}
+
+.card-qr .voluntary {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--blue-300);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  border-top: 1px solid var(--gray-200);
+  padding-top: 14px;
+}
+
+/* ===== Right: Supporter Wall ===== */
+.card-sponsor {
+  flex: 1;
+  background: var(--white);
+  border-radius: var(--radius);
+  border: 1px solid var(--gray-200);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  overflow: hidden;
+}
+
+.sponsor-header {
+  background: var(--blue-50);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sponsor-header .sh-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blue-700);
+  letter-spacing: 1px;
+}
+.sponsor-header .sh-cycle {
+  font-size: 11px;
+  color: var(--gray-400);
+}
+
+.sponsor-list {
+  padding: 8px 0;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.sponsor-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--gray-100);
+  transition: background 0.15s;
+}
+.sponsor-item:hover { background: var(--blue-50); }
+.sponsor-item:last-child { border-bottom: none; }
+
+.sponsor-item .si-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blue-900);
+  letter-spacing: 0.5px;
+}
+.sponsor-item .si-msg {
+  font-size: 12px;
+  color: var(--gray-700);
+  font-weight: 500;
+}
+.sponsor-item .si-amount {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blue-500);
+  white-space: nowrap;
+}
+
+.sponsor-empty {
+  text-align: center;
+  padding: 32px 20px;
+  font-size: 13px;
+  color: var(--gray-400);
+  line-height: 2;
+}
+
 .footer {
-  margin-top: 40px;
+  text-align: center;
+  margin-top: 36px;
   font-size: 13px;
   color: var(--gray-700);
   font-weight: 500;
@@ -109,13 +210,45 @@ body {
 
   <div class="header">
     <a href="index.html">&larr; 返回首页</a>
-    <h1>打赏</h1>
+    <h1>打 赏</h1>
   </div>
 
-  <div class="card">
-    <img class="qr-img" src="images/赞赏码.jpg" alt="赞赏码">
-    <p>如果这个小工具帮到了你，<br>可以请我喝杯雪王 :)</p>
-    <p class="hint">每一份心意都是对RenSheet的温柔托举，<br>不赏也完全没关系，用得开心最重要。</p>
+  <div class="main-row">
+
+    <!-- Left: QR -->
+    <div class="card-qr">
+      <img class="qr-img" src="images/赞赏码.jpg" alt="赞赏码">
+      <div class="title">救救孩子的 token 账单 (′⌒`)</div>
+      <div class="cry-text">
+        <span class="kao">(｡•́︿•̀｡)</span> 每次调用大模型都要烧 token<br>
+        <span class="kao">(ᗒᗣᗕ)՞</span> 虽然是小工具但真的很用心在维护<br>
+        <span class="kao">(◍•ᴗ•◍)</span> 哪怕一块钱也能烧一点token<br>
+        <span class="kao">٩(ˊᗜˋ*)و</span> 谢谢你愿意看到这里
+      </div>
+      <div class="voluntary">以上卖惨均为自愿阅读（）<br>不打赏完全没关系，用得开心就好 ♡</div>
+    </div>
+
+    <!-- Right: Sponsor Wall -->
+    <div class="card-sponsor">
+      <div class="sponsor-header">
+        <span class="sh-title">金主大人名录</span>
+        <span class="sh-cycle">每月 1 日更新</span>
+      </div>
+      <div class="sponsor-list">
+        <div class="sponsor-item">
+          <div>
+            <div class="si-name">星川</div>
+            <div class="si-msg">真的很方便，辛苦了～</div>
+          </div>
+          <div class="si-amount">¥10.00</div>
+        </div>
+        <div class="sponsor-empty">
+          以上为 RenSheet 的首位金主大人<br>
+          感谢老大对项目的温柔托举 (´▽`ʃƪ)<br>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <div class="footer">RenSheet · 高效打表，纯净体验</div>

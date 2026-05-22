@@ -532,6 +532,7 @@ var characters = [];           // unique sorted char names (union)
 var pointsPerChar = {};        // from actual table
 var originalPrices = {};       // from original table, may be missing some chars
 var adjustments = {};          // user-editable
+var actualRow3Prices = {};    // actual table's row 3 prices (new prices), blank if missing
 var isBalanced = false;
 var kindName = '';
 
@@ -687,6 +688,7 @@ function handleFile(file, isOriginal, tagEl, dz) {
   reader.onload = function(e) {
     try {
       var wb = XLSX.read(e.target.result, {type:'array'});
+      if (wb.SheetNames.length > 1) throw new Error('格式错误：不支持多sheet文件（当前文件含' + wb.SheetNames.length + '个sheet），请使用单sheet排表');
       // Validate format
       var kind = getSheetKind(wb);
       // Validate both character sets
@@ -810,12 +812,13 @@ function getSheetKind(wb) {
   return kind;
 }
 
-function parseSheet(wb) {
-  var ws = wb.Sheets[wb.SheetNames[0]];
-  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-  if (data.length < 4) throw new Error('格式错误：数据行不足（表内仅' + data.length + '行，至少需要4行——第1行品类名、第2行角色、第3行单价、第4+行数据）');
-
-  var kind = getSheetKind(wb);
+function parseSheetData(data) {
+  if (data.length < 4) throw new Error('数据行不足（表内仅' + data.length + '行，至少需要4行——第1行品类名、第2行角色、第3行单价、第4+行数据）');
+  var kind = String(data[0][0] || '').trim();
+  if (!kind) throw new Error('格式错误：A1单元格（品类名）为空');
+  for (var c = 1; c < data[0].length; c++) {
+    if (String(data[0][c] || '').trim()) throw new Error('格式错误：第一行仅A1可填写品类名，B1及其他单元格请留空（当前' + colToLetter(c) + '1单元格有值）');
+  }
   var rawHeaders = data[1].slice(1);
   var headers = rawHeaders.filter(function(h) { return h !== ''; });
   var seen = {};
@@ -832,7 +835,6 @@ function parseSheet(wb) {
   }
   var prices = data[2].slice(1, 1 + headers.length);
   var purchases = [];
-
   for (var r = 3; r < data.length; r++) {
     var row = data[r];
     if (!row || !row.length) continue;
@@ -853,15 +855,19 @@ function parseSheet(wb) {
   return purchases;
 }
 
+function parseSheet(wb) {
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  return parseSheetData(data);
+}
+
 function parseSheetWithPrices(wb, priceMap) {
   var ws = wb.Sheets[wb.SheetNames[0]];
   var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
   if (data.length < 4) throw new Error('格式错误：数据行不足（表内仅' + data.length + '行，至少需要4行——第1行品类名、第2行角色、第3行单价、第4+行数据）');
-
-  var kind = getSheetKind(wb);
+  var kind = String(data[0][0] || '').trim();
   var headers = data[1].slice(1).filter(function(h) { return h !== ''; });
   var purchases = [];
-
   for (var r = 3; r < data.length; r++) {
     var row = data[r];
     if (!row || !row.length) continue;
@@ -870,13 +876,7 @@ function parseSheetWithPrices(wb, priceMap) {
       if (!name) continue;
       var rawLabel = String(headers[c - 1] || '').trim();
       var price = priceMap[rawLabel] || 0;
-      purchases.push({
-        person: name,
-        character: rawLabel,
-        label: rawLabel,
-        kind: kind,
-        price: price
-      });
+      purchases.push({ person: name, character: rawLabel, label: rawLabel, kind: kind, price: price });
     }
   }
   return purchases;
@@ -903,7 +903,9 @@ function extractPrices(wb) {
   var headers = data[1].slice(1).filter(function(h) { return h !== ''; });
   var prices = {};
   for (var c = 1; c <= headers.length; c++) {
-    prices[String(headers[c - 1] || '').trim()] = parseFloat(data[2][c]) || 0;
+    var key = String(headers[c - 1] || '').trim();
+    var raw = String(data[2][c] || '').trim();
+    if (raw !== '') prices[key] = parseFloat(raw) || 0;
   }
   return prices;
 }
@@ -916,11 +918,13 @@ function buildBalancer() {
   var actualData = extractPointsPerChar(actualFile.workbook);
   var origPrices = extractPrices(originalFile.workbook);
   var origChars = extractPointsPerChar(originalFile.workbook);
+  actualRow3Prices = extractPrices(actualFile.workbook);  // actual table's row 3 = intended new prices
 
   // Union of characters from both tables
   var charSet = {};
   actualData.headers.forEach(function(ch) { charSet[ch] = true; });
   Object.keys(origPrices).forEach(function(ch) { charSet[ch] = true; });
+  Object.keys(actualRow3Prices).forEach(function(ch) { charSet[ch] = true; });
   characters = Object.keys(charSet).sort();
   pointsPerChar = {};
   originalPrices = {};
@@ -930,9 +934,8 @@ function buildBalancer() {
     var ch = characters[i];
     pointsPerChar[ch] = actualData.points[ch] || 0;
     originalPrices[ch] = origPrices[ch] !== undefined ? origPrices[ch] : avgPriceOrig;
-    // Initial adjustment = original price - original avg price (for chars in original table)
-    // For chars only in actual table, adjustment starts at 0
-    var initAdj = (origPrices[ch] !== undefined) ? origPrices[ch] - avgPriceOrig : 0;
+    // Initial adjustment = actualRow3Price - avgPriceActual (if actual row 3 has a value), else 0
+    var initAdj = (actualRow3Prices[ch] !== undefined) ? actualRow3Prices[ch] - avgPriceActual : 0;
     adjustments[ch] = Math.round(initAdj * 100) / 100;
   }
 
@@ -962,12 +965,13 @@ function renderBalancer() {
   }
   html += '</tr>';
 
-  // New price reference row (newPrice = adjustment + avgPriceActual)
+  // New price reference row — directly from actual table's row 3, blank if missing
   html += '<tr><td class="row-label">新单价</td>';
   for (var m = 0; m < characters.length; m++) {
     var och = characters[m];
-    var np = (adjustments[och] || 0) + avgPriceActual;
-    html += '<td class="new-price-ref" style="font-weight:600;color:var(--blue-700);">' + np.toFixed(2) + '</td>';
+    var ap = actualRow3Prices[och];
+    var display = (ap !== undefined && ap > 0) ? ap.toFixed(2) : '';
+    html += '<td class="new-price-ref" style="font-weight:600;color:var(--blue-700);">' + display + '</td>';
   }
   html += '</tr>';
 
@@ -1010,23 +1014,15 @@ function updateBalanceDisplay() {
     '<span>' + icon + '</span> &Sigma;(点数&times;调价) = ' + sum.toFixed(2) + ' <span>' + text + '</span>' +
     '</div>';
   document.getElementById('btnNext2').disabled = !isBalanced;
-
-  // Update新单价 reference cells
-  var refCells = document.querySelectorAll('.new-price-ref');
-  for (var i = 0; i < refCells.length; i++) {
-    var ch = characters[i];
-    var np = (adjustments[ch] || 0) + avgPriceActual;
-    refCells[i].textContent = np.toFixed(2);
-  }
 }
 
 // ==================== STEP 3: NEW PRICE SHEET ====================
 function buildNewPriceSheet() {
-  // newPrices = adjusted + avgPriceActual
+  // newPrices come from actual table's row 3 (user's intended new prices)
   newPrices = {};
   for (var i = 0; i < characters.length; i++) {
     var ch = characters[i];
-    newPrices[ch] = Math.round((adjustments[ch] + avgPriceActual) * 100) / 100;
+    newPrices[ch] = actualRow3Prices[ch] !== undefined ? actualRow3Prices[ch] : 0;
   }
 
   document.getElementById('summaryKind').textContent = '';
@@ -1296,11 +1292,11 @@ function buildFinalListTable(data) {
       var kind = allKinds[k];
       var charMap = pm.byKind[kind] || {};
       var labels = Object.keys(charMap).sort();
+      var parts = [];
       for (var l = 0; l < labels.length; l++) {
-        var label = labels[l];
-        var count = charMap[label];
-        details.push(kind + '-' + label + '-' + count);
+        parts.push(labels[l] + charMap[labels[l]]);
       }
+      if (parts.length) details.push(kind + '-' + parts.join(''));
     }
 
     var detailStr = details.join(',');
