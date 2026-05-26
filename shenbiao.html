@@ -1066,7 +1066,7 @@ function buildCategorizedTable(data) {
     }
 
     row.push(String(pm.totalCount));
-    row.push(pm.totalCost.toFixed(1));
+    row.push(pm.totalCost.toFixed(2));
     rows.push(row);
   }
   return {headers: headers, rows: rows};
@@ -1107,7 +1107,7 @@ function buildListTable(data) {
       if (group.length) breaks.push(group.join(','));
       detailStr = breaks.join('\n');
     }
-    var row = [person, detailStr, String(pm.totalCount), pm.totalCost.toFixed(1)];
+    var row = [person, detailStr, String(pm.totalCount), pm.totalCost.toFixed(2)];
     rows.push(row);
   }
   return {headers: headers, rows: rows};
@@ -1169,7 +1169,7 @@ function renderPreview() {
     for (var ei = 0; ei < processedData.validationErrors.length; ei++) {
       var ve = processedData.validationErrors[ei];
       html += '<div style="font-size:13px;color:#9B2C2C;margin-bottom:2px;">';
-      html += '<strong>' + ve.person + '</strong>：肾额 ' + ve.totalCost.toFixed(1) + ' vs 预期 ' + ve.expectedCost.toFixed(1) + '（差' + (ve.diff > 0 ? '+' : '') + ve.diff.toFixed(1) + '）';
+      html += '<strong>' + ve.person + '</strong>：肾额 ' + ve.totalCost.toFixed(2) + ' vs 预期 ' + ve.expectedCost.toFixed(2) + '（差' + (ve.diff > 0 ? '+' : '') + ve.diff.toFixed(2) + '）';
       html += '</div>';
     }
     html += '<div style="font-size:12px;color:#9B2C2C;margin-top:6px;">可能原因：同一角色在不同排表中单价不一致，或排表数据有误</div>';
@@ -1209,11 +1209,11 @@ function renderPreview() {
       html += '<td style="padding:4px 8px;text-align:left;">' + row.name + '</td>';
       html += '<td style="padding:4px 8px;text-align:center;">' + row.kind + '</td>';
       html += '<td style="padding:4px 8px;text-align:center;">' + row.totalCount + '</td>';
-      html += '<td style="padding:4px 8px;text-align:center;">' + row.totalCost.toFixed(1) + '</td>';
+      html += '<td style="padding:4px 8px;text-align:center;">' + row.totalCost.toFixed(2) + '</td>';
       html += '<td style="padding:4px 8px;text-align:center;">' + (row.isTotal ? '--' : row.unitPrice.toFixed(2)) + '</td>';
       html += '<td style="padding:4px 8px;text-align:center;">' + (row.isTotal ? '--' : row.points) + '</td>';
-      html += '<td style="padding:4px 8px;text-align:center;">' + row.expectedCost.toFixed(1) + '</td>';
-      html += '<td style="padding:4px 8px;text-align:center;' + (row.diff > 0.005 ? 'color:#E53E3E;font-weight:700' : '') + '">' + (row.diff > 0.005 ? (row.totalCost > row.expectedCost ? '+' : '') + row.diff.toFixed(1) : '0') + '</td>';
+      html += '<td style="padding:4px 8px;text-align:center;">' + row.expectedCost.toFixed(2) + '</td>';
+      html += '<td style="padding:4px 8px;text-align:center;' + (row.diff > 0.005 ? 'color:#E53E3E;font-weight:700' : '') + '">' + (row.diff > 0.005 ? (row.totalCost > row.expectedCost ? '+' : '') + row.diff.toFixed(2) : '0') + '</td>';
       html += '<td style="padding:4px 8px;text-align:center;">' + (row.pass ? '<span class="validation-pass">通过</span>' : '<span class="validation-fail">不符</span>') + '</td>';
       html += '</tr>';
     }

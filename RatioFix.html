@@ -965,12 +965,12 @@ function renderBalancer() {
   }
   html += '</tr>';
 
-  // New price reference row — directly from actual table's row 3, blank if missing
+  // New price reference row = avgPriceActual + adjustment
   html += '<tr><td class="row-label">新单价</td>';
   for (var m = 0; m < characters.length; m++) {
     var och = characters[m];
-    var ap = actualRow3Prices[och];
-    var display = (ap !== undefined && ap > 0) ? ap.toFixed(2) : '';
+    var np = (adjustments[och] || 0) + avgPriceActual;
+    var display = np > 0 ? np.toFixed(2) : '';
     html += '<td class="new-price-ref" style="font-weight:600;color:var(--blue-700);">' + display + '</td>';
   }
   html += '</tr>';
@@ -983,13 +983,50 @@ function renderBalancer() {
 function onAdjInput(input) {
   input.classList.add('modified');
   var ch = input.dataset.char;
-  adjustments[ch] = parseFloat(input.value) || 0;
+  var adj = parseFloat(input.value) || 0;
+  var np = adj + avgPriceActual;
+  if (np < 0) {
+    showToast('「' + ch + '」新单价不能为负数，已恢复默认值', true);
+    var defAdj = (actualRow3Prices[ch] !== undefined) ? Math.round((actualRow3Prices[ch] - avgPriceActual) * 100) / 100 : 0;
+    adjustments[ch] = defAdj;
+    input.value = defAdj;
+    var idx = characters.indexOf(ch);
+    if (idx >= 0) {
+      var defNp = (actualRow3Prices[ch] !== undefined && actualRow3Prices[ch] > 0) ? actualRow3Prices[ch].toFixed(2) : '';
+      var cells = document.querySelectorAll('.new-price-ref');
+      if (cells[idx]) cells[idx].textContent = defNp;
+    }
+    updateBalanceDisplay();
+    return;
+  }
+  adjustments[ch] = adj;
+  var idx = characters.indexOf(ch);
+  if (idx >= 0) {
+    var cells = document.querySelectorAll('.new-price-ref');
+    if (cells[idx]) cells[idx].textContent = np > 0 ? np.toFixed(2) : '';
+  }
   updateBalanceDisplay();
 }
 
 function onAdjChange(input) {
   var ch = input.dataset.char;
-  adjustments[ch] = parseFloat(input.value) || 0;
+  var adj = parseFloat(input.value) || 0;
+  if (adj + avgPriceActual < 0) {
+    showToast('「' + ch + '」新单价不能为负数，已恢复默认值', true);
+    var defAdj = (actualRow3Prices[ch] !== undefined) ? Math.round((actualRow3Prices[ch] - avgPriceActual) * 100) / 100 : 0;
+    adjustments[ch] = defAdj;
+    input.value = defAdj;
+    var idx = characters.indexOf(ch);
+    if (idx >= 0) {
+      var defNp = (actualRow3Prices[ch] !== undefined && actualRow3Prices[ch] > 0) ? actualRow3Prices[ch].toFixed(2) : '';
+      var cells = document.querySelectorAll('.new-price-ref');
+      if (cells[idx]) cells[idx].textContent = defNp;
+    }
+    updateBalanceDisplay();
+    saveDraft();
+    return;
+  }
+  adjustments[ch] = adj;
   updateBalanceDisplay();
   saveDraft();
 }
@@ -1018,11 +1055,10 @@ function updateBalanceDisplay() {
 
 // ==================== STEP 3: NEW PRICE SHEET ====================
 function buildNewPriceSheet() {
-  // newPrices come from actual table's row 3 (user's intended new prices)
   newPrices = {};
   for (var i = 0; i < characters.length; i++) {
     var ch = characters[i];
-    newPrices[ch] = actualRow3Prices[ch] !== undefined ? actualRow3Prices[ch] : 0;
+    newPrices[ch] = (adjustments[ch] || 0) + avgPriceActual;
   }
 
   document.getElementById('summaryKind').textContent = '';
@@ -1312,7 +1348,7 @@ function buildFinalListTable(data) {
       detailStr = breaks.join('\n');
     }
     var row = [person, detailStr, String(pm.totalCount),
-               pm.originalShen.toFixed(1), pm.actualShen.toFixed(1), pm.diff.toFixed(1)];
+               pm.originalShen.toFixed(2), pm.actualShen.toFixed(2), pm.diff.toFixed(2)];
     rows.push(row);
   }
   return {headers: headers, rows: rows};
@@ -1396,13 +1432,13 @@ function renderFinalPreview() {
   if (validationPassed) {
     html += '<div style="background:#F0FFF4;border:1px solid #9AE6B4;border-radius:6px;padding:10px 16px;margin-bottom:16px;text-align:left;">';
     html += '<div style="font-size:13px;font-weight:600;color:#276749;">校验通过</div>';
-    html += '<div style="font-size:12px;color:#276749;margin-top:4px;">原肾和=' + sumOrig.toFixed(1) + ' = 实肾和=' + sumActual.toFixed(1) + ' | 红补蓝退和=' + totalDiff.toFixed(1) + ' &asymp; 0</div>';
+    html += '<div style="font-size:12px;color:#276749;margin-top:4px;">原肾和=' + sumOrig.toFixed(2) + ' = 实肾和=' + sumActual.toFixed(2) + ' | 红补蓝退和=' + totalDiff.toFixed(2) + ' &asymp; 0</div>';
     html += '</div>';
   } else {
     html += '<div style="background:#FEE2E2;border:1px solid #F87171;border-radius:6px;padding:10px 16px;margin-bottom:16px;text-align:left;">';
     html += '<div style="font-size:13px;font-weight:700;color:#C53030;">校验异常</div>';
-    if (!origVsActualOk) html += '<div style="font-size:12px;color:#9B2C2C;margin-top:2px;">原肾和=' + sumOrig.toFixed(1) + ' &ne; 实肾和=' + sumActual.toFixed(1) + '（差' + (sumOrig - sumActual).toFixed(1) + '）</div>';
-    if (!diffSumOk) html += '<div style="font-size:12px;color:#9B2C2C;margin-top:2px;">红补蓝退和=' + totalDiff.toFixed(1) + ' &ne; 0（差' + totalDiff.toFixed(1) + '）</div>';
+    if (!origVsActualOk) html += '<div style="font-size:12px;color:#9B2C2C;margin-top:2px;">原肾和=' + sumOrig.toFixed(2) + ' &ne; 实肾和=' + sumActual.toFixed(2) + '（差' + (sumOrig - sumActual).toFixed(2) + '）</div>';
+    if (!diffSumOk) html += '<div style="font-size:12px;color:#9B2C2C;margin-top:2px;">红补蓝退和=' + totalDiff.toFixed(2) + ' &ne; 0（差' + totalDiff.toFixed(2) + '）</div>';
     html += '</div>';
   }
 

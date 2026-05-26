@@ -13,6 +13,9 @@
   --blue-100: #D6EAF5;
   --blue-50: #EDF5FA;
   --water: #B8D8E3;
+  --gold-300: #D4AF37;
+  --gold-200: #E8C840;
+  --gold-100: #F0D080;
   --gray-700: #4A5568;
   --gray-400: #A0AEC0;
   --gray-200: #E2E8F0;
@@ -136,6 +139,204 @@ body {
   letter-spacing: 0.5px;
 }
 
+/* Dashang card — water ripple + golden glow */
+.tool-card.dashang-card { z-index: 1; overflow: visible; }
+.tool-card.dashang-card::before { display: none; }
+.tool-card.dashang-card > * { position: relative; z-index: 1; }
+.tool-card.dashang-card .spark-burst { position: absolute; z-index: 2; }
+
+.tool-card.dashang-card::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 320px; height: 320px;
+  margin: -160px 0 0 -160px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center,
+    rgba(184,216,227,0.18) 0%,
+    rgba(184,216,227,0.06) 35%,
+    transparent 65%);
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity 0.7s ease, transform 0.8s cubic-bezier(0.23,1,0.32,1);
+  pointer-events: none;
+  z-index: 0;
+}
+.tool-card.dashang-card:hover::after {
+  opacity: 1;
+  transform: scale(1.8);
+}
+
+.tool-card.dashang-card:hover {
+  border-color: var(--gold-300);
+  box-shadow:
+    0 4px 16px rgba(26,69,112,0.10),
+    0 0 0 1px rgba(212,175,55,0.12),
+    0 0 24px rgba(212,175,55,0.06);
+  transform: translateY(-2px);
+}
+
+.tool-card.dashang-card .tool-icon {
+  transition: color 0.4s ease, filter 0.4s ease;
+}
+.tool-card.dashang-card:hover .tool-icon {
+  color: var(--gold-300);
+  filter: drop-shadow(0 0 6px rgba(212,175,55,0.35));
+}
+
+.tool-card.dashang-card:hover .tool-title { color: var(--gold-300); }
+
+/* Spark burst — firework particles from star icon */
+.spark-burst {
+  position: absolute;
+  top: 75px; left: 50%;
+  width: 6px; height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+}
+.spark-burst::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+}
+.tool-card.dashang-card:hover .spark-burst {
+  animation: sparkGold 1s ease-out;
+}
+.tool-card.dashang-card:hover .spark-burst::after {
+  animation: sparkBlue 1s ease-out 0.12s;
+}
+
+@keyframes sparkGold {
+  0%   { opacity: 0; transform: scale(0.2); box-shadow: 0 0 0 0 var(--gold-300); }
+  15%  { opacity: 1; transform: scale(0.5); }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+    box-shadow:
+       80px   -10px  0 2px var(--gold-300),
+      -75px   -25px  0 2px var(--gold-200),
+       70px    40px  0 1px var(--gold-300),
+      -65px    35px  0 2px var(--gold-200),
+       50px   -60px  0 1px var(--gold-300),
+      -55px   -55px  0 2px var(--gold-100),
+       35px    70px  0 1px var(--gold-200),
+      -40px   -70px  0 2px var(--gold-300),
+       20px   -80px  0 1px var(--gold-200),
+      -20px    80px  0 2px var(--gold-100),
+       90px    25px  0 1px var(--gold-300),
+      -85px    10px  0 2px var(--gold-200),
+       60px   -45px  0 1px var(--gold-100),
+      -50px    60px  0 2px var(--gold-300),
+       10px    85px  0 1px var(--gold-200),
+      -10px   -85px  0 2px var(--gold-100),
+      100px   -40px  0 1px var(--gold-300),
+      -95px   -50px  0 2px var(--gold-200);
+  }
+}
+
+@keyframes sparkBlue {
+  0%   { opacity: 0; transform: scale(0.1); box-shadow: 0 0 0 0 var(--water); }
+  15%  { opacity: 1; transform: scale(0.4); }
+  100% {
+    opacity: 0;
+    transform: scale(1.1);
+    box-shadow:
+       65px   -35px  0 2px var(--water),
+      -60px   -50px  0 1px var(--blue-300),
+       45px    55px  0 2px var(--water),
+      -70px    20px  0 1px var(--blue-300),
+       85px    15px  0 2px var(--water),
+      -45px   -65px  0 1px var(--blue-300),
+       30px   -70px  0 2px var(--water),
+      -30px    70px  0 1px var(--blue-300),
+        0px   -90px  0 2px var(--water),
+        0px    90px  0 1px var(--blue-300),
+       55px    65px  0 2px var(--water),
+      -80px   -30px  0 1px var(--blue-300),
+       95px   -55px  0 2px var(--water),
+      -90px    45px  0 1px var(--blue-300);
+  }
+}
+
+/* ===== Card icon hover effects ===== */
+
+/* 国际表 — orbit arc spinning around globe */
+.tool-card.globe-card::after {
+  content: '';
+  position: absolute;
+  top: 40px; left: 50%;
+  width: 68px; height: 68px;
+  margin-left: -34px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg,
+    transparent 0deg,
+    rgba(123,179,221,0.5) 50deg,
+    transparent 70deg,
+    transparent 160deg,
+    rgba(184,216,227,0.4) 210deg,
+    transparent 230deg,
+    transparent 360deg);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+.tool-card.globe-card:hover::after {
+  opacity: 1;
+  animation: orbitSpin 2.5s linear infinite;
+}
+@keyframes orbitSpin { to { transform: rotate(360deg); } }
+
+/* 肾表 — scanning line across grid */
+.tool-card.grid-card::after {
+  content: '';
+  position: absolute;
+  top: 46px; left: 50%;
+  width: 52px; height: 2px;
+  margin-left: -26px;
+  background: linear-gradient(90deg, transparent, var(--blue-300), transparent);
+  border-radius: 1px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.tool-card.grid-card:hover::after {
+  opacity: 1;
+  animation: scanDown 1.6s ease-in-out infinite;
+}
+@keyframes scanDown {
+  0%   { top: 46px; opacity: 0; }
+  25%  { opacity: 1; }
+  75%  { opacity: 1; }
+  100% { top: 100px; opacity: 0; }
+}
+
+/* 二调退补表 — crosshair pulse rings */
+.tool-card.cross-card::after {
+  content: '';
+  position: absolute;
+  top: 71px; left: 50%;
+  width: 8px; height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  border: 1.5px solid var(--blue-300);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.tool-card.cross-card:hover::after {
+  animation: crossPulse 1.3s ease-out infinite;
+}
+@keyframes crossPulse {
+  0%   { width: 8px; height: 8px; margin: -4px 0 0 -4px; opacity: 0.7; border-width: 2px; }
+  100% { width: 70px; height: 70px; margin: -35px 0 0 -35px; opacity: 0; border-width: 0.5px; }
+}
+
 /* Placeholder card — dimmed */
 .tool-card.placeholder {
   opacity: 0.55;
@@ -162,6 +363,7 @@ body {
   .header h1 { font-size: 28px; }
   .tool-grid { grid-template-columns: 1fr; gap: 14px; }
   .tool-card { padding: 34px 22px 30px; }
+  .spark-burst { top: 65px; }
 }
 </style>
 </head>
@@ -177,7 +379,7 @@ body {
   <div class="tool-grid">
 
     <!-- 国际表 -->
-    <a class="tool-card" href="guoji.html">
+    <a class="tool-card globe-card" href="guoji.html">
       <svg class="tool-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6">
         <circle cx="26" cy="26" r="19"/>
         <ellipse cx="26" cy="26" rx="10" ry="19"/>
@@ -190,7 +392,7 @@ body {
     </a>
 
     <!-- 肾表 -->
-    <a class="tool-card" href="shenbiao.html">
+    <a class="tool-card grid-card" href="shenbiao.html">
       <svg class="tool-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6">
         <rect x="7" y="9" width="38" height="34" rx="3"/>
         <line x1="16" y1="9" x2="16" y2="43"/>
@@ -203,7 +405,7 @@ body {
     </a>
 
     <!-- 二调退补表 -->
-    <a class="tool-card" href="RatioFix.html">
+    <a class="tool-card cross-card" href="RatioFix.html">
       <svg class="tool-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6">
         <path d="M38 14L26 26L38 38"/>
         <path d="M14 38L26 26L14 14"/>
@@ -214,18 +416,19 @@ body {
     </a>
 
     <!-- 打赏页面 -->
-    <a class="tool-card" href="dashang.html">
+    <a class="tool-card dashang-card" href="dashang.html">
       <svg class="tool-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6">
         <path d="M26 11L31.5 22.5L44 24.5L34.5 33L36.5 45.5L26 40L15.5 45.5L17.5 33L8 24.5L20.5 22.5Z"/>
       </svg>
-      <div class="tool-title">打赏页面</div>
+      <span class="spark-burst"></span>
+      <div class="tool-title">老板请赏光</div>
       <div class="tool-desc">用心打磨，随缘赞赏</div>
     </a>
 
   </div>
 
   <div class="footer">RenSheet · 高效打表，纯净体验</div>
-  <div class="footer">作者小红书id：591529972@无敌头铁王</div>
+  <div class="footer"> <span>有问题请私信开发者唯一小红书：591529972@无敌头铁王</span><br>或加用户咨询qq群：740838603</div>
 
 </div>
 

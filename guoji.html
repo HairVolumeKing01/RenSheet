@@ -903,7 +903,7 @@ function buildParseResultsHtml(f) {
   html += '<div class="parse-stats">';
   html += '<span>唯一CN数：<strong>' + f.cnCount + '</strong></span>';
   html += '<span>总点数：<strong>' + f.totalPoints + '</strong></span>';
-  html += '<span>总本体重量：<strong>' + f.totalBodyWeight.toFixed(1) + ' g</strong></span>';
+  html += '<span>总本体重量：<strong>' + f.totalBodyWeight.toFixed(2) + ' g</strong></span>';
   if (f.verifyPoints > 0) {
     var diff = Math.abs(f.totalPoints - f.verifyPoints);
     if (diff === 0) {
@@ -919,7 +919,7 @@ function buildParseResultsHtml(f) {
   if (cns.length > 0) {
     html += '<table class="parse-preview-table"><thead><tr><th>CN</th><th>点数</th><th>本体(g)</th></tr></thead><tbody>';
     for (var i = 0; i < cns.length; i++) {
-      html += '<tr><td>' + cns[i] + '</td><td>' + f.cnPoints[cns[i]] + '</td><td>' + (f.cnBodyWeight[cns[i]] || 0).toFixed(1) + '</td></tr>';
+      html += '<tr><td>' + cns[i] + '</td><td>' + f.cnPoints[cns[i]] + '</td><td>' + (f.cnBodyWeight[cns[i]] || 0).toFixed(2) + '</td></tr>';
     }
     html += '</tbody></table>';
   }
@@ -1138,7 +1138,7 @@ function parseFileEntry(id) {
   computedResults = null;
   exportBtn.disabled = true;
   renderParseEntries();
-  showToast(entry.name + ' 解析完成：' + entry.cnCount + '人，' + totalPoints + '点，' + entry.totalBodyWeight.toFixed(1) + 'g');
+  showToast(entry.name + ' 解析完成：' + entry.cnCount + '人，' + totalPoints + '点，' + entry.totalBodyWeight.toFixed(2) + 'g');
 }
 
 // ==================== MANUAL ENTRIES ====================
@@ -1388,10 +1388,10 @@ function processAll() {
 
     var rowErrors = [];
     if (bw <= 0) {
-      rowErrors.push('本体重量异常（' + bw.toFixed(1) + 'g）');
+      rowErrors.push('本体重量异常（' + bw.toFixed(2) + 'g）');
     }
     if (box < 0) {
-      rowErrors.push('箱摊为负（' + box.toFixed(1) + 'g），请增大总包裹重量使其不小于总本体重量');
+      rowErrors.push('箱摊为负（' + box.toFixed(2) + 'g），请增大总包裹重量使其不小于总本体重量');
     }
     if (rowErrors.length) {
       validationErrors.push({cn: rrow.cn, errors: rowErrors, bodyWeight: bw, boxAllocation: box});
@@ -1523,9 +1523,9 @@ function renderPreview() {
     var cellBg = isErrorRow ? '#FEF2F2' : bg;
     html += '<tr style="' + errStyle + '">';
     html += '<td class="col-name" style="background:' + cellBg + '">' + row.cn + '</td>';
-    html += '<td style="background:' + cellBg + ';' + (row.bodyWeight <= 0 ? 'color:#E53E3E;font-weight:700' : '') + '">' + row.bodyWeight.toFixed(1) + '</td>';
-    html += '<td style="background:' + cellBg + ';' + (row.boxAllocation < 0 ? 'color:#E53E3E;font-weight:700' : '') + '">' + row.boxAllocation.toFixed(1) + '</td>';
-    html += '<td style="background:' + cellBg + '">' + row.totalWeight.toFixed(1) + '</td>';
+    html += '<td style="background:' + cellBg + ';' + (row.bodyWeight <= 0 ? 'color:#E53E3E;font-weight:700' : '') + '">' + row.bodyWeight.toFixed(2) + '</td>';
+    html += '<td style="background:' + cellBg + ';' + (row.boxAllocation < 0 ? 'color:#E53E3E;font-weight:700' : '') + '">' + row.boxAllocation.toFixed(2) + '</td>';
+    html += '<td style="background:' + cellBg + '">' + row.totalWeight.toFixed(2) + '</td>';
     html += '<td class="col-fee" style="background:' + cellBg + '">' + row.internationalFee.toFixed(2) + '</td>';
     html += '</tr>';
   }
@@ -1541,9 +1541,9 @@ function renderPreview() {
     totalFee += computedResults.rows[ti].internationalFee;
   }
   var sumHtml = '<span>总人数：<strong>' + computedResults.rows.length + '</strong></span>';
-  sumHtml += '<span>总本体重量：<strong>' + computedResults.totalBodyWeightAll.toFixed(1) + ' g</strong></span>';
-  sumHtml += '<span>箱摊总重：<strong>' + computedResults.totalBoxAllocation.toFixed(1) + ' g</strong></span>';
-  sumHtml += '<span>总包裹重量：<strong>' + computedResults.totalPackageWeight.toFixed(1) + ' g</strong></span>';
+  sumHtml += '<span>总本体重量：<strong>' + computedResults.totalBodyWeightAll.toFixed(2) + ' g</strong></span>';
+  sumHtml += '<span>箱摊总重：<strong>' + computedResults.totalBoxAllocation.toFixed(2) + ' g</strong></span>';
+  sumHtml += '<span>总包裹重量：<strong>' + computedResults.totalPackageWeight.toFixed(2) + ' g</strong></span>';
   sumHtml += '<span>总国际运费：<strong>' + totalFee.toFixed(2) + ' 元</strong></span>';
   if (computedResults.rate > 0) {
     sumHtml += '<span>费率：<strong>' + computedResults.rate.toFixed(4) + ' 元/克</strong></span>';
@@ -1597,9 +1597,9 @@ exportBtn.addEventListener('click', function() {
 
     var cells = [
       row.cn,
-      Number(row.bodyWeight.toFixed(1)),
-      Number(row.boxAllocation.toFixed(1)),
-      Number(row.totalWeight.toFixed(1)),
+      Number(row.bodyWeight.toFixed(2)),
+      Number(row.boxAllocation.toFixed(2)),
+      Number(row.totalWeight.toFixed(2)),
       Number(row.internationalFee.toFixed(2))
     ];
 

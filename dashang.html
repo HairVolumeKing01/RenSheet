@@ -3,23 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RenSheet — 打赏</title>
+<title>RenSheet — 老板请赏光</title>
 <style>
 :root {
-  --blue-900: #0D2137;
-  --blue-700: #1A4570;
-  --blue-500: #2B6FA8;
-  --blue-300: #7BB3DD;
-  --blue-100: #D6EAF5;
-  --blue-50: #EDF5FA;
-  --water: #B8D8E3;
-  --gray-700: #4A5568;
-  --gray-500: #718096;
-  --gray-400: #A0AEC0;
-  --gray-200: #E2E8F0;
-  --gray-100: #F7FAFC;
-  --white: #FFFFFF;
-  --radius: 8px;
+  --ink-900: #080808;
+  --ink-800: #111111;
+  --ink-700: #1A1A1A;
+  --ink-600: #252525;
+  --ink-400: #3A3A3A;
+  --ink-100: #D0D0D0;
+
+  --gold-600: #8B7536;
+  --gold-500: #A68B3C;
+  --gold-400: #C89B3C;
+  --gold-300: #D4AF37;
+  --gold-200: #E8C840;
+  --gold-100: #F0D080;
+  --gold-50:  #FFF8E7;
+
+  --text-cream: #FFF8E7;
+  --text-warm: #E8D5C0;
+  --text-dim: #A08868;
+
+  --radius: 12px;
   --font: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
 }
 
@@ -27,16 +33,65 @@
 
 body {
   font-family: var(--font);
-  background: var(--gray-100);
-  color: var(--gray-700);
+  background: radial-gradient(ellipse at 50% 0%, #2A2A2A 0%, #080808 70%, #000000 100%);
+  color: var(--text-cream);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow-x: hidden;
 }
 
+/* ===== Top gold stripe ===== */
+.top-stripe {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(135deg,
+    #8B7536 0%, #A68B3C 20%, #D4AF37 40%, #E8C840 50%,
+    #D4AF37 60%, #A68B3C 80%, #8B7536 100%);
+  background-size: 200% 100%;
+  animation: shimmer 4s linear infinite;
+  z-index: 100;
+}
+
+/* ===== Keyframes ===== */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes goldPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px var(--gold-500),
+      0 0 0 4px rgba(139,117,54,0.3),
+      inset 0 0 30px rgba(0,0,0,0.3),
+      0 4px 20px rgba(0,0,0,0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px var(--gold-300),
+      0 0 0 5px rgba(212,175,55,0.15),
+      inset 0 0 30px rgba(0,0,0,0.3),
+      0 4px 24px rgba(0,0,0,0.3),
+      0 0 16px rgba(212,175,55,0.04);
+  }
+}
+
+@keyframes textGlow {
+  0%, 100% { text-shadow: 0 0 4px rgba(212,175,55,0.1); }
+  50%      { text-shadow: 0 0 12px rgba(212,175,55,0.25); }
+}
+
+/* ===== Container ===== */
 .container {
   max-width: 720px;
   width: 100%;
@@ -44,188 +99,294 @@ body {
   padding: 60px 24px;
 }
 
-.header {
+/* ===== Back link ===== */
+.back-link {
   text-align: center;
-  margin-bottom: 36px;
+  margin-bottom: 20px;
 }
-.header a {
+.back-link a {
   display: inline-block;
-  margin-bottom: 12px;
   font-size: 13px;
-  color: var(--blue-500);
+  color: var(--gold-400);
   text-decoration: none;
-  letter-spacing: 1px;
-  transition: color 0.15s;
+  letter-spacing: 2px;
+  transition: color 0.3s, text-shadow 0.3s;
 }
-.header a:hover { color: var(--blue-700); }
-.header h1 {
-  font-size: 28px;
-  font-weight: 300;
-  color: var(--blue-900);
-  letter-spacing: 4px;
+.back-link a:hover {
+  color: var(--gold-200);
+  text-shadow: 0 0 12px rgba(212,175,55,0.3);
 }
 
+/* ===== Page title with ornaments ===== */
+.page-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.page-title h1 {
+  font-size: 32px;
+  font-weight: 300;
+  color: var(--gold-300);
+  letter-spacing: 12px;
+  text-shadow: 0 0 20px rgba(212,175,55,0.2);
+  margin: 0;
+}
+.title-ornament {
+  width: 60px;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%, var(--gold-400) 50%, transparent 100%);
+}
+
+.page-subtitle {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-dim);
+  letter-spacing: 6px;
+  margin-bottom: 40px;
+  font-weight: 400;
+}
+
+/* ===== Main row ===== */
 .main-row {
   display: flex;
   gap: 24px;
   align-items: flex-start;
 }
-@media (max-width: 640px) {
-  .main-row { flex-direction: column; align-items: center; }
-}
 
-/* ===== Left: Donation Card ===== */
+/* ===== QR Card — gold-framed mirror ===== */
 .card-qr {
   flex: 0 0 280px;
-  background: var(--white);
+  position: relative;
+  background: linear-gradient(145deg, #111111 0%, #1A1A1A 50%, #111111 100%);
   border-radius: var(--radius);
   padding: 32px 24px;
-  border: 1px solid var(--gray-200);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   text-align: center;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  box-shadow:
+    0 0 0 2px var(--gold-500),
+    0 0 0 4px rgba(139,117,54,0.3),
+    inset 0 0 30px rgba(0,0,0,0.3),
+    0 4px 20px rgba(0,0,0,0.3);
+  animation: fadeInUp 0.7s ease-out both, goldPulse 4s ease-in-out 1s infinite;
+  transition: box-shadow 0.4s ease;
+}
+.card-qr:hover {
+  box-shadow:
+    0 0 0 2px var(--gold-300),
+    0 0 0 5px rgba(212,175,55,0.2),
+    inset 0 0 30px rgba(0,0,0,0.3),
+    0 4px 30px rgba(0,0,0,0.4),
+    0 0 20px rgba(212,175,55,0.08);
 }
 
+/* Art-deco corner ornaments */
+.frame-corner {
+  position: absolute;
+  width: 18px; height: 18px;
+  border-color: var(--gold-400);
+  border-style: solid;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+.card-qr:hover .frame-corner { opacity: 1; }
+.frame-corner.tl { top: 6px; left: 6px; border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
+.frame-corner.tr { top: 6px; right: 6px; border-width: 2px 2px 0 0; border-radius: 0 3px 0 0; }
+.frame-corner.bl { bottom: 6px; left: 6px; border-width: 0 0 2px 2px; border-radius: 0 0 0 3px; }
+.frame-corner.br { bottom: 6px; right: 6px; border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
+
 .qr-img {
-  width: 200px;
-  height: 200px;
-  border-radius: var(--radius);
-  border: 1px solid var(--gray-200);
-  margin-bottom: 20px;
+  width: 180px;
+  height: 180px;
+  border-radius: 8px;
+  border: 2px solid var(--gold-600);
+  margin-bottom: 18px;
+  box-shadow: 0 0 16px rgba(139,117,54,0.15);
 }
 
 .card-qr .title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--blue-900);
-  margin-bottom: 8px;
-  letter-spacing: 1px;
+  color: var(--gold-300);
+  letter-spacing: 4px;
+  margin-bottom: 6px;
 }
 
 .card-qr .cry-text {
-  font-size: 13px;
-  color: var(--gray-500);
+  font-size: 12px;
+  color: var(--text-warm);
   line-height: 2;
   text-align: left;
   padding: 0 4px;
 }
 
-.card-qr .cry-text .kao {
-  white-space: nowrap;
-}
-
 .card-qr .voluntary {
   margin-top: 14px;
-  font-size: 12px;
-  color: var(--blue-300);
-  font-weight: 500;
+  font-size: 11px;
+  color: var(--gold-600);
+  font-weight: 400;
   letter-spacing: 0.5px;
-  border-top: 1px solid var(--gray-200);
+  border-top: 1px solid rgba(139,117,54,0.25);
   padding-top: 14px;
+  line-height: 1.8;
 }
 
-/* ===== Right: Supporter Wall ===== */
+/* ===== Sponsor wall — gold plaque ===== */
 .card-sponsor {
   flex: 1;
-  background: var(--white);
+  background: linear-gradient(180deg, rgba(17,17,17,0.95) 0%, rgba(8,8,8,0.95) 100%);
   border-radius: var(--radius);
-  border: 1px solid var(--gray-200);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  border: 2px solid var(--gold-500);
+  box-shadow:
+    0 0 0 3px rgba(139,117,54,0.2),
+    inset 0 0 0 1px rgba(212,175,55,0.05),
+    0 4px 20px rgba(0,0,0,0.3);
   overflow: hidden;
+  animation: fadeInUp 0.7s ease-out 0.15s both;
 }
 
 .sponsor-header {
-  background: var(--blue-50);
+  background: linear-gradient(135deg,
+    #8B7536 0%, #A68B3C 20%, #D4AF37 40%, #E8C840 50%,
+    #D4AF37 60%, #A68B3C 80%, #8B7536 100%);
+  background-size: 200% 100%;
   padding: 16px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  animation: shimmer 6s linear infinite;
+  border-bottom: 1px solid rgba(162,139,60,0.3);
 }
 .sponsor-header .sh-title {
   font-size: 14px;
-  font-weight: 600;
-  color: var(--blue-700);
-  letter-spacing: 1px;
+  font-weight: 700;
+  color: #0A0A0A;
+  letter-spacing: 2px;
+  text-shadow: 0 1px 0 rgba(255,248,231,0.2);
 }
 .sponsor-header .sh-cycle {
   font-size: 11px;
-  color: var(--gray-400);
+  color: rgba(8,8,8,0.6);
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 .sponsor-list {
-  padding: 8px 0;
+  padding: 6px 0;
   max-height: 340px;
   overflow-y: auto;
 }
+.sponsor-list::-webkit-scrollbar { width: 4px; }
+.sponsor-list::-webkit-scrollbar-track { background: transparent; }
+.sponsor-list::-webkit-scrollbar-thumb { background: var(--gold-600); border-radius: 2px; }
 
 .sponsor-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  border-bottom: 1px solid var(--gray-100);
-  transition: background 0.15s;
+  border-bottom: 1px solid rgba(139,117,54,0.12);
+  transition: background 0.3s, padding-left 0.3s;
 }
-.sponsor-item:hover { background: var(--blue-50); }
+.sponsor-item:hover {
+  background: rgba(255,255,255,0.04);
+  padding-left: 26px;
+}
 .sponsor-item:last-child { border-bottom: none; }
 
 .sponsor-item .si-name {
   font-size: 14px;
   font-weight: 600;
-  color: var(--blue-900);
-  letter-spacing: 0.5px;
+  color: var(--gold-200);
+  letter-spacing: 1px;
+  transition: color 0.3s, text-shadow 0.3s;
 }
+.sponsor-item:hover .si-name {
+  color: var(--gold-100);
+  text-shadow: 0 0 8px rgba(240,208,128,0.3);
+}
+
 .sponsor-item .si-msg {
   font-size: 12px;
-  color: var(--gray-700);
-  font-weight: 500;
+  color: var(--text-dim);
+  margin-top: 2px;
 }
+
 .sponsor-item .si-amount {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--blue-500);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gold-300);
+  letter-spacing: 0.5px;
   white-space: nowrap;
 }
 
 .sponsor-empty {
   text-align: center;
-  padding: 32px 20px;
-  font-size: 13px;
-  color: var(--gray-400);
+  padding: 28px 20px;
+  font-size: 12px;
+  color: var(--text-dim);
   line-height: 2;
+  letter-spacing: 0.5px;
+  animation: textGlow 3s ease-in-out infinite;
 }
 
+/* ===== Footer ===== */
 .footer {
   text-align: center;
-  margin-top: 36px;
-  font-size: 13px;
-  color: var(--gray-700);
-  font-weight: 500;
-  letter-spacing: 1px;
+  margin-top: 40px;
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 400;
+  letter-spacing: 2px;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 640px) {
+  .container { padding: 40px 20px; }
+  .main-row { flex-direction: column; align-items: center; }
+  .page-title h1 { font-size: 26px; letter-spacing: 8px; }
+  .title-ornament { width: 36px; }
+  .card-qr { flex: 0 0 auto; width: 100%; max-width: 320px; }
 }
 </style>
 </head>
 <body>
 
+<div class="top-stripe"></div>
+
 <div class="container">
 
-  <div class="header">
+  <div class="back-link">
     <a href="index.html">&larr; 返回首页</a>
-    <h1>打 赏</h1>
   </div>
+
+  <div class="page-title">
+    <div class="title-ornament"></div>
+    <h1>老板请赏光</h1>
+    <div class="title-ornament"></div>
+  </div>
+  <p class="page-subtitle">随缘赞赏 用心打磨</p>
 
   <div class="main-row">
 
     <!-- Left: QR -->
     <div class="card-qr">
+      <div class="frame-corner tl"></div>
+      <div class="frame-corner tr"></div>
+      <div class="frame-corner bl"></div>
+      <div class="frame-corner br"></div>
       <img class="qr-img" src="images/赞赏码.jpg" alt="赞赏码">
-      <div class="title">救救孩子的 token 账单 (′⌒`)</div>
+      <div class="title">扫描二维码</div>
       <div class="cry-text">
-        <span class="kao">(｡•́︿•̀｡)</span> 每次调用大模型都要烧 token<br>
-        <span class="kao">(ᗒᗣᗕ)՞</span> 虽然是小工具但真的很用心在维护<br>
-        <span class="kao">(◍•ᴗ•◍)</span> 哪怕一块钱也能烧一点token<br>
-        <span class="kao">٩(ˊᗜˋ*)و</span> 谢谢你愿意看到这里
+        <span>每次调用大模型都要烧 token，</span>
+        <span>虽然是小工具，但真的很用心在维护。</span>
+        <span>哪怕一块钱，也能帮孩子多烧一点 token。</span>
+        <span>谢谢你愿意看到这里。</span>
       </div>
-      <div class="voluntary">以上卖惨均为自愿阅读（）<br>不打赏完全没关系，用得开心就好 ♡</div>
+      <div class="voluntary">不打赏完全没关系，用得开心就好。</div>
     </div>
 
     <!-- Right: Sponsor Wall -->
@@ -249,8 +410,14 @@ body {
           </div>
           <div class="si-amount">¥10.00</div>
         </div>
+        <div class="sponsor-item">
+          <div>
+            <div class="si-name">笙宝宝</div>
+          </div>
+          <div class="si-amount">¥15.00</div>
+        </div>
         <div class="sponsor-empty">
-          感谢以上金主大人对 RenSheet 的温柔托举 (´▽`ʃƪ)<br>
+          感谢以上金主大人对 RenSheet 的温柔托举<br>
           打赏后如需留名请备注，每月 1 日更新。
         </div>
       </div>
@@ -258,7 +425,7 @@ body {
 
   </div>
 
-  <div class="footer">RenSheet · 高效打表，纯净体验</div>
+  <div class="footer">RenSheet &middot; 高效打表，纯净体验</div>
 
 </div>
 
