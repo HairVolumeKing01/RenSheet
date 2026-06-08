@@ -218,6 +218,36 @@ body {
   font-weight: 700;
   box-shadow: 0 0 0 2px #1a1a1a;
 }
+.ai-upload-badge {
+  padding: 6px 14px;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #4b5563;
+  background: linear-gradient(135deg, #f0f4ff, #e8edf8);
+  border: 1px dashed #94a3b8;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+  white-space: nowrap;
+}
+.ai-upload-badge:hover {
+  border-color: #3b82f6;
+  color: #2563eb;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+}
+.dev-badge {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 600;
+  white-space: nowrap;
+}
 
 /* Color swatches */
 .color-swatches {
@@ -468,13 +498,14 @@ body {
   <!-- File Import -->
   <div class="card">
     <div class="card-title">STEP 2 — 导入排表</div>
-    <div class="form-row" style="justify-content:center;gap:24px;margin-bottom:14px;flex-wrap:wrap;">
+    <div class="form-row" style="justify-content:center;gap:24px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
       <label class="radio-label" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
         <input type="radio" name="uploadMode" value="multiSheet" checked onchange="switchUploadMode()"> 多 sheet 单文件
       </label>
       <label class="radio-label" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
         <input type="radio" name="uploadMode" value="multiFile" onchange="switchUploadMode()"> 分表上传
       </label>
+      <span class="ai-upload-badge" onclick="window.open('https://v.wjx.cn/vm/YmuJE4e.aspx', '_blank')" title="点击预定AI智能解析功能">AI 智能解析 <span class="dev-badge">开发中·预定</span></span>
     </div>
     <div class="drop-zone" id="dropZone">
       <div class="dz-icon">&#x2903;</div>
