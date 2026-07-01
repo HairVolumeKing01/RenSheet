@@ -358,106 +358,6 @@ body {
 .tool-card.placeholder .tool-icon { color: var(--gray-400); }
 .tool-card.placeholder .tool-title { color: var(--gray-400); }
 
-/* ===== Floating Survey Box ===== */
-.survey-float {
-  position: fixed;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  width: 62px;
-  height: 62px;
-  padding: 0;
-  background: var(--white);
-  border: 2px solid var(--blue-200);
-  border-right: none;
-  border-radius: 31px 0 0 31px;
-  text-decoration: none;
-  overflow: hidden;
-  white-space: nowrap;
-  box-shadow: -3px 0 18px rgba(26,69,112,0.10);
-  transition: width 1s cubic-bezier(0.33, 0.1, 0.25, 1),
-              box-shadow 1s cubic-bezier(0.33, 0.1, 0.25, 1),
-              border-color 1s cubic-bezier(0.33, 0.1, 0.25, 1),
-              background 0.6s ease;
-  animation: surveyIdleGlow 3.5s ease-in-out infinite;
-}
-
-.survey-float:hover {
-  width: 210px;
-  border-color: var(--blue-500);
-  background: var(--blue-50);
-  box-shadow: -6px 0 32px rgba(26,69,112,0.18);
-  animation: none;
-}
-
-@keyframes surveyIdleGlow {
-  0%, 100% { box-shadow: -3px 0 18px rgba(26,69,112,0.08); border-color: var(--blue-200); }
-  50%      { box-shadow: -3px 0 28px rgba(43,111,168,0.22); border-color: var(--blue-300); }
-}
-
-.survey-float .survey-icon-wrap {
-  flex-shrink: 0;
-  width: 62px;
-  height: 62px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.survey-float .survey-icon {
-  width: 26px;
-  height: 26px;
-  color: var(--blue-500);
-  transition: color 0.6s ease;
-}
-
-.survey-float:hover .survey-icon {
-  color: var(--blue-700);
-}
-
-.survey-float .survey-text {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--blue-700);
-  letter-spacing: 1.5px;
-  padding-right: 8px;
-  opacity: 0;
-  transform: translateX(12px);
-  transition: opacity 0.5s ease 0.4s,
-              transform 0.6s cubic-bezier(0.33, 0.1, 0.25, 1) 0.35s;
-  pointer-events: none;
-}
-
-.survey-float:hover .survey-text {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-/* Mobile: slightly smaller */
-@media (max-width: 768px) {
-  .survey-float {
-    width: 52px;
-    height: 52px;
-    border-radius: 26px 0 0 26px;
-  }
-  .survey-float:hover { width: 180px; }
-  .survey-float .survey-icon-wrap {
-    width: 52px;
-    height: 52px;
-  }
-  .survey-float .survey-icon {
-    width: 22px;
-    height: 22px;
-  }
-  .survey-float .survey-text {
-    font-size: 14px;
-  }
-}
-
 /* Footer */
 .footer {
   text-align: center;
@@ -548,19 +448,6 @@ body {
 
 </div>
 
-
-<!-- Floating Survey Box -->
-<a href="https://v.wjx.cn/vm/mBfG8AL.aspx#" class="survey-float" target="_blank" rel="noopener" title="使用体验调查">
-  <span class="survey-text">使用体验调查</span>
-  <span class="survey-icon-wrap">
-    <svg class="survey-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-      <rect x="8" y="2" width="8" height="4" rx="1"/>
-      <line x1="9" y1="12" x2="15" y2="12"/>
-      <line x1="9" y1="16" x2="13" y2="16"/>
-    </svg>
-  </span>
-</a>
 
 </body>
 </html>

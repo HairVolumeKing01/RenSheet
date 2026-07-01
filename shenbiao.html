@@ -218,37 +218,6 @@ body {
   font-weight: 700;
   box-shadow: 0 0 0 2px #1a1a1a;
 }
-.ai-upload-badge {
-  padding: 6px 14px;
-  font-size: 13px;
-  border-radius: 6px;
-  cursor: pointer;
-  color: #4b5563;
-  background: linear-gradient(135deg, #f0f4ff, #e8edf8);
-  border: 1px dashed #94a3b8;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  user-select: none;
-  white-space: nowrap;
-}
-.ai-upload-badge:hover {
-  border-color: #3b82f6;
-  color: #2563eb;
-  background: linear-gradient(135deg, #eff6ff, #dbeafe);
-  box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
-}
-.dev-badge {
-  font-size: 10px;
-  padding: 2px 7px;
-  border-radius: 10px;
-  background: #dbeafe;
-  color: #1d4ed8;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 /* Color swatches */
 .color-swatches {
   display: flex;
@@ -279,6 +248,16 @@ body {
   width: 220px;
 }
 .input-text:focus { border-color: var(--blue-300); }
+.deposit-mode-row {
+  display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;
+  margin-top:18px; padding:14px 18px; background:var(--blue-50);
+  border:1px solid var(--blue-100); border-radius:var(--radius);
+}
+.deposit-mode-check { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--blue-700); cursor:pointer; }
+.deposit-mode-check input { width:16px; height:16px; accent-color:var(--blue-700); cursor:pointer; }
+.deposit-input { width:210px; }
+.deposit-guide { width:100%; font-size:12px; color:var(--gray-700); }
+.deposit-guide.error { color:#C53030; font-weight:600; }
 
 /* Buttons */
 .btn {
@@ -505,7 +484,6 @@ body {
       <label class="radio-label" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
         <input type="radio" name="uploadMode" value="multiFile" onchange="switchUploadMode()"> 分表上传
       </label>
-      <span class="ai-upload-badge" onclick="window.open('https://v.wjx.cn/vm/YmuJE4e.aspx', '_blank')" title="点击预定AI智能解析功能">AI 智能解析 <span class="dev-badge">开发中·预定</span></span>
     </div>
     <div class="drop-zone" id="dropZone">
       <div class="dz-icon">&#x2903;</div>
@@ -549,8 +527,19 @@ body {
           <span class="color-swatch" data-theme="steel" style="background:linear-gradient(135deg, #2D3748, #4A6578)" title="钢蓝"></span>
           <span class="color-swatch" data-theme="moss" style="background:linear-gradient(135deg, #1C2A1C, #3A5A3A)" title="苔绿"></span>
           <span class="color-swatch" data-theme="graphite" style="background:linear-gradient(135deg, #1A1A1A, #3D3D3D)" title="石墨"></span>
+          <span class="color-swatch" data-theme="amber" style="background:linear-gradient(135deg, #5C3A16, #A0642A)" title="琥珀"></span>
+          <span class="color-swatch" data-theme="terracotta" style="background:linear-gradient(135deg, #5A2E24, #A85F4B)" title="陶土"></span>
+          <span class="color-swatch" data-theme="warmrose" style="background:linear-gradient(135deg, #5B2736, #A6536D)" title="暖玫瑰"></span>
+          <span class="color-swatch" data-theme="cocoa" style="background:linear-gradient(135deg, #4B3528, #8A684E)" title="暖棕"></span>
         </div>
       </div>
+    </div>
+    <div class="deposit-mode-row">
+      <label class="deposit-mode-check" for="depositMode">
+        <input type="checkbox" id="depositMode"> 定尾模式
+      </label>
+      <input type="text" class="input-text deposit-input" id="depositValue" placeholder="如：20 或 30%" disabled>
+      <div class="deposit-guide" id="depositGuide">固定金额直接填写数字；按比例计算必须输入 %，例如 30%</div>
     </div>
     <div class="btn-row" style="justify-content:center;">
       <button class="btn btn-primary" id="processBtn">开始处理</button>
@@ -602,6 +591,7 @@ let currentTheme = 'blue';
 let validationEnabled = false;
 let fileValidationInputs = {};  // {fileIndex: {unitPrice, points}}
 let validationResults = null;   // stored separately from processedData
+let depositModeEnabled = false;
 
 function switchUploadMode() {
   var radios = document.getElementsByName('uploadMode');
@@ -635,6 +625,9 @@ const validationToggle = document.getElementById('validationToggle');
 const validationInputs = document.getElementById('validationInputs');
 const validationBtnRow = document.getElementById('validationBtnRow');
 const validateBtn = document.getElementById('validateBtn');
+const depositModeInput = document.getElementById('depositMode');
+const depositValueInput = document.getElementById('depositValue');
+const depositGuide = document.getElementById('depositGuide');
 
 // ==================== TOAST ====================
 let toastTimer;
@@ -1041,6 +1034,71 @@ function processAllFiles() {
 }
 
 // ==================== BUILD TABLE DATA ====================
+function parseDepositConfig(showError) {
+  if (!depositModeEnabled) return null;
+  var raw = depositValueInput.value.trim();
+  var error = '';
+  var config = null;
+  if (!raw) {
+    error = '定尾模式下必须输入定金金额或比例';
+  } else if (/^\d+(?:\.\d+)?%$/.test(raw)) {
+    var percent = parseFloat(raw.slice(0, -1));
+    if (percent <= 0 || percent > 100) error = '定金比例必须大于 0% 且不超过 100%';
+    else config = {type:'percent', value:percent, raw:raw};
+  } else if (/^\d+(?:\.\d+)?$/.test(raw)) {
+    var amount = parseFloat(raw);
+    if (amount <= 0) error = '固定定金必须大于 0 元';
+    else config = {type:'fixed', value:Math.round(amount * 100) / 100, raw:raw};
+  } else {
+    error = '格式错误：固定金额填写数字，比例必须带 %，例如 20 或 30%';
+  }
+  depositGuide.classList.toggle('error', !!error);
+  depositGuide.textContent = error || (config.type === 'percent'
+    ? '当前按比例计算：每人定金 = 总肾 × ' + config.value + '%'
+    : '当前按固定金额计算：每人定金 ' + config.value.toFixed(2) + ' 元');
+  if (error && showError) showToast(error, true);
+  return error ? false : config;
+}
+
+function calculateDeposit(totalCost, config) {
+  var totalCents = Math.round(totalCost * 100);
+  var depositCents = config.type === 'percent'
+    ? Math.round(totalCents * config.value / 100)
+    : Math.round(config.value * 100);
+  return {depositCents:depositCents, tailCents:totalCents - depositCents, totalCents:totalCents};
+}
+
+function validateDepositForData(data, showError) {
+  var config = parseDepositConfig(showError);
+  if (config === false || config === null) return config;
+  if (config.type === 'fixed') {
+    for (var i = 0; i < data.persons.length; i++) {
+      var person = data.persons[i];
+      if (Math.round(data.personMap[person].totalCost * 100) < Math.round(config.value * 100)) {
+        var msg = '「' + person + '」的总肾低于固定定金 ' + config.value.toFixed(2) + ' 元，请降低定金';
+        depositGuide.classList.add('error');
+        depositGuide.textContent = msg;
+        if (showError) showToast(msg, true);
+        return false;
+      }
+    }
+  }
+  return config;
+}
+
+function getDepositSummary(data) {
+  var summary = {depositCents:0, tailCents:0, totalCents:0, pass:true};
+  if (!data.depositConfig) return summary;
+  data.persons.forEach(function(person) {
+    var split = calculateDeposit(data.personMap[person].totalCost, data.depositConfig);
+    summary.depositCents += split.depositCents;
+    summary.tailCents += split.tailCents;
+    summary.totalCents += split.totalCents;
+  });
+  summary.pass = summary.depositCents + summary.tailCents === summary.totalCents;
+  return summary;
+}
+
 function getSortedKinds(personMap) {
   var kindSet = {};
   var persons = Object.keys(personMap);
@@ -1063,7 +1121,7 @@ function getSortedKinds(personMap) {
 
 function buildCategorizedTable(data) {
   var allKinds = getSortedKinds(data.personMap);
-  var headers = ['cn'].concat(allKinds).concat(['点数', '肾']);
+  var headers = ['cn'].concat(allKinds).concat(data.depositConfig ? ['点数', '定金', '尾款', '总肾'] : ['点数', '肾']);
   var rows = [];
 
   for (var i = 0; i < data.persons.length; i++) {
@@ -1097,6 +1155,11 @@ function buildCategorizedTable(data) {
     }
 
     row.push(String(pm.totalCount));
+    if (data.depositConfig) {
+      var split = calculateDeposit(pm.totalCost, data.depositConfig);
+      row.push((split.depositCents / 100).toFixed(2));
+      row.push((split.tailCents / 100).toFixed(2));
+    }
     row.push(pm.totalCost.toFixed(2));
     rows.push(row);
   }
@@ -1104,7 +1167,7 @@ function buildCategorizedTable(data) {
 }
 
 function buildListTable(data) {
-  var headers = ['cn', '明细', '点数', '肾'];
+  var headers = data.depositConfig ? ['cn', '明细', '点数', '定金', '尾款', '总肾'] : ['cn', '明细', '点数', '肾'];
   var rows = [];
   var allKinds = getSortedKinds(data.personMap);
 
@@ -1138,7 +1201,13 @@ function buildListTable(data) {
       if (group.length) breaks.push(group.join(','));
       detailStr = breaks.join('\n');
     }
-    var row = [person, detailStr, String(pm.totalCount), pm.totalCost.toFixed(2)];
+    var row = [person, detailStr, String(pm.totalCount)];
+    if (data.depositConfig) {
+      var split = calculateDeposit(pm.totalCost, data.depositConfig);
+      row.push((split.depositCents / 100).toFixed(2));
+      row.push((split.tailCents / 100).toFixed(2));
+    }
+    row.push(pm.totalCost.toFixed(2));
     rows.push(row);
   }
   return {headers: headers, rows: rows};
@@ -1167,10 +1236,11 @@ function buildTableHtml(tableData, fmt, title, themeColors) {
     html += '<tr>';
     for (var c = 0; c < row.length; c++) {
       var cellClass = '';
+      var headerName = tableData.headers[c];
       if (c === 0) cellClass = 'col-name';
       else if (c === 1 && fmt === 'list') cellClass = 'col-detail';
-      else if (c === row.length - 1) cellClass = 'col-cost';
-      else if (c === row.length - 2) cellClass = 'col-count';
+      else if (headerName === '点数') cellClass = 'col-count';
+      else if (headerName === '肾' || headerName === '定金' || headerName === '尾款' || headerName === '总肾') cellClass = 'col-cost';
       html += '<td class="' + cellClass + '" style="background:' + bg + '">' + row[c] + '</td>';
     }
     html += '</tr>';
@@ -1204,6 +1274,17 @@ function renderPreview() {
       html += '</div>';
     }
     html += '<div style="font-size:12px;color:#9B2C2C;margin-top:6px;">可能原因：同一角色在不同排表中单价不一致，或排表数据有误</div>';
+    html += '</div>';
+  }
+
+  if (processedData.depositConfig) {
+    var depositSummary = getDepositSummary(processedData);
+    var dsBg = depositSummary.pass ? '#F0FFF4' : '#FEE2E2';
+    var dsBorder = depositSummary.pass ? '#9AE6B4' : '#F87171';
+    var dsColor = depositSummary.pass ? '#276749' : '#C53030';
+    html += '<div style="background:' + dsBg + ';border:1px solid ' + dsBorder + ';border-radius:6px;padding:12px 16px;margin-bottom:12px;color:' + dsColor + ';font-size:13px;font-weight:600;">';
+    html += '定尾校验' + (depositSummary.pass ? '通过' : '异常') + '：定金合计 ' + (depositSummary.depositCents / 100).toFixed(2) +
+      ' + 尾款合计 ' + (depositSummary.tailCents / 100).toFixed(2) + ' = 总肾合计 ' + (depositSummary.totalCents / 100).toFixed(2);
     html += '</div>';
   }
 
@@ -1270,7 +1351,11 @@ function getThemeColors(theme) {
     navy:    {titleBg:'#0A1628', titleFg:'#FFFFFF', headerBg:'#1E3A5F', rowEven:'#EBF0F7', rowOdd:'#FFFFFF'},
     steel:   {titleBg:'#1E2D3D', titleFg:'#FFFFFF', headerBg:'#3B5C7A', rowEven:'#EDF2F7', rowOdd:'#FFFFFF'},
     moss:    {titleBg:'#1C2A1C', titleFg:'#FFFFFF', headerBg:'#3A5A3A', rowEven:'#F2F7F2', rowOdd:'#FFFFFF'},
-    graphite:{titleBg:'#1A1A1A', titleFg:'#FFFFFF', headerBg:'#3D3D3D', rowEven:'#F5F5F5', rowOdd:'#FFFFFF'}
+    graphite:{titleBg:'#1A1A1A', titleFg:'#FFFFFF', headerBg:'#3D3D3D', rowEven:'#F5F5F5', rowOdd:'#FFFFFF'},
+    amber:   {titleBg:'#5C3A16', titleFg:'#FFFFFF', headerBg:'#A0642A', rowEven:'#FFF4E5', rowOdd:'#FFFFFF'},
+    terracotta:{titleBg:'#5A2E24', titleFg:'#FFFFFF', headerBg:'#A85F4B', rowEven:'#FBEDEA', rowOdd:'#FFFFFF'},
+    warmrose:{titleBg:'#5B2736', titleFg:'#FFFFFF', headerBg:'#A6536D', rowEven:'#FCEEF3', rowOdd:'#FFFFFF'},
+    cocoa:   {titleBg:'#4B3528', titleFg:'#FFFFFF', headerBg:'#8A684E', rowEven:'#F7F0E8', rowOdd:'#FFFFFF'}
   };
   return themes[theme] || themes.blue;
 }
@@ -1282,6 +1367,9 @@ processBtn.addEventListener('click', function() {
   if (!formats.length) { showToast('请先选择肾表样式', true); return; }
   var result = processAllFiles();
   if (!result) return;
+  var depositConfig = validateDepositForData(result, true);
+  if (depositConfig === false) return;
+  result.depositConfig = depositConfig;
   processedData = result;
   processedData.title = fileNameInput.value.trim() || '肾表';
   processedData.theme = currentTheme;
@@ -1296,6 +1384,9 @@ processBtn.addEventListener('click', function() {
 // ==================== EXPORT ====================
 exportBtn.addEventListener('click', function() {
   if (!processedData) { showToast('请先处理数据', true); return; }
+  var depositConfig = validateDepositForData(processedData, true);
+  if (depositConfig === false) return;
+  processedData.depositConfig = depositConfig;
   var formats = getSelectedFormats();
   if (!formats.length) { showToast('请先选择肾表样式', true); return; }
   var title = fileNameInput.value.trim() || '肾表';
@@ -1354,16 +1445,19 @@ exportBtn.addEventListener('click', function() {
 
     ws.getColumn(1).width = 12;
     if (fmt === 'categorized') {
-      var kindCols = tableData.headers.length - 2;
+      var pointColIndex = tableData.headers.indexOf('点数');
+      var kindCols = pointColIndex - 1;
       for (var kc = 0; kc < kindCols; kc++) {
         ws.getColumn(2 + kc).width = 28;
       }
-      ws.getColumn(tableData.headers.length - 1).width = 10;
-      ws.getColumn(tableData.headers.length).width = 12;
+      for (var mc = pointColIndex + 1; mc <= tableData.headers.length; mc++) {
+        ws.getColumn(mc).width = mc === pointColIndex + 1 ? 10 : 12;
+      }
     } else {
       ws.getColumn(2).width = 50;
-      ws.getColumn(3).width = 10;
-      ws.getColumn(4).width = 12;
+      for (var lc = 3; lc <= tableData.headers.length; lc++) {
+        ws.getColumn(lc).width = lc === 3 ? 10 : 12;
+      }
     }
   });
 
@@ -1582,6 +1676,44 @@ validateBtn.addEventListener('click', function() {
   showToast('校验完成：' + (allPass ? '全部通过' : '存在异常，请查看预览区底部'), !allPass);
 });
 
+// ==================== DEPOSIT / TAIL MODE ====================
+depositModeInput.addEventListener('change', function() {
+  depositModeEnabled = this.checked;
+  depositValueInput.disabled = !depositModeEnabled;
+  if (!depositModeEnabled) {
+    depositGuide.classList.remove('error');
+    depositGuide.textContent = '固定金额直接填写数字；按比例计算必须输入 %，例如 30%';
+    if (processedData) {
+      processedData.depositConfig = null;
+      renderPreview();
+      exportBtn.disabled = false;
+    }
+  } else {
+    var config = processedData ? validateDepositForData(processedData, false) : parseDepositConfig(false);
+    if (processedData && config) {
+      processedData.depositConfig = config;
+      renderPreview();
+      exportBtn.disabled = false;
+    } else if (processedData) {
+      exportBtn.disabled = true;
+    }
+  }
+  saveDraft();
+});
+
+depositValueInput.addEventListener('input', function() {
+  if (!depositModeEnabled) return;
+  var config = processedData ? validateDepositForData(processedData, false) : parseDepositConfig(false);
+  if (processedData && config) {
+    processedData.depositConfig = config;
+    renderPreview();
+    exportBtn.disabled = false;
+  } else if (processedData) {
+    exportBtn.disabled = true;
+  }
+  saveDraft();
+});
+
 // ==================== FORMAT CHANGE ====================
 document.getElementById('formatGroup').addEventListener('change', function(e) {
   if (e.target.type !== 'checkbox') return;
@@ -1605,6 +1737,8 @@ function buildDraftObject() {
     currentTheme: currentTheme,
     selectedFormats: getSelectedFormats(),
     fileName: fileNameInput.value,
+    depositModeEnabled: depositModeEnabled,
+    depositValue: depositValueInput.value,
     validationEnabled: validationEnabled,
     fileValidationInputs: fileValidationInputs,
     hasProcessedData: processedData !== null,
@@ -1649,6 +1783,13 @@ function restoreDraft() {
   for (var fi = 0; fi < cbs.length; fi++) {
     cbs[fi].checked = formats.indexOf(cbs[fi].value) !== -1;
   }
+
+  // Restore deposit/tail mode
+  depositModeEnabled = saved.depositModeEnabled || false;
+  depositModeInput.checked = depositModeEnabled;
+  depositValueInput.disabled = !depositModeEnabled;
+  depositValueInput.value = saved.depositValue || '';
+  if (depositModeEnabled) parseDepositConfig(false);
 
   // Restore validation
   validationEnabled = saved.validationEnabled || false;
@@ -1713,6 +1854,12 @@ function showRestoreBanner(saved) {
     if (blueSwatch) blueSwatch.classList.add('active');
     document.getElementById('fmtCat').checked = true;
     document.getElementById('fmtList').checked = true;
+    depositModeEnabled = false;
+    depositModeInput.checked = false;
+    depositValueInput.value = '';
+    depositValueInput.disabled = true;
+    depositGuide.classList.remove('error');
+    depositGuide.textContent = '固定金额直接填写数字；按比例计算必须输入 %，例如 30%';
     validationEnabled = false;
     fileValidationInputs = {};
     document.getElementById('valNo').checked = true;
