@@ -1382,6 +1382,15 @@ function getRoleAdjustmentBounds(ch) {
     if (heatGroup === 'hot') min = Math.max(min, base - protectedMove);
     if (heatGroup === 'cold') max = Math.min(max, base + protectedMove);
   }
+
+  // 旧角色优先遵循点数方向：点数减少不降价，点数增加不涨价。
+  // 只有最终放宽层允许最多原单价 5% 的反方向移动。
+  if (originalCharacterSet[ch]) {
+    var pointDelta = (pointsPerChar[ch] || 0) - (originalPointsPerChar[ch] || 0);
+    var wrongDirectionMove = policy.level < 3 ? 0 : Math.max(1, Math.floor(originalPriceCents * 0.05));
+    if (pointDelta < 0) min = Math.max(min, base - wrongDirectionMove);
+    if (pointDelta > 0) max = Math.min(max, base + wrongDirectionMove);
+  }
   return {min:min, max:max};
 }
 
@@ -1486,24 +1495,27 @@ function solveExactMultiRoleAtPolicy(preferred, variantIndex, policy) {
       var delta = values[ch] - preferred[ch];
       var base = Math.round((baseAdjustments[ch] || 0) * 100);
       var baseDelta = values[ch] - base;
-      var pointDelta = Math.abs((pointsPerChar[ch] || 0) - (originalPointsPerChar[ch] || 0));
+      var signedPointDelta = (pointsPerChar[ch] || 0) - (originalPointsPerChar[ch] || 0);
+      var pointDifference = Math.abs(signedPointDelta);
       if (baseDelta !== 0) {
         changed++;
         modifiedFromBase++;
       }
       var points = Math.max(1, pointsPerChar[ch] || 0);
       // 原调价锚点优先；点数差异越大的角色越适合承担调价。
-      var anchorWeight = pointDelta > 0 ? 1 / Math.max(1, pointDelta) : 12;
+      var anchorWeight = pointDifference > 0 ? 1 / Math.max(1, pointDifference) : 12;
       cost += Math.abs(baseDelta) * points * anchorWeight * 20;
       cost += Math.abs(delta) * getRelaxPenalty(ch, delta) * points;
       // 平方惩罚抑制把大额差值集中到单个角色，点数未变化角色惩罚更高。
-      var concentrationWeight = pointDelta > 0 ? 1 : 8;
+      var concentrationWeight = pointDifference > 0 ? 1 : 8;
       cost += (baseDelta * baseDelta * points * concentrationWeight) / 40;
       cost += (delta * delta * points) / 200;
       // 热门大降、冷门大涨属于最后才接受的方向。
       var heatGroup = getHeatGroup(ch);
       if (heatGroup === 'hot' && baseDelta < 0) cost += Math.abs(baseDelta) * 20000;
       if (heatGroup === 'cold' && baseDelta > 0) cost += Math.abs(baseDelta) * 20000;
+      if (signedPointDelta < 0 && baseDelta < 0) cost += Math.abs(baseDelta) * 100000;
+      if (signedPointDelta > 0 && baseDelta > 0) cost += Math.abs(baseDelta) * 100000;
     });
     // 仍偏好少改角色，但该优先级低于避免单角色大幅偏移。
     cost += modifiedFromBase * 5000;
