@@ -1161,7 +1161,7 @@ function confirmHeatOrder() {
     var priceFloorCents = Number.isFinite(nonNewMaxCents) ? nonNewMaxCents : 0;
     for (var nr = priorityNewRoles.length - 1; nr >= 0; nr--) {
       var newRole = priorityNewRoles[nr];
-      var targetCents = priceFloorCents + getRolePriceQuantum(newRole);
+      var targetCents = priceFloorCents + getPriorityNewRoleGapCents(newRole);
       var bounds = getRoleAdjustmentBounds(newRole);
       var boostedCents = clampInt(Math.max(Math.round((baseAdjustments[newRole] || 0) * 100), targetCents), bounds.min, bounds.max);
       baseAdjustments[newRole] = boostedCents / 100;
@@ -1266,14 +1266,18 @@ function getPriorityNewRoles() {
   return ordered.every(function(ch) { return characters.indexOf(ch) < topLimit; }) ? ordered : [];
 }
 
+function getPriorityNewRoleGapCents(ch) {
+  return Math.max(50, getRolePriceQuantum(ch));
+}
+
 function candidateKeepsPriorityNewPrices(values) {
   var priorityNewRoles = getPriorityNewRoles();
   if (!priorityNewRoles.length) return true;
   var otherRoles = characters.filter(function(ch) { return priorityNewRoles.indexOf(ch) < 0; });
   var otherMax = otherRoles.reduce(function(max, ch) { return Math.max(max, values[ch]); }, -Infinity);
   for (var i = 0; i < priorityNewRoles.length; i++) {
-    if (values[priorityNewRoles[i]] <= otherMax) return false;
-    if (i > 0 && values[priorityNewRoles[i - 1]] <= values[priorityNewRoles[i]]) return false;
+    if (values[priorityNewRoles[i]] < otherMax + getPriorityNewRoleGapCents(priorityNewRoles[i])) return false;
+    if (i > 0 && values[priorityNewRoles[i - 1]] < values[priorityNewRoles[i]] + getPriorityNewRoleGapCents(priorityNewRoles[i - 1])) return false;
   }
   return true;
 }
@@ -1325,7 +1329,7 @@ function getHeatGroup(ch) {
 
 function getTierConfig(profile) {
   if (profile.tier === 'small') return {preferredMin:0.05, preferredMax:0.10, changedMax:0.10, unchangedMax:0.05, protect:0.05};
-  if (profile.tier === 'large') return {preferredMin:0.20, preferredMax:0.40, changedMax:0.40, unchangedMax:0.20, protect:0.20};
+  if (profile.tier === 'large') return {preferredMin:0.20, preferredMax:0.40, changedMax:0.40, unchangedMax:0.10, protect:0.20};
   return {preferredMin:0.10, preferredMax:0.20, changedMax:0.20, unchangedMax:0.10, protect:0.10};
 }
 
@@ -1482,13 +1486,17 @@ function solveExactMultiRoleAtPolicy(preferred, variantIndex, policy) {
       var anchorWeight = pointDelta > 0 ? 1 / Math.max(1, pointDelta) : 12;
       cost += Math.abs(baseDelta) * points * anchorWeight * 20;
       cost += Math.abs(delta) * getRelaxPenalty(ch, delta) * points;
+      // 平方惩罚抑制把大额差值集中到单个角色，点数未变化角色惩罚更高。
+      var concentrationWeight = pointDelta > 0 ? 1 : 8;
+      cost += (baseDelta * baseDelta * points * concentrationWeight) / 40;
       cost += (delta * delta * points) / 200;
       // 热门大降、冷门大涨属于最后才接受的方向。
       var heatGroup = getHeatGroup(ch);
       if (heatGroup === 'hot' && baseDelta < 0) cost += Math.abs(baseDelta) * 20000;
       if (heatGroup === 'cold' && baseDelta > 0) cost += Math.abs(baseDelta) * 20000;
     });
-    cost += modifiedFromBase * 100000;
+    // 仍偏好少改角色，但该优先级低于避免单角色大幅偏移。
+    cost += modifiedFromBase * 5000;
     candidates.push({values:values, changed:changed, cost:cost, key:key});
     candidates.sort(function(a, b) { return a.cost - b.cost || a.key.localeCompare(b.key); });
     if (candidates.length > 100) candidates.length = 100;
