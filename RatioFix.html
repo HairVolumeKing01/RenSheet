@@ -1149,25 +1149,20 @@ function confirmHeatOrder() {
     baseAdjustments[ch] = heatAdjustments[ch] || 0;
     adjustments[ch] = baseAdjustments[ch];
   });
-  // 新增 1～2 个角色且全部位于热度前列时，其定价优先级仅次于硬约束。
-  // 先让较低排名的新增角色高于全部旧角色，再按热度向前逐个拉开价差。
+  // 新增角色排在旧角色之前时，其定价优先级仅次于硬约束。
+  // 从后向前处理，使每个新增角色至少比热度后一位高 2 元。
   var priorityNewRoles = getPriorityNewRoles();
   if (priorityNewRoles.length) {
-    var nonNewMaxCents = characters.filter(function(ch) {
-      return priorityNewRoles.indexOf(ch) < 0;
-    }).reduce(function(max, ch) {
-      return Math.max(max, Math.round((baseAdjustments[ch] || 0) * 100));
-    }, -Infinity);
-    var priceFloorCents = Number.isFinite(nonNewMaxCents) ? nonNewMaxCents : 0;
     for (var nr = priorityNewRoles.length - 1; nr >= 0; nr--) {
       var newRole = priorityNewRoles[nr];
-      var targetCents = priceFloorCents + getPriorityNewRoleGapCents(newRole);
+      var nextRole = characters[characters.indexOf(newRole) + 1];
+      var nextRoleCents = Math.round((baseAdjustments[nextRole] || 0) * 100);
+      var targetCents = nextRoleCents + getPriorityNewRoleGapCents(newRole);
       var bounds = getRoleAdjustmentBounds(newRole);
       var boostedCents = clampInt(Math.max(Math.round((baseAdjustments[newRole] || 0) * 100), targetCents), bounds.min, bounds.max);
       baseAdjustments[newRole] = boostedCents / 100;
       heatAdjustments[newRole] = Math.max(heatAdjustments[newRole] || 0, baseAdjustments[newRole]);
       adjustments[newRole] = baseAdjustments[newRole];
-      priceFloorCents = boostedCents;
     }
   }
   heatOrderConfirmed = true;
@@ -1258,28 +1253,43 @@ function getRolePriceQuantum(ch) {
 }
 
 function getPriorityNewRoles() {
-  if (missingOriginalCharacters.length < 1 || missingOriginalCharacters.length > 2 || characters.length <= missingOriginalCharacters.length) return [];
-  var topLimit = Math.max(2, Math.ceil(characters.length * 0.25));
-  var ordered = missingOriginalCharacters.slice().sort(function(a, b) {
+  if (!missingOriginalCharacters.length) return [];
+  return missingOriginalCharacters.filter(function(ch) {
+    var index = characters.indexOf(ch);
+    return index >= 0 && characters.slice(index + 1).some(function(nextRole) {
+      return !!originalCharacterSet[nextRole];
+    });
+  }).sort(function(a, b) {
     return characters.indexOf(a) - characters.indexOf(b);
   });
-  return ordered.every(function(ch) { return characters.indexOf(ch) < topLimit; }) ? ordered : [];
 }
 
 function getPriorityNewRoleGapCents(ch) {
-  return Math.max(50, getRolePriceQuantum(ch));
+  return Math.max(200, getRolePriceQuantum(ch));
 }
 
 function candidateKeepsPriorityNewPrices(values) {
   var priorityNewRoles = getPriorityNewRoles();
   if (!priorityNewRoles.length) return true;
-  var otherRoles = characters.filter(function(ch) { return priorityNewRoles.indexOf(ch) < 0; });
-  var otherMax = otherRoles.reduce(function(max, ch) { return Math.max(max, values[ch]); }, -Infinity);
   for (var i = 0; i < priorityNewRoles.length; i++) {
-    if (values[priorityNewRoles[i]] < otherMax + getPriorityNewRoleGapCents(priorityNewRoles[i])) return false;
-    if (i > 0 && values[priorityNewRoles[i - 1]] < values[priorityNewRoles[i]] + getPriorityNewRoleGapCents(priorityNewRoles[i - 1])) return false;
+    var role = priorityNewRoles[i];
+    var index = characters.indexOf(role);
+    var nextRole = characters[index + 1];
+    if (!nextRole || values[role] < values[nextRole] + getPriorityNewRoleGapCents(role)) return false;
   }
   return true;
+}
+
+function candidateRaisesPriorityNewRoles(candidateValues, primaryValues) {
+  var priorityNewRoles = getPriorityNewRoles();
+  if (!priorityNewRoles.length) return true;
+  var hasLargeIncrease = false;
+  for (var i = 0; i < priorityNewRoles.length; i++) {
+    var delta = candidateValues[priorityNewRoles[i]] - primaryValues[priorityNewRoles[i]];
+    if (delta < 0) return false;
+    if (delta >= 200) hasLargeIncrease = true;
+  }
+  return hasLargeIncrease;
 }
 
 function isEffectiveSwitchPair(firstValues, secondValues) {
@@ -1616,6 +1626,7 @@ function solveExactMultiRoleAtPolicy(preferred, variantIndex, policy) {
   var effectiveCandidates = [candidates[0]];
   for (var ec = 1; ec < candidates.length && effectiveCandidates.length < 20; ec++) {
     var candidate = candidates[ec];
+    if (!candidateRaisesPriorityNewRoles(candidate.values, candidates[0].values)) continue;
     var effectiveAgainstAll = effectiveCandidates.every(function(existing) {
       return isEffectiveSwitchPair(candidate.values, existing.values);
     });
@@ -1624,19 +1635,47 @@ function solveExactMultiRoleAtPolicy(preferred, variantIndex, policy) {
   var selectedIndex = (variantIndex || 0) % effectiveCandidates.length;
   var selected = effectiveCandidates[selectedIndex];
   activeAutoPolicy = null;
-  return {values:selected.values, changed:selected.changed, available:effectiveCandidates.length, selectedIndex:selectedIndex};
+  return {
+    values:selected.values,
+    changed:selected.changed,
+    available:effectiveCandidates.length,
+    selectedIndex:selectedIndex,
+    rawCandidates:candidates
+  };
 }
 
 function solveExactMultiRole(preferred, variantIndex, profile) {
+  var combinedCandidates = [];
   for (var level = 0; level <= 3; level++) {
-    var solved = solveExactMultiRoleAtPolicy(preferred, variantIndex, createAutoPolicy(profile, level));
-    if (solved) {
-      solved.relaxationLevel = level;
-      solved.profileTier = profile.tier;
-      return solved;
+    var solved = solveExactMultiRoleAtPolicy(preferred, 0, createAutoPolicy(profile, level));
+    if (!solved) continue;
+    for (var rc = 0; rc < solved.rawCandidates.length && combinedCandidates.length < 20; rc++) {
+      var candidate = solved.rawCandidates[rc];
+      if (combinedCandidates.some(function(existing) { return existing.key === candidate.key; })) continue;
+      if (!combinedCandidates.length) {
+        candidate.relaxationLevel = level;
+        combinedCandidates.push(candidate);
+        continue;
+      }
+      if (!candidateRaisesPriorityNewRoles(candidate.values, combinedCandidates[0].values)) continue;
+      if (!combinedCandidates.every(function(existing) {
+        return isEffectiveSwitchPair(candidate.values, existing.values);
+      })) continue;
+      candidate.relaxationLevel = level;
+      combinedCandidates.push(candidate);
     }
   }
-  return null;
+  if (!combinedCandidates.length) return null;
+  var selectedIndex = (variantIndex || 0) % combinedCandidates.length;
+  var selected = combinedCandidates[selectedIndex];
+  return {
+    values:selected.values,
+    changed:selected.changed,
+    available:combinedCandidates.length,
+    selectedIndex:selectedIndex,
+    relaxationLevel:selected.relaxationLevel,
+    profileTier:profile.tier
+  };
 }
 
 function autoBalance(useNextVariant) {
