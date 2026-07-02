@@ -670,7 +670,7 @@ function validateStep(step) {
     if (!originalFile) return '请先上传原排表';
     if (!actualFile) return '请先上传拆配后实际排表';
     var originalSummary = calculateOriginalPriceSummary(originalFile.workbook);
-    var avg1 = originalSummary.average;
+    var avg1 = roundToFiveDecimals(originalSummary.average);
     var avg2 = parseFloat(document.getElementById('avgPriceActual').value);
     var tp = parseInt(document.getElementById('totalPoints').value);
     if (isNaN(avg1) || avg1 <= 0) return '原排表均价自动检测失败，请重新上传原排表';
@@ -702,7 +702,7 @@ function validateStep(step) {
     var actualSum = parsedActualTotal * avg2;
     var origSum = originalSummary.totalValue;
     if (Math.abs(actualSum - origSum) > 0.01) {
-      return '跨表总价校验不通过！\n拆配表 ' + parsedActualTotal + ' 点 × ' + avg2.toFixed(5) + ' = ' + actualSum.toFixed(2) + '\n原排表检测均价 ' + avg1.toFixed(5) + '，精确总价 = ' + origSum.toFixed(2) + '\n两者差值 ' + (actualSum - origSum).toFixed(2) + '，请检查拆配表均价或排表数据。';
+      return '跨表总价校验不通过！\n拆配表 ' + parsedActualTotal + ' 点 × ' + formatFiveDecimals(avg2) + ' = ' + actualSum.toFixed(2) + '\n原排表检测均价 ' + formatFiveDecimals(avg1) + '，精确总价 = ' + origSum.toFixed(2) + '\n两者差值 ' + (actualSum - origSum).toFixed(2) + '，请检查拆配表均价或排表数据。';
     }
 
     avgPriceOrig = avg1;
@@ -762,8 +762,8 @@ function handleFile(file, isOriginal, tagEl, dz) {
       if (isOriginal) {
         var originalSummary = calculateOriginalPriceSummary(wb);
         originalFile = {name: file.name, workbook: wb};
-        avgPriceOrig = originalSummary.average;
-        document.getElementById('avgPriceOrig').value = originalSummary.average.toFixed(5);
+        avgPriceOrig = roundToFiveDecimals(originalSummary.average);
+        document.getElementById('avgPriceOrig').value = formatFiveDecimals(originalSummary.average);
         var preview = tryParsePreview(wb);
         var previewTagHtml = '';
         if (preview) {
@@ -996,6 +996,17 @@ function calculateOriginalPriceSummary(wb) {
   if (missingPrices.length) throw new Error('格式错误：以下角色缺少有效原单价：' + missingPrices.join('、'));
   if (!totalPoints || totalValue <= 0) throw new Error('格式错误：无法根据原表点数和单价计算均价');
   return {average: totalValue / totalPoints, totalPoints: totalPoints, totalValue: totalValue};
+}
+
+function roundToFiveDecimals(value) {
+  if (!Number.isFinite(value)) return value;
+  var scale = 100000;
+  var correction = Number.EPSILON * Math.max(1, Math.abs(value));
+  return Math.round((value + correction) * scale) / scale;
+}
+
+function formatFiveDecimals(value) {
+  return roundToFiveDecimals(value).toFixed(5);
 }
 
 // ==================== STEP 2: BALANCER ====================
@@ -2137,7 +2148,7 @@ function restoreDraft() {
   if (saved.fileName) document.getElementById('rFileName').value = saved.fileName;
 
   // Restore parameters
-  if (saved.avgPriceOrig) document.getElementById('avgPriceOrig').value = Number(saved.avgPriceOrig).toFixed(5);
+  if (saved.avgPriceOrig) document.getElementById('avgPriceOrig').value = formatFiveDecimals(Number(saved.avgPriceOrig));
   if (saved.avgPriceActual) document.getElementById('avgPriceActual').value = saved.avgPriceActual;
   if (saved.totalPointsInput) document.getElementById('totalPoints').value = saved.totalPointsInput;
 
