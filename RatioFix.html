@@ -173,6 +173,7 @@ body {
   color: var(--gray-700); text-align: center; outline: none; transition: border-color 0.15s;
 }
 .param-input:focus { border-color: var(--blue-300); }
+.param-input[readonly] { background: var(--gray-100); color: var(--gray-600); cursor: not-allowed; }
 .param-input-sm { width: 80px; }
 
 /* Step navigation */
@@ -459,11 +460,11 @@ body {
       <div class="param-row">
         <div class="param-group">
           <label for="avgPriceOrig">原排表均价（元）</label>
-          <input type="number" id="avgPriceOrig" class="param-input" step="0.01" min="0" placeholder="如 28.00">
+          <input type="number" id="avgPriceOrig" class="param-input" step="0.00001" min="0" placeholder="上传原排表后自动识别" readonly aria-readonly="true">
         </div>
         <div class="param-group">
           <label for="avgPriceActual">拆配表均价（元）</label>
-          <input type="number" id="avgPriceActual" class="param-input" step="0.01" min="0" placeholder="如 26.00">
+          <input type="number" id="avgPriceActual" class="param-input" step="0.00001" min="0" placeholder="如 26.00000">
         </div>
         <div class="param-group">
           <label for="totalPoints">拆配表总点数（校验）</label>
@@ -668,10 +669,11 @@ function validateStep(step) {
   if (step === 1) {
     if (!originalFile) return '请先上传原排表';
     if (!actualFile) return '请先上传拆配后实际排表';
-    var avg1 = parseFloat(document.getElementById('avgPriceOrig').value);
+    var originalSummary = calculateOriginalPriceSummary(originalFile.workbook);
+    var avg1 = originalSummary.average;
     var avg2 = parseFloat(document.getElementById('avgPriceActual').value);
     var tp = parseInt(document.getElementById('totalPoints').value);
-    if (isNaN(avg1) || avg1 <= 0) return '请输入原排表均价（需大于0）';
+    if (isNaN(avg1) || avg1 <= 0) return '原排表均价自动检测失败，请重新上传原排表';
     if (isNaN(avg2) || avg2 <= 0) return '请输入拆配表均价（需大于0）';
     if (isNaN(tp) || tp <= 0) return '请输入拆配表总点数（用于双重校验）';
 
@@ -695,11 +697,12 @@ function validateStep(step) {
       return '拆配表总点数校验不通过！\n您输入 ' + tp + ' 点，系统解析拆配表为 ' + parsedActualTotal + ' 点，两者不一致。\n请核对排表数据或修改输入值。';
     }
 
-    // Check 2: actualTotal × avgActual ≈ originalTotal × avgOrig
+    // Check 2: use the exact weighted total detected from the original table,
+    // avoiding the rounding error introduced by the five-decimal display value.
     var actualSum = parsedActualTotal * avg2;
-    var origSum = parsedOrigTotal * avg1;
+    var origSum = originalSummary.totalValue;
     if (Math.abs(actualSum - origSum) > 0.01) {
-      return '跨表总价校验不通过！\n拆配表 ' + parsedActualTotal + ' 点 × ' + avg2.toFixed(2) + ' = ' + actualSum.toFixed(2) + '\n原排表 ' + parsedOrigTotal + ' 点 × ' + avg1.toFixed(2) + ' = ' + origSum.toFixed(2) + '\n两者差值 ' + (actualSum - origSum).toFixed(2) + '，请检查两表均价或排表数据。';
+      return '跨表总价校验不通过！\n拆配表 ' + parsedActualTotal + ' 点 × ' + avg2.toFixed(5) + ' = ' + actualSum.toFixed(2) + '\n原排表检测均价 ' + avg1.toFixed(5) + '，精确总价 = ' + origSum.toFixed(2) + '\n两者差值 ' + (actualSum - origSum).toFixed(2) + '，请检查拆配表均价或排表数据。';
     }
 
     avgPriceOrig = avg1;
@@ -757,7 +760,10 @@ function handleFile(file, isOriginal, tagEl, dz) {
       }
 
       if (isOriginal) {
+        var originalSummary = calculateOriginalPriceSummary(wb);
         originalFile = {name: file.name, workbook: wb};
+        avgPriceOrig = originalSummary.average;
+        document.getElementById('avgPriceOrig').value = originalSummary.average.toFixed(5);
         var preview = tryParsePreview(wb);
         var previewTagHtml = '';
         if (preview) {
@@ -806,6 +812,8 @@ function handleFile(file, isOriginal, tagEl, dz) {
 function removeFile(isOriginal) {
   if (isOriginal) {
     originalFile = null;
+    avgPriceOrig = 0;
+    document.getElementById('avgPriceOrig').value = '';
     tagOriginal.innerHTML = '';
     dzOriginal.style.borderColor = '';
     saveDraft();
@@ -969,6 +977,27 @@ function extractPrices(wb) {
   return prices;
 }
 
+function calculateOriginalPriceSummary(wb) {
+  var pointData = extractPointsPerChar(wb);
+  var prices = extractPrices(wb);
+  var totalPoints = 0;
+  var totalValue = 0;
+  var missingPrices = [];
+  pointData.headers.forEach(function(ch) {
+    var points = pointData.points[ch] || 0;
+    if (!points) return;
+    if (prices[ch] === undefined || !Number.isFinite(prices[ch]) || prices[ch] < 0) {
+      missingPrices.push(ch);
+      return;
+    }
+    totalPoints += points;
+    totalValue += points * prices[ch];
+  });
+  if (missingPrices.length) throw new Error('格式错误：以下角色缺少有效原单价：' + missingPrices.join('、'));
+  if (!totalPoints || totalValue <= 0) throw new Error('格式错误：无法根据原表点数和单价计算均价');
+  return {average: totalValue / totalPoints, totalPoints: totalPoints, totalValue: totalValue};
+}
+
 // ==================== STEP 2: BALANCER ====================
 function buildBalancer() {
   kindName = getSheetKind(actualFile.workbook);
@@ -1083,6 +1112,19 @@ function confirmHeatOrder() {
     baseAdjustments[ch] = heatAdjustments[ch] || 0;
     adjustments[ch] = baseAdjustments[ch];
   });
+  // 只有一个新增角色且被排在第一位时，给它高于第二位的优先二调基线。
+  // 这是候选方案偏好，不牺牲精确配平；无可行解时仍允许求解器回退。
+  var newTopRole = getSingleNewTopRole();
+  if (newTopRole) {
+    var secondRole = characters[1];
+    var premiumCents = getRolePriceQuantum(newTopRole);
+    var targetCents = Math.round((baseAdjustments[secondRole] || 0) * 100) + premiumCents;
+    var bounds = getRoleAdjustmentBounds(newTopRole);
+    var boostedCents = clampInt(Math.max(Math.round((baseAdjustments[newTopRole] || 0) * 100), targetCents), bounds.min, bounds.max);
+    baseAdjustments[newTopRole] = boostedCents / 100;
+    heatAdjustments[newTopRole] = Math.max(heatAdjustments[newTopRole] || 0, baseAdjustments[newTopRole]);
+    adjustments[newTopRole] = baseAdjustments[newTopRole];
+  }
   heatOrderConfirmed = true;
   renderBalancer();
   saveDraft();
@@ -1168,6 +1210,12 @@ function clampInt(value, min, max) {
 function getRolePriceQuantum(ch) {
   var originalPriceCents = Math.round((originalPrices[ch] || 0) * 100);
   return originalPriceCents % 100 === 0 ? 50 : 1;
+}
+
+function getSingleNewTopRole() {
+  return missingOriginalCharacters.length === 1 && characters.length > 1 && characters[0] === missingOriginalCharacters[0]
+    ? characters[0]
+    : null;
 }
 
 function getRoleAdjustmentBounds(ch) {
@@ -1265,6 +1313,10 @@ function solveExactMultiRole(preferred, variantIndex) {
       cost += Math.abs(delta) * getRelaxPenalty(ch, delta) * points;
       cost += (delta * delta * points) / 200;
     });
+    var newTopRole = getSingleNewTopRole();
+    if (newTopRole && values[newTopRole] <= values[characters[1]]) {
+      cost += 100000000 + (values[characters[1]] - values[newTopRole] + 1) * 10000;
+    }
     candidates.push({values:values, changed:changed, cost:cost, key:key});
     candidates.sort(function(a, b) { return a.cost - b.cost || a.key.localeCompare(b.key); });
     if (candidates.length > 20) candidates.length = 20;
@@ -2085,7 +2137,7 @@ function restoreDraft() {
   if (saved.fileName) document.getElementById('rFileName').value = saved.fileName;
 
   // Restore parameters
-  if (saved.avgPriceOrig) document.getElementById('avgPriceOrig').value = saved.avgPriceOrig;
+  if (saved.avgPriceOrig) document.getElementById('avgPriceOrig').value = Number(saved.avgPriceOrig).toFixed(5);
   if (saved.avgPriceActual) document.getElementById('avgPriceActual').value = saved.avgPriceActual;
   if (saved.totalPointsInput) document.getElementById('totalPoints').value = saved.totalPointsInput;
 
