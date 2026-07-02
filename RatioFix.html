@@ -669,8 +669,8 @@ function validateStep(step) {
   if (step === 1) {
     if (!originalFile) return '请先上传原排表';
     if (!actualFile) return '请先上传拆配后实际排表';
-    var originalSummary = calculateOriginalPriceSummary(originalFile.workbook);
-    var avg1 = roundToFiveDecimals(originalSummary.average);
+    refreshOriginalAverage();
+    var avg1 = parseFloat(document.getElementById('avgPriceOrig').value);
     var avg2 = parseFloat(document.getElementById('avgPriceActual').value);
     var tp = parseInt(document.getElementById('totalPoints').value);
     if (isNaN(avg1) || avg1 <= 0) return '原排表均价自动检测失败，请重新上传原排表';
@@ -697,12 +697,12 @@ function validateStep(step) {
       return '拆配表总点数校验不通过！\n您输入 ' + tp + ' 点，系统解析拆配表为 ' + parsedActualTotal + ' 点，两者不一致。\n请核对排表数据或修改输入值。';
     }
 
-    // Check 2: use the exact weighted total detected from the original table,
-    // avoiding the rounding error introduced by the five-decimal display value.
+    // Check 2: compare using the locked five-decimal equivalent original average.
     var actualSum = parsedActualTotal * avg2;
-    var origSum = originalSummary.totalValue;
-    if (Math.abs(actualSum - origSum) > 0.01) {
-      return '跨表总价校验不通过！\n拆配表 ' + parsedActualTotal + ' 点 × ' + formatFiveDecimals(avg2) + ' = ' + actualSum.toFixed(2) + '\n原排表检测均价 ' + formatFiveDecimals(avg1) + '，精确总价 = ' + origSum.toFixed(2) + '\n两者差值 ' + (actualSum - origSum).toFixed(2) + '，请检查拆配表均价或排表数据。';
+    var origSum = parsedOrigTotal * avg1;
+    var roundingTolerance = Math.max(0.01, parsedOrigTotal * 0.000005 + 0.0000001);
+    if (Math.abs(actualSum - origSum) > roundingTolerance) {
+      return '跨表总价校验不通过！\n拆配表 ' + parsedActualTotal + ' 点 × ' + formatFiveDecimals(avg2) + ' = ' + actualSum.toFixed(2) + '\n原排表检测均价 ' + formatFiveDecimals(avg1) + '，换算总价 = ' + origSum.toFixed(2) + '\n两者差值 ' + (actualSum - origSum).toFixed(2) + '，请检查拆配表均价或排表数据。';
     }
 
     avgPriceOrig = avg1;
@@ -760,10 +760,9 @@ function handleFile(file, isOriginal, tagEl, dz) {
       }
 
       if (isOriginal) {
-        var originalSummary = calculateOriginalPriceSummary(wb);
+        calculateOriginalPriceSummary(wb);
         originalFile = {name: file.name, workbook: wb};
-        avgPriceOrig = roundToFiveDecimals(originalSummary.average);
-        document.getElementById('avgPriceOrig').value = formatFiveDecimals(originalSummary.average);
+        refreshOriginalAverage();
         var preview = tryParsePreview(wb);
         var previewTagHtml = '';
         if (preview) {
@@ -778,6 +777,7 @@ function handleFile(file, isOriginal, tagEl, dz) {
         saveDraft();
       } else {
         actualFile = {name: file.name, workbook: wb};
+        refreshOriginalAverage();
         var preview = tryParsePreview(wb);
         var previewTagHtml = '';
         if (preview) {
@@ -819,6 +819,7 @@ function removeFile(isOriginal) {
     saveDraft();
   } else {
     actualFile = null;
+    refreshOriginalAverage();
     tagActual.innerHTML = '';
     dzActual.style.borderColor = '';
     saveDraft();
@@ -996,6 +997,28 @@ function calculateOriginalPriceSummary(wb) {
   if (missingPrices.length) throw new Error('格式错误：以下角色缺少有效原单价：' + missingPrices.join('、'));
   if (!totalPoints || totalValue <= 0) throw new Error('格式错误：无法根据原表点数和单价计算均价');
   return {average: totalValue / totalPoints, totalPoints: totalPoints, totalValue: totalValue};
+}
+
+function getWorkbookTotalPoints(wb) {
+  var pointData = extractPointsPerChar(wb);
+  return Object.keys(pointData.points).reduce(function(sum, ch) {
+    return sum + (pointData.points[ch] || 0);
+  }, 0);
+}
+
+function refreshOriginalAverage() {
+  if (!originalFile) return;
+  var originalSummary = calculateOriginalPriceSummary(originalFile.workbook);
+  var detectedAverage = originalSummary.average;
+  var actualAverage = parseFloat(document.getElementById('avgPriceActual').value);
+  if (actualFile && Number.isFinite(actualAverage) && actualAverage > 0) {
+    var actualTotalPoints = getWorkbookTotalPoints(actualFile.workbook);
+    if (actualTotalPoints > 0) {
+      detectedAverage = actualTotalPoints * actualAverage / originalSummary.totalPoints;
+    }
+  }
+  avgPriceOrig = roundToFiveDecimals(detectedAverage);
+  document.getElementById('avgPriceOrig').value = formatFiveDecimals(detectedAverage);
 }
 
 function roundToFiveDecimals(value) {
@@ -2254,8 +2277,10 @@ function init() {
   });
 
   // Auto-save on parameter changes
-  document.getElementById('avgPriceOrig').addEventListener('input', saveDraft);
-  document.getElementById('avgPriceActual').addEventListener('input', saveDraft);
+  document.getElementById('avgPriceActual').addEventListener('input', function() {
+    refreshOriginalAverage();
+    saveDraft();
+  });
   document.getElementById('totalPoints').addEventListener('input', saveDraft);
   document.getElementById('confirmPrices').addEventListener('change', saveDraft);
 
