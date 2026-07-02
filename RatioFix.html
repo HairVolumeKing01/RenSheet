@@ -593,6 +593,7 @@ var missingOriginalCharacters = [];
 var heatOrderConfirmed = false;
 var autoBalanceSnapshot = null;
 var autoBalanceVariant = 0;
+var autoBalanceAvailable = 0;
 var activeAutoPolicy = null;
 var isBalanced = false;
 var kindName = '';
@@ -1060,6 +1061,7 @@ function buildBalancer() {
   origChars.headers.forEach(function(ch) { originalCharacterSet[ch] = true; });
   autoBalanceSnapshot = null;
   autoBalanceVariant = 0;
+  autoBalanceAvailable = 0;
 
   for (var i = 0; i < characters.length; i++) {
     var ch = characters[i];
@@ -1147,18 +1149,26 @@ function confirmHeatOrder() {
     baseAdjustments[ch] = heatAdjustments[ch] || 0;
     adjustments[ch] = baseAdjustments[ch];
   });
-  // 只有一个新增角色且被排在第一位时，给它高于第二位的优先二调基线。
-  // 这是候选方案偏好，不牺牲精确配平；无可行解时仍允许求解器回退。
-  var newTopRole = getSingleNewTopRole();
-  if (newTopRole) {
-    var secondRole = characters[1];
-    var premiumCents = getRolePriceQuantum(newTopRole);
-    var targetCents = Math.round((baseAdjustments[secondRole] || 0) * 100) + premiumCents;
-    var bounds = getRoleAdjustmentBounds(newTopRole);
-    var boostedCents = clampInt(Math.max(Math.round((baseAdjustments[newTopRole] || 0) * 100), targetCents), bounds.min, bounds.max);
-    baseAdjustments[newTopRole] = boostedCents / 100;
-    heatAdjustments[newTopRole] = Math.max(heatAdjustments[newTopRole] || 0, baseAdjustments[newTopRole]);
-    adjustments[newTopRole] = baseAdjustments[newTopRole];
+  // 新增 1～2 个角色且全部位于热度前列时，其定价优先级仅次于硬约束。
+  // 先让较低排名的新增角色高于全部旧角色，再按热度向前逐个拉开价差。
+  var priorityNewRoles = getPriorityNewRoles();
+  if (priorityNewRoles.length) {
+    var nonNewMaxCents = characters.filter(function(ch) {
+      return priorityNewRoles.indexOf(ch) < 0;
+    }).reduce(function(max, ch) {
+      return Math.max(max, Math.round((baseAdjustments[ch] || 0) * 100));
+    }, -Infinity);
+    var priceFloorCents = Number.isFinite(nonNewMaxCents) ? nonNewMaxCents : 0;
+    for (var nr = priorityNewRoles.length - 1; nr >= 0; nr--) {
+      var newRole = priorityNewRoles[nr];
+      var targetCents = priceFloorCents + getRolePriceQuantum(newRole);
+      var bounds = getRoleAdjustmentBounds(newRole);
+      var boostedCents = clampInt(Math.max(Math.round((baseAdjustments[newRole] || 0) * 100), targetCents), bounds.min, bounds.max);
+      baseAdjustments[newRole] = boostedCents / 100;
+      heatAdjustments[newRole] = Math.max(heatAdjustments[newRole] || 0, baseAdjustments[newRole]);
+      adjustments[newRole] = baseAdjustments[newRole];
+      priceFloorCents = boostedCents;
+    }
   }
   heatOrderConfirmed = true;
   renderBalancer();
@@ -1227,7 +1237,7 @@ function renderBalancer() {
   html += '</tbody></table>';
   document.getElementById('balancerWrap').innerHTML = html;
   document.getElementById('btnRestoreAuto').disabled = !autoBalanceSnapshot;
-  document.getElementById('btnSwitchAuto').disabled = !autoBalanceSnapshot;
+  document.getElementById('btnSwitchAuto').disabled = !autoBalanceSnapshot || autoBalanceAvailable <= 1;
   renderHeatOrderPanel();
   updateBalanceDisplay();
 }
@@ -1247,10 +1257,36 @@ function getRolePriceQuantum(ch) {
   return originalPriceCents % 100 === 0 ? 50 : 1;
 }
 
-function getSingleNewTopRole() {
-  return missingOriginalCharacters.length === 1 && characters.length > 1 && characters[0] === missingOriginalCharacters[0]
-    ? characters[0]
-    : null;
+function getPriorityNewRoles() {
+  if (missingOriginalCharacters.length < 1 || missingOriginalCharacters.length > 2 || characters.length <= missingOriginalCharacters.length) return [];
+  var topLimit = Math.max(2, Math.ceil(characters.length * 0.25));
+  var ordered = missingOriginalCharacters.slice().sort(function(a, b) {
+    return characters.indexOf(a) - characters.indexOf(b);
+  });
+  return ordered.every(function(ch) { return characters.indexOf(ch) < topLimit; }) ? ordered : [];
+}
+
+function candidateKeepsPriorityNewPrices(values) {
+  var priorityNewRoles = getPriorityNewRoles();
+  if (!priorityNewRoles.length) return true;
+  var otherRoles = characters.filter(function(ch) { return priorityNewRoles.indexOf(ch) < 0; });
+  var otherMax = otherRoles.reduce(function(max, ch) { return Math.max(max, values[ch]); }, -Infinity);
+  for (var i = 0; i < priorityNewRoles.length; i++) {
+    if (values[priorityNewRoles[i]] <= otherMax) return false;
+    if (i > 0 && values[priorityNewRoles[i - 1]] <= values[priorityNewRoles[i]]) return false;
+  }
+  return true;
+}
+
+function isEffectiveSwitchPair(firstValues, secondValues) {
+  var changedDifferences = characters.map(function(ch) {
+    return Math.abs(firstValues[ch] - secondValues[ch]);
+  }).filter(function(value) { return value > 0; });
+  if (!changedDifferences.length) return false;
+  var minDifference = Math.min.apply(null, changedDifferences);
+  var maxDifference = Math.max.apply(null, changedDifferences);
+  var totalDifference = changedDifferences.reduce(function(sum, value) { return sum + value; }, 0);
+  return minDifference >= 50 && maxDifference <= 1000 && totalDifference >= 100;
 }
 
 function getPointChangeProfile() {
@@ -1425,6 +1461,8 @@ function solveExactMultiRoleAtPolicy(preferred, variantIndex, policy) {
   function storeCandidate(values) {
     if (getWeightedSum(values) !== 0) return;
     if (!characters.some(function(ch) { return values[ch] !== 0; })) return;
+    // 新增热门角色高于其他角色，优先级高于“先修改点数差异角色”。
+    if (!candidateKeepsPriorityNewPrices(values)) return;
     var key = characters.map(function(ch) { return values[ch]; }).join(',');
     if (candidates.some(function(item) { return item.key === key; })) return;
     var cost = 0;
@@ -1451,13 +1489,9 @@ function solveExactMultiRoleAtPolicy(preferred, variantIndex, policy) {
       if (heatGroup === 'cold' && baseDelta > 0) cost += Math.abs(baseDelta) * 20000;
     });
     cost += modifiedFromBase * 100000;
-    var newTopRole = getSingleNewTopRole();
-    if (newTopRole && values[newTopRole] <= values[characters[1]]) {
-      cost += 100000000 + (values[characters[1]] - values[newTopRole] + 1) * 10000;
-    }
     candidates.push({values:values, changed:changed, cost:cost, key:key});
     candidates.sort(function(a, b) { return a.cost - b.cost || a.key.localeCompare(b.key); });
-    if (candidates.length > 20) candidates.length = 20;
+    if (candidates.length > 100) candidates.length = 100;
   }
 
   function scanPairFinish(base) {
@@ -1571,10 +1605,18 @@ function solveExactMultiRoleAtPolicy(preferred, variantIndex, policy) {
     activeAutoPolicy = null;
     return null;
   }
-  var selectedIndex = (variantIndex || 0) % candidates.length;
-  var selected = candidates[selectedIndex];
+  var effectiveCandidates = [candidates[0]];
+  for (var ec = 1; ec < candidates.length && effectiveCandidates.length < 20; ec++) {
+    var candidate = candidates[ec];
+    var effectiveAgainstAll = effectiveCandidates.every(function(existing) {
+      return isEffectiveSwitchPair(candidate.values, existing.values);
+    });
+    if (effectiveAgainstAll) effectiveCandidates.push(candidate);
+  }
+  var selectedIndex = (variantIndex || 0) % effectiveCandidates.length;
+  var selected = effectiveCandidates[selectedIndex];
   activeAutoPolicy = null;
-  return {values:selected.values, changed:selected.changed, available:candidates.length, selectedIndex:selectedIndex};
+  return {values:selected.values, changed:selected.changed, available:effectiveCandidates.length, selectedIndex:selectedIndex};
 }
 
 function solveExactMultiRole(preferred, variantIndex, profile) {
@@ -1605,12 +1647,14 @@ function autoBalance(useNextVariant) {
   var solved = solveExactMultiRole(preferred, autoBalanceVariant, profile);
 
   if (!solved) {
+    autoBalanceAvailable = 0;
     document.getElementById('autoBalanceResult').textContent = '当前约束下没有找到非全零的精确配平方案，请保留现有调价并手动调整。';
     showToast('未找到非全零的精确配平方案', true);
     return;
   }
 
   autoBalanceVariant = solved.selectedIndex;
+  autoBalanceAvailable = solved.available;
   autoBalanceSnapshot = {};
   characters.forEach(function(ch) {
     adjustments[ch] = solved.values[ch] / 100;
@@ -1626,7 +1670,7 @@ function autoBalance(useNextVariant) {
 }
 
 function cycleAutoBalance() {
-  if (!autoBalanceSnapshot) return;
+  if (!autoBalanceSnapshot || autoBalanceAvailable <= 1) return;
   autoBalanceVariant += 1;
   autoBalance(true);
 }
@@ -2251,6 +2295,7 @@ function buildDraftObject() {
     heatOrderConfirmed: heatOrderConfirmed,
     autoBalanceSnapshot: autoBalanceSnapshot,
     autoBalanceVariant: autoBalanceVariant,
+    autoBalanceAvailable: autoBalanceAvailable,
     isBalanced: isBalanced,
     kindName: kindName,
     newPrices: newPrices,
@@ -2352,6 +2397,7 @@ function showRestoreBanner(saved) {
     heatOrderConfirmed = false;
     autoBalanceSnapshot = null;
     autoBalanceVariant = 0;
+    autoBalanceAvailable = 0;
     isBalanced = false;
     kindName = '';
     newPrices = {};
