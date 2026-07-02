@@ -589,7 +589,7 @@ var heatAdjustments = {};    // original table price - original table average
 var baseAdjustments = {};    // original table price - original table average (second-adjustment anchor)
 var originalCharacterSet = {};
 var missingOriginalCharacters = [];
-var heatOrderConfirmed = true;
+var heatOrderConfirmed = false;
 var autoBalanceSnapshot = null;
 var autoBalanceVariant = 0;
 var isBalanced = false;
@@ -1015,7 +1015,9 @@ function buildBalancer() {
     return (heatAdjustments[b] || 0) - (heatAdjustments[a] || 0) || a.localeCompare(b, 'zh-CN');
   });
   missingOriginalCharacters = characters.filter(function(ch) { return !originalCharacterSet[ch]; });
-  heatOrderConfirmed = missingOriginalCharacters.length === 0;
+  // 每次导入两张排表进入第二步，都必须由用户确认完整角色热度顺序。
+  // 不能因为点数、均价或角色集合一致就跳过热度确认。
+  heatOrderConfirmed = false;
 
   renderBalancer();
 }
@@ -1023,14 +1025,12 @@ function buildBalancer() {
 function renderHeatOrderPanel() {
   var panel = document.getElementById('heatOrderPanel');
   var autoBtn = document.getElementById('btnAutoBalance');
-  if (!missingOriginalCharacters.length) {
-    panel.style.display = 'none';
-    autoBtn.disabled = false;
-    return;
-  }
   panel.style.display = 'block';
-  var html = '<div class="heat-order-title">检测到拆配表新增角色：' + missingOriginalCharacters.join('、') + '</div>';
-  html += '<div class="heat-order-help">请按“最热门 → 最冷门”从左到右调整整列顺序。黄色角色为原排表中不存在的新角色，确认后才能自动配平。</div>';
+  var title = missingOriginalCharacters.length
+    ? '请确认全部角色热度顺序（新增角色：' + missingOriginalCharacters.join('、') + '）'
+    : '请确认全部角色热度顺序';
+  var html = '<div class="heat-order-title">' + title + '</div>';
+  html += '<div class="heat-order-help">系统已按原调价从高到低排列。请按“最热门 → 最冷门”从左到右调整整列顺序并确认，确认后才能自动配平。黄色角色为原排表中不存在的新角色。</div>';
   html += '<div class="heat-order-list">';
   for (var i = 0; i < characters.length; i++) {
     var ch = characters[i];
@@ -1110,14 +1110,12 @@ function renderBalancer() {
     html += '<td style="font-weight:600;">' + (rawHeat === undefined || !originalCharacterSet[characters[hr]] ? '--' : (rawHeat > 0 ? '+' : '') + rawHeat.toFixed(2)) + '</td>';
   }
   html += '</tr>';
-  if (missingOriginalCharacters.length) {
-    html += '<tr><td class="row-label">确认热度</td>';
-    for (var he = 0; he < characters.length; he++) {
-      var effectiveHeat = heatAdjustments[characters[he]] || 0;
-      html += '<td style="font-weight:600;color:var(--blue-700);">' + (heatOrderConfirmed ? ((effectiveHeat > 0 ? '+' : '') + effectiveHeat.toFixed(2)) : '待确认') + '</td>';
-    }
-    html += '</tr>';
+  html += '<tr><td class="row-label">确认热度</td>';
+  for (var he = 0; he < characters.length; he++) {
+    var effectiveHeat = heatAdjustments[characters[he]] || 0;
+    html += '<td style="font-weight:600;color:var(--blue-700);">' + (heatOrderConfirmed ? ((effectiveHeat > 0 ? '+' : '') + effectiveHeat.toFixed(2)) : '待确认') + '</td>';
   }
+  html += '</tr>';
   html += '<tr><td class="row-label">原点数</td>';
   for (var p = 0; p < characters.length; p++) html += '<td>' + (originalPointsPerChar[characters[p]] || 0) + '</td>';
   html += '</tr><tr><td class="row-label">拆配点数</td>';
@@ -1390,8 +1388,8 @@ function autoBalance(useNextVariant) {
     showToast('请先上传并解析两张排表', true);
     return;
   }
-  if (missingOriginalCharacters.length && !heatOrderConfirmed) {
-    showToast('拆配表存在新增角色，请先调整并确认热度顺序', true);
+  if (!heatOrderConfirmed) {
+    showToast('请先调整并确认全部角色的热度顺序', true);
     return;
   }
 
@@ -2142,7 +2140,7 @@ function showRestoreBanner(saved) {
     baseAdjustments = {};
     originalCharacterSet = {};
     missingOriginalCharacters = [];
-    heatOrderConfirmed = true;
+    heatOrderConfirmed = false;
     autoBalanceSnapshot = null;
     autoBalanceVariant = 0;
     isBalanced = false;
