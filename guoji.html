@@ -1614,6 +1614,7 @@ exportBtn.addEventListener('click', function() {
     for (var c = 0; c < colCount; c++) {
       var ecell = ws.getCell(r + 3, c + 1);
       ecell.value = cells[c];
+      if (c > 0) ecell.numFmt = '0.00';
       ecell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:bg}};
       ecell.border = {bottom:{style:'thin', color:{argb:'D0D5DD'}}};
       ecell.alignment = {horizontal:'center', vertical:'middle'};

@@ -1154,13 +1154,13 @@ function buildCategorizedTable(data) {
       row.push(cellStr);
     }
 
-    row.push(String(pm.totalCount));
+    row.push(pm.totalCount);
     if (data.depositConfig) {
       var split = calculateDeposit(pm.totalCost, data.depositConfig);
-      row.push((split.depositCents / 100).toFixed(2));
-      row.push((split.tailCents / 100).toFixed(2));
+      row.push(split.depositCents / 100);
+      row.push(split.tailCents / 100);
     }
-    row.push(pm.totalCost.toFixed(2));
+    row.push(Number(pm.totalCost.toFixed(2)));
     rows.push(row);
   }
   return {headers: headers, rows: rows};
@@ -1201,13 +1201,13 @@ function buildListTable(data) {
       if (group.length) breaks.push(group.join(','));
       detailStr = breaks.join('\n');
     }
-    var row = [person, detailStr, String(pm.totalCount)];
+    var row = [person, detailStr, pm.totalCount];
     if (data.depositConfig) {
       var split = calculateDeposit(pm.totalCost, data.depositConfig);
-      row.push((split.depositCents / 100).toFixed(2));
-      row.push((split.tailCents / 100).toFixed(2));
+      row.push(split.depositCents / 100);
+      row.push(split.tailCents / 100);
     }
-    row.push(pm.totalCost.toFixed(2));
+    row.push(Number(pm.totalCost.toFixed(2)));
     rows.push(row);
   }
   return {headers: headers, rows: rows};
@@ -1425,7 +1425,15 @@ exportBtn.addEventListener('click', function() {
       var excelRow = ws.getRow(r + 3);
       for (var c = 0; c < row.length; c++) {
         var cell = ws.getCell(r + 3, c + 1);
-        cell.value = row[c];
+        var headerName = tableData.headers[c];
+        var isPointColumn = headerName === '点数';
+        var isMoneyColumn = headerName === '肾' || headerName === '定金' || headerName === '尾款' || headerName === '总肾';
+        if (isPointColumn || isMoneyColumn) {
+          cell.value = Number(row[c]);
+          cell.numFmt = isPointColumn ? '0' : '0.00';
+        } else {
+          cell.value = row[c];
+        }
         cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:bg}};
         cell.border = {bottom:{style:'thin', color:{argb:'D0D5DD'}}};
         if (c === 0) {
