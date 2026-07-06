@@ -1962,19 +1962,6 @@ function onAdjChange(input) {
     saveDraft();
     return;
   }
-  if (autoBalanceSnapshot && autoBalanceQuantumCents > 1) {
-    var normalizedCents = alignAdjustmentToQuantum(ch, Math.round(adj * 100), autoBalanceQuantumCents);
-    var normalizedAdj = normalizedCents / 100;
-    if (Math.abs(normalizedAdj - adj) > 0.0001) {
-      adj = normalizedAdj;
-      input.value = adj.toFixed(2);
-      var quantumText = autoBalanceQuantumCents === 100 ? '1.00' : '0.10';
-      showToast('「' + ch + '」已按当前 ' + quantumText + ' 元步长对齐原调价');
-      var idx = characters.indexOf(ch);
-      var cells = document.querySelectorAll('.new-price-ref');
-      if (idx >= 0 && cells[idx]) cells[idx].textContent = (adj + avgPriceActual).toFixed(2);
-    }
-  }
   adjustments[ch] = adj;
   updateBalanceDisplay();
   saveDraft();
@@ -1991,17 +1978,11 @@ function computeSumProduct() {
 
 function updateBalanceDisplay() {
   var sum = computeSumProduct();
-  var currentValues = {};
-  characters.forEach(function(ch) {
-    currentValues[ch] = Math.round((adjustments[ch] || 0) * 100);
-  });
-  var heatOrderValid = candidateKeepsConfirmedHeatOrder(currentValues);
-  var unchangedRolesValid = candidateKeepsUnchangedRoles(currentValues);
-  isBalanced = Math.round(sum * 100) === 0 && heatOrderValid && unchangedRolesValid;
+  isBalanced = Math.round(sum * 100) === 0;
   var display = document.getElementById('balanceDisplay');
   var cls = isBalanced ? 'balanced' : 'unbalanced';
   var icon = isBalanced ? '&#10003;' : '&#10007;';
-  var text = isBalanced ? '已平衡' : (!unchangedRolesValid ? '点数未变化角色的调价必须保持原值' : (!heatOrderValid ? '热度顺序倒挂，前一角色调价不得低于后一角色' : '未平衡，目标值 0.00'));
+  var text = isBalanced ? '已平衡' : '未平衡，目标值 0.00';
   display.innerHTML = '<div class="balance-status ' + cls + '">' +
     '<span>' + icon + '</span> &Sigma;(点数&times;调价) = ' + sum.toFixed(2) + ' <span>' + text + '</span>' +
     '</div>';
