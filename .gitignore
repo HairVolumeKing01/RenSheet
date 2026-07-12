@@ -4,6 +4,7 @@ _debug_*.txt
 .claude/
 node_modules/
 .idea/
+演示/
 package.json
 package-lock.json
 .DS_Store

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -176,6 +176,92 @@ body {
 .param-input[readonly] { background: var(--gray-100); color: var(--gray-600); cursor: not-allowed; }
 .param-input-sm { width: 80px; }
 
+.parse-error-panel {
+  margin-top: 16px;
+  border: 1px solid #E53E3E;
+  background: #FFF5F5;
+  border-radius: var(--radius);
+  color: #742A2A;
+  overflow: hidden;
+  text-align: left;
+}
+.parse-error-summary {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+}
+.parse-error-copy {
+  min-width: 0;
+  flex: 1;
+}
+.parse-error-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-align: left;
+}
+.parse-error-meta {
+  font-size: 12px;
+  line-height: 1.7;
+  text-align: left;
+}
+.parse-error-toggle {
+  flex-shrink: 0;
+  border: 1px solid #E53E3E;
+  background: #FFFFFF;
+  color: #C53030;
+  border-radius: 6px;
+  padding: 9px 14px;
+  font: 600 12px var(--font);
+  cursor: pointer;
+  min-width: 132px;
+  text-align: center;
+}
+.parse-error-detail {
+  display: none;
+  border-top: 1px solid #FED7D7;
+  background: #FFFFFF;
+  max-height: 280px;
+  overflow: auto;
+}
+.parse-error-panel.expanded .parse-error-detail { display: block; }
+.parse-error-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.parse-error-table th {
+  position: sticky;
+  top: 0;
+  background: #FED7D7;
+  color: #742A2A;
+  padding: 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+.parse-error-table td {
+  padding: 8px;
+  border-top: 1px solid #FED7D7;
+  vertical-align: top;
+}
+.parse-error-cell { white-space: nowrap; font-weight: 600; }
+.parse-error-raw {
+  max-width: 180px;
+  word-break: break-all;
+  color: #4A5568;
+}
+@media (max-width: 720px) {
+  .parse-error-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .parse-error-toggle {
+    width: 100%;
+  }
+}
+
 /* Step navigation */
 .step-nav {
   display: flex; justify-content: space-between; align-items: center;
@@ -237,6 +323,63 @@ body {
 .btn-auto-restore:hover { background: var(--blue-100); }
 .auto-balance-result {
   width: 100%; font-size: 12px; color: var(--blue-700); font-weight: 600; min-height: 18px;
+}
+.balance-rule-panel {
+  margin: 14px 0;
+  padding: 14px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  text-align: left;
+}
+.balance-rule-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue-900);
+  margin-bottom: 10px;
+}
+.balance-rule-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(150px, 1fr));
+  gap: 12px;
+}
+.balance-rule-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: 6px;
+}
+.balance-rule-field select,
+.balance-rule-field input {
+  width: 100%;
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  padding: 7px 8px;
+  font: 13px var(--font);
+  color: var(--gray-700);
+  background: var(--white);
+  outline: none;
+}
+.balance-rule-field select:focus,
+.balance-rule-field input:focus { border-color: var(--blue-300); }
+.balance-rule-field select:disabled,
+.balance-rule-field input:disabled {
+  background: var(--gray-100);
+  color: var(--gray-400);
+  cursor: not-allowed;
+}
+.balance-rule-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--gray-500);
+  line-height: 1.5;
+}
+@media (max-width: 900px) {
+  .balance-rule-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+}
+@media (max-width: 520px) {
+  .balance-rule-grid { grid-template-columns: 1fr; }
 }
 .heat-order-panel {
   display:none; margin:14px 0; padding:16px; text-align:left;
@@ -472,6 +615,8 @@ body {
         </div>
       </div>
 
+      <div id="step1ParseErrorPanel" class="parse-error-panel" style="display:none;"></div>
+
       <div class="step-nav">
         <div></div>
         <button class="btn-step btn-step-next" id="btnNext1" onclick="goToStep(2)">下一步</button>
@@ -485,6 +630,45 @@ body {
       <div class="card-title">STEP 2/5 — 调价配平器</div>
       <div class="desc-note">自动配平仅根据热度提供配平方案，结果仅供参考。</div>
       <div class="heat-order-panel" id="heatOrderPanel"></div>
+      <div class="balance-rule-panel">
+        <div class="balance-rule-title">调平规则</div>
+        <div class="balance-rule-grid">
+          <div class="balance-rule-field">
+            <label for="balanceMode">调平方式</label>
+            <select id="balanceMode" onchange="onBalanceRuleChange()">
+              <option value="default">默认（系统原规则）</option>
+              <option value="spread">均摊（多角色推荐）</option>
+              <option value="conservative">保守（少改角色）</option>
+              <option value="light">轻约束调平</option>
+            </select>
+          </div>
+          <div class="balance-rule-field">
+            <label for="maxPriceMultiplierInput">热门角色最大单价</label>
+            <select id="maxPriceMultiplierInput" onchange="onBalanceRuleChange()">
+              <option value="1">1倍原均价</option>
+              <option value="2">2倍原均价</option>
+              <option value="3" selected>3倍原均价</option>
+              <option value="4">4倍原均价</option>
+              <option value="5">5倍原均价</option>
+              <option value="6">6倍原均价</option>
+              <option value="7">7倍原均价</option>
+              <option value="8">8倍原均价</option>
+              <option value="9">9倍原均价</option>
+              <option value="10">10倍原均价</option>
+            </select>
+          </div>
+          <div class="balance-rule-field">
+            <label for="balancePrecision">调价精度</label>
+            <select id="balancePrecision" onchange="onBalanceRuleChange()">
+              <option value="default">默认（展示3种精度）</option>
+              <option value="100">整数</option>
+              <option value="10">0.1</option>
+              <option value="1">0.01</option>
+            </select>
+          </div>
+        </div>
+        <div class="balance-rule-hint" id="balanceRuleHint">默认模式沿用系统原规则，并锁定后续规则选项。</div>
+      </div>
       <div class="auto-balance-panel">
         <button type="button" class="btn-auto-balance" id="btnAutoBalance" onclick="autoBalance()">自动配平</button>
         <button type="button" class="btn-auto-restore" id="btnSwitchAuto" onclick="cycleAutoBalance()" disabled>换调价</button>
@@ -598,6 +782,10 @@ var autoBalanceQuantumCents = 1;
 var autoBalanceFallbackType = null;
 var activeAutoPolicy = null;
 var activeAutoQuantumCents = 1;
+var balanceMode = 'default';
+var balanceRange = 0.10;
+var balanceMaxPriceMultiplier = 3;
+var balancePrecision = 'default';
 var isBalanced = false;
 var kindName = '';
 
@@ -626,6 +814,228 @@ function showToast(msg, isError) {
   toast.textContent = msg;
   toast.className = 'toast ' + (isError ? 'error' : '') + ' show';
   toastTimer = setTimeout(function() { toast.classList.remove('show'); }, 3000);
+}
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getDisplayValue(value) {
+  if (value === null || value === undefined || value === '') return '空';
+  return '"' + String(value).replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/\t/g, '\\t') + '"';
+}
+
+function isFilledCell(value) {
+  return String(value == null ? '' : value).trim() !== '';
+}
+
+function clearStep1ParseError() {
+  var panel = document.getElementById('step1ParseErrorPanel');
+  if (!panel) return;
+  panel.style.display = 'none';
+  panel.classList.remove('expanded');
+  panel.innerHTML = '';
+}
+
+function toggleStep1ParseDetails() {
+  var panel = document.getElementById('step1ParseErrorPanel');
+  if (!panel) return;
+  panel.classList.toggle('expanded');
+  var btn = panel.querySelector('.parse-error-toggle');
+  if (btn) btn.textContent = panel.classList.contains('expanded') ? '收起错误明细' : '展开查看 ' + (btn.dataset.count || '') + ' 处问题';
+}
+
+function renderStep1ParseError(report) {
+  var panel = document.getElementById('step1ParseErrorPanel');
+  if (!panel || !report) return;
+  var issueCount = report.issues.length;
+  var diffText = Math.abs(report.expectedTotal - report.parsedTotal);
+  var rows = report.issues.map(function(issue) {
+    return '<tr>' +
+      '<td class="parse-error-cell">' + escapeHtml(issue.cell || '-') + '</td>' +
+      '<td class="parse-error-raw">' + escapeHtml(issue.rawValue) + '</td>' +
+      '<td>' + escapeHtml(issue.type) + '</td>' +
+      '<td>' + escapeHtml(issue.suggestion) + '</td>' +
+      '</tr>';
+  }).join('');
+  panel.innerHTML =
+    '<div class="parse-error-summary">' +
+      '<div class="parse-error-copy">' +
+        '<div class="parse-error-title">拆配排表解析失败：点数不一致</div>' +
+        '<div class="parse-error-meta">用户输入点数：' + escapeHtml(report.expectedTotal) +
+          '；系统成功解析：' + escapeHtml(report.parsedTotal) +
+          '；差异：' + escapeHtml(diffText) + '</div>' +
+        '<div class="parse-error-meta">发现 ' + escapeHtml(issueCount) + ' 处需要检查的问题，请展开查看具体位置并修改后重新上传。</div>' +
+      '</div>' +
+      '<button type="button" class="parse-error-toggle" data-count="' + escapeHtml(issueCount) + '" onclick="toggleStep1ParseDetails()">展开查看 ' + escapeHtml(issueCount) + ' 处问题</button>' +
+    '</div>' +
+    '<div class="parse-error-detail">' +
+      '<table class="parse-error-table">' +
+        '<thead><tr><th>位置</th><th>原始内容</th><th>问题类型</th><th>修改建议</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>';
+  panel.style.display = 'block';
+}
+
+function addPointIssue(issues, cell, rawValue, type, suggestion) {
+  issues.push({
+    cell: cell,
+    rawValue: getDisplayValue(rawValue),
+    type: type,
+    suggestion: suggestion
+  });
+}
+
+function getSheetLabel(sheetName) {
+  if (!sheetName || /^sheet\d*$/i.test(String(sheetName).trim())) return '当前表格';
+  return String(sheetName).trim();
+}
+
+function formatUserCell(sheetName, address) {
+  var label = getSheetLabel(sheetName);
+  if (!address) return label;
+  return label + ' ' + address;
+}
+
+function getIssueRawValue(value, fallbackText) {
+  if (fallbackText && (value === null || value === undefined || value === '')) return fallbackText;
+  return getDisplayValue(value);
+}
+
+function addPointIssueWithRawText(issues, cell, rawText, type, suggestion) {
+  issues.push({
+    cell: cell,
+    rawValue: rawText,
+    type: type,
+    suggestion: suggestion
+  });
+}
+
+function countFilledCellsInColumn(data, colIndex) {
+  var count = 0;
+  for (var r = 3; r < data.length; r++) {
+    if (isFilledCell((data[r] || [])[colIndex])) count++;
+  }
+  return count;
+}
+
+function buildPointMismatchReport(wb, expectedTotal, parsedTotal) {
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  var sheetName = wb.SheetNames[0] || '拆配排表';
+  var sheetLabel = getSheetLabel(sheetName);
+  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  var issues = [];
+
+  if (data.length < 4) {
+    addPointIssueWithRawText(issues, formatUserCell(sheetName, 'A1'), '未读取到足够行', '表格结构错误', '数据行不足，至少需要第1行品类、第2行角色、第3行单价、第4行起填写排表数据。');
+  }
+
+  var rawHeaders = (data[1] || []).slice(1);
+  var headers = rawHeaders.filter(function(h) { return h !== ''; });
+  var parsedColumnCount = headers.length;
+  var seenHeaders = {};
+  var firstHeaderCell = {};
+  var firstHeaderCol = {};
+
+  if (parsedColumnCount === 0) {
+    addPointIssueWithRawText(issues, formatUserCell(sheetName, 'B2'), '空', '缺少角色列', '第2行从B列起没有识别到角色名，系统无法统计拆配表点数。');
+  }
+
+  for (var h = 0; h < rawHeaders.length; h++) {
+    var headerText = String(rawHeaders[h] || '').trim();
+    var cellAddress = formatUserCell(sheetName, colToLetter(h + 1) + '2');
+    if (rawHeaders[h] !== '' && !headerText) {
+      addPointIssue(issues, cellAddress, rawHeaders[h], '角色名为空白字符', '第2行角色名不能只填写空格，请填写角色名或清空该列。');
+      continue;
+    }
+    if (!headerText) {
+      var hasLaterHeader = rawHeaders.slice(h + 1).some(function(v) { return String(v || '').trim(); });
+      if (hasLaterHeader) {
+        addPointIssue(issues, cellAddress, rawHeaders[h], '角色表头中断', '角色列中间不能空列；空表头会导致后续列和数据区解析范围异常。');
+      }
+      for (var er = 3; er < data.length; er++) {
+        var emptyHeaderValue = (data[er] || [])[h + 1];
+        if (!isFilledCell(emptyHeaderValue)) continue;
+        addPointIssue(
+          issues,
+          formatUserCell(sheetName, colToLetter(h + 1) + (er + 1)),
+          emptyHeaderValue,
+          '数据列缺少角色名',
+          '该单元格所在列第2行没有角色名，系统无法判断它属于哪个角色，因此不会按有效点数处理；请在 ' + colToLetter(h + 1) + '2 填写角色名或移动该列数据。'
+        );
+      }
+      continue;
+    }
+    if (seenHeaders[headerText]) {
+      var duplicateFilled = countFilledCellsInColumn(data, h + 1);
+      var firstFilled = countFilledCellsInColumn(data, firstHeaderCol[headerText]);
+      addPointIssue(issues, cellAddress, rawHeaders[h], '角色名重复', '该角色名与 ' + firstHeaderCell[headerText] + ' 重复。重复角色会被合并/覆盖，当前列有 ' + duplicateFilled + ' 个非空记录，首次列有 ' + firstFilled + ' 个非空记录；请把重复角色名改成唯一名称。');
+    } else {
+      seenHeaders[headerText] = true;
+      firstHeaderCell[headerText] = cellAddress;
+      firstHeaderCol[headerText] = h + 1;
+    }
+  }
+
+  var skippedCount = 0;
+  for (var r = 3; r < data.length; r++) {
+    var row = data[r] || [];
+    for (var c = parsedColumnCount + 1; c < row.length; c++) {
+      if (!isFilledCell(row[c])) continue;
+      skippedCount++;
+      addPointIssue(
+        issues,
+        formatUserCell(sheetName, colToLetter(c) + (r + 1)),
+        row[c],
+        '数据在解析范围外',
+        '系统只解析第2行识别到的前 ' + parsedColumnCount + ' 个角色列；该单元格未计入点数，请检查第2行表头是否有空列或被移动。'
+      );
+    }
+  }
+
+  var merges = ws['!merges'] || [];
+  for (var m = 0; m < merges.length; m++) {
+    var merge = merges[m];
+    var startsInData = merge.s.r >= 3 && merge.s.c >= 1 && merge.s.c <= parsedColumnCount;
+    var spansDataArea = merge.e.r >= 3 && merge.e.c >= 1 && merge.s.c <= parsedColumnCount;
+    if (!startsInData && !spansDataArea) continue;
+    var startCell = XLSX.utils.encode_cell(merge.s);
+    var endCell = XLSX.utils.encode_cell(merge.e);
+    addPointIssueWithRawText(issues, formatUserCell(sheetName, startCell + ':' + endCell), '合并区域', '数据区存在合并单元格', '合并单元格通常只有左上角会被读取，其余看起来有内容的位置不会计点；请取消合并并逐格填写。');
+  }
+
+  var unexplainedDiff = expectedTotal - parsedTotal - skippedCount;
+  if (!issues.length && expectedTotal > parsedTotal && unexplainedDiff > 0) {
+    addPointIssue(
+      issues,
+      sheetLabel + '的数据填写区域',
+      '未定位到具体单元格',
+      '表内有效记录不足',
+      '按当前模板规则只找到 ' + parsedTotal + ' 个非空购买记录，仍少 ' + unexplainedDiff + ' 点。没有发现重复表头、空表头数据列、范围外数据或合并单元格；请确认用户输入点数是否填大了，或人工检查第4行起是否漏填。'
+    );
+  }
+
+  if (!issues.length) {
+    addPointIssue(
+      issues,
+      sheetLabel + '的数据填写区域',
+      '未定位到具体单元格',
+      '点数不一致',
+      '未发现明显的未计入单元格；请确认输入点数是否等于拆配表数据区实际非空购买记录数。'
+    );
+  }
+
+  return {
+    expectedTotal: expectedTotal,
+    parsedTotal: parsedTotal,
+    issues: issues
+  };
 }
 
 // ==================== STEP WIZARD ====================
@@ -674,6 +1084,7 @@ function validateStep(step) {
   if (step === 1) {
     if (!originalFile) return '请先上传原排表';
     if (!actualFile) return '请先上传拆配后实际排表';
+    clearStep1ParseError();
     refreshOriginalAverage();
     var avg1 = avgPriceOrig;
     var avg2 = parseFloat(document.getElementById('avgPriceActual').value);
@@ -699,7 +1110,9 @@ function validateStep(step) {
 
     // Check 1: user-input total points must match parsed actual total
     if (parsedActualTotal !== tp) {
-      return '拆配表总点数校验不通过！\n您输入 ' + tp + ' 点，系统解析拆配表为 ' + parsedActualTotal + ' 点，两者不一致。\n请核对排表数据或修改输入值。';
+      var pointReport = buildPointMismatchReport(actualFile.workbook, tp, parsedActualTotal);
+      renderStep1ParseError(pointReport);
+      return '拆配排表解析失败：用户输入点数 ' + tp + '，系统成功解析 ' + parsedActualTotal + '，请展开查看错误明细。';
     }
 
     // Check 2: compare the unrounded averages entered/calculated in step 1.
@@ -746,6 +1159,7 @@ function setupDropZone(dz, fileInput, tagEl, isOriginal) {
 }
 
 function handleFile(file, isOriginal, tagEl, dz) {
+  clearStep1ParseError();
   if (!file.name.match(/\.xlsx$/i)) {
     showToast('仅支持 .xlsx 文件', true);
     return;
@@ -773,7 +1187,7 @@ function handleFile(file, isOriginal, tagEl, dz) {
           if (preview.error) {
             previewTagHtml = '<div class="file-preview-stats error">' + preview.error + '</div>';
           } else {
-            previewTagHtml = '<div class="file-preview-stats">识别到 ' + preview.cnCount + ' 个CN、' + preview.roleCount + ' 个角色、' + preview.recordCount + ' 个点数</div>';
+            previewTagHtml = '<div class="file-preview-stats">解析到 ' + preview.cnCount + ' 个CN、' + preview.roleCount + ' 个角色、' + preview.recordCount + ' 个点数</div>';
           }
         }
         tagEl.innerHTML = '<div class="file-preview-item"><span class="file-tag">' + file.name + ' <span class="remove-file" onclick="removeFile(true)">&times;</span></span>' + previewTagHtml + '</div>';
@@ -788,7 +1202,7 @@ function handleFile(file, isOriginal, tagEl, dz) {
           if (preview.error) {
             previewTagHtml = '<div class="file-preview-stats error">' + preview.error + '</div>';
           } else {
-            previewTagHtml = '<div class="file-preview-stats">识别到 ' + preview.cnCount + ' 个CN、' + preview.roleCount + ' 个角色、' + preview.recordCount + ' 个点数</div>';
+            previewTagHtml = '<div class="file-preview-stats">解析到 ' + preview.cnCount + ' 个CN、' + preview.roleCount + ' 个角色、' + preview.recordCount + ' 个点数</div>';
           }
         }
         tagEl.innerHTML = '<div class="file-preview-item"><span class="file-tag">' + file.name + ' <span class="remove-file" onclick="removeFile(false)">&times;</span></span>' + previewTagHtml + '</div>';
@@ -814,6 +1228,7 @@ function handleFile(file, isOriginal, tagEl, dz) {
 }
 
 function removeFile(isOriginal) {
+  clearStep1ParseError();
   if (isOriginal) {
     originalFile = null;
     avgPriceOrig = 0;
@@ -846,11 +1261,15 @@ function tryParsePreview(wb) {
     var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
     if (data.length < 4) return {error: '数据行不足（仅' + data.length + '行，需要至少4行）'};
     var kind = getSheetKind(wb);
-    var rawHeaders = (data[1] || []).slice(1);
-    var headers = rawHeaders.filter(function(h) { return h !== ''; });
-    var roleCount = headers.length;
-    var cnSet = {};
+    var pointData = extractPointsPerChar(wb);
+    var parsedRoles = Object.keys(pointData.points);
+    var roleCount = parsedRoles.length;
     var recordCount = 0;
+    for (var p = 0; p < parsedRoles.length; p++) {
+      recordCount += pointData.points[parsedRoles[p]] || 0;
+    }
+    var headers = pointData.headers;
+    var cnSet = {};
     for (var r = 3; r < data.length; r++) {
       var row = data[r];
       if (!row || !row.length) continue;
@@ -858,7 +1277,6 @@ function tryParsePreview(wb) {
         var name = String(row[c] || '').trim();
         if (!name) continue;
         cnSet[name] = true;
-        recordCount++;
       }
     }
     return {
@@ -1265,6 +1683,101 @@ function getRolePriceQuantum() {
   return activeAutoQuantumCents;
 }
 
+function clampNumber(value, min, max, fallback) {
+  var num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.max(min, Math.min(max, num));
+}
+
+function getBalanceRuleConfig() {
+  var modeEl = document.getElementById('balanceMode');
+  var multiplierEl = document.getElementById('maxPriceMultiplierInput');
+  var precisionEl = document.getElementById('balancePrecision');
+  var mode = modeEl ? modeEl.value : balanceMode;
+  if (mode === 'default') {
+    return {
+      mode: 'default',
+      range: 0.10,
+      maxPriceMultiplier: 3,
+      precision: 'default'
+    };
+  }
+  if (mode === 'light') {
+    return {
+      mode: 'light',
+      range: 1,
+      maxPriceMultiplier: 10,
+      precision: 'default'
+    };
+  }
+  return {
+    mode: mode,
+    range: mode === 'spread' ? 1 : 0.10,
+    maxPriceMultiplier: clampNumber(multiplierEl ? multiplierEl.value : balanceMaxPriceMultiplier, 1, 10, 3),
+    precision: precisionEl ? precisionEl.value : balancePrecision
+  };
+}
+
+function applyBalanceRuleConfig(config) {
+  balanceMode = config.mode || 'default';
+  balanceRange = clampNumber(config.range, 0.01, 1, 0.10);
+  balanceMaxPriceMultiplier = clampNumber(config.maxPriceMultiplier, 1, 10, 3);
+  balancePrecision = config.precision || 'default';
+  if (balanceMode === 'default') {
+    balanceRange = 0.10;
+    balanceMaxPriceMultiplier = 3;
+    balancePrecision = 'default';
+  } else if (balanceMode === 'light') {
+    balanceRange = 1;
+    balanceMaxPriceMultiplier = 10;
+    balancePrecision = 'default';
+  }
+  var modeEl = document.getElementById('balanceMode');
+  var multiplierEl = document.getElementById('maxPriceMultiplierInput');
+  var precisionEl = document.getElementById('balancePrecision');
+  if (modeEl) modeEl.value = balanceMode;
+  if (multiplierEl) {
+    multiplierEl.value = balanceMaxPriceMultiplier;
+    multiplierEl.disabled = balanceMode === 'default' || balanceMode === 'light';
+  }
+  if (precisionEl) {
+    precisionEl.value = balancePrecision;
+    precisionEl.disabled = balanceMode === 'default' || balanceMode === 'light';
+  }
+  var hint = document.getElementById('balanceRuleHint');
+  if (hint) {
+    if (balanceMode === 'default') {
+      hint.textContent = '默认模式沿用系统原规则，并锁定后续规则选项。';
+    } else if (balanceMode === 'spread') {
+      hint.textContent = '均摊模式允许更多角色小幅参与，适合角色较多的排表；热门角色最大单价按原排表均价倍数限制。';
+    } else if (balanceMode === 'light') {
+      hint.textContent = '轻约束调平只把热度作为排序偏好，其他调价限制不生效；系统只要求精确配平且新单价不为负。';
+    } else {
+      hint.textContent = '保守模式优先修改点数变化角色，必要时允许未变化角色小幅参与；热门角色最大单价按原排表均价倍数限制。';
+    }
+  }
+}
+
+function onBalanceRuleChange() {
+  applyBalanceRuleConfig(getBalanceRuleConfig());
+  autoBalanceSnapshot = null;
+  autoBalanceVariant = 0;
+  autoBalanceAvailable = 0;
+  autoBalanceQuantumCents = 1;
+  autoBalanceFallbackType = null;
+  var result = document.getElementById('autoBalanceResult');
+  if (result) result.textContent = '';
+  renderBalancer();
+  saveDraft();
+}
+
+function getConfiguredQuantumPriority() {
+  if (balancePrecision === '100') return [100];
+  if (balancePrecision === '10') return [10];
+  if (balancePrecision === '1') return [1];
+  return [100, 10, 1];
+}
+
 function getPriorityNewRoles() {
   if (!missingOriginalCharacters.length) return [];
   return missingOriginalCharacters.filter(function(ch) {
@@ -1295,6 +1808,7 @@ function candidateKeepsPriorityNewPrices(values) {
 
 function candidateKeepsConfirmedHeatOrder(values) {
   for (var i = 0; i < characters.length - 1; i++) {
+    if (balanceMode !== 'default' && (isUnrestrictedBalanceRole(characters[i]) || isUnrestrictedBalanceRole(characters[i + 1]))) continue;
     if (values[characters[i]] < values[characters[i + 1]]) return false;
   }
   return true;
@@ -1310,11 +1824,24 @@ function candidateRespectsColdestPointIncrease(values) {
 }
 
 function candidateKeepsUnchangedRoles(values) {
+  if (balanceMode !== 'default') return true;
   for (var i = 0; i < characters.length; i++) {
     var ch = characters[i];
     if ((pointsPerChar[ch] || 0) !== (originalPointsPerChar[ch] || 0)) continue;
     var base = Math.round((baseAdjustments[ch] || 0) * 100);
     if (values[ch] !== base) return false;
+  }
+  return true;
+}
+
+function candidateRespectsUnchangedRoleLimit(values) {
+  if (balanceMode === 'default') return true;
+  for (var i = 0; i < characters.length; i++) {
+    var ch = characters[i];
+    var pointDelta = (pointsPerChar[ch] || 0) - (originalPointsPerChar[ch] || 0);
+    if (pointDelta !== 0 && !(pointDelta < 0 && !isUnrestrictedBalanceRole(ch))) continue;
+    var base = Math.round((baseAdjustments[ch] || 0) * 100);
+    if (values[ch] > base + 1000) return false;
   }
   return true;
 }
@@ -1372,10 +1899,59 @@ function getPointChangeProfile() {
 
 function getHeatGroup(ch) {
   var index = characters.indexOf(ch);
+  var base = Math.round((baseAdjustments[ch] || 0) * 100);
+  if (base > 0) return 'hot';
+  if (base < 0) return 'cold';
+  var heat = Math.round((heatAdjustments[ch] || 0) * 100);
+  if (heat > 0) return 'hot';
+  if (heat < 0) return 'cold';
   var edgeCount = Math.max(1, Math.ceil(characters.length * 0.25));
   if (index >= 0 && index < edgeCount) return 'hot';
   if (index >= characters.length - edgeCount) return 'cold';
   return 'middle';
+}
+
+function isGapColdRole(ch) {
+  var index = characters.indexOf(ch);
+  if (index < 0 || index >= characters.length - 1) return false;
+  var currentHeat = Math.round((heatAdjustments[characters[index]] || 0) * 100);
+  var nextHeat = Math.round((heatAdjustments[characters[index + 1]] || 0) * 100);
+  var gap = currentHeat - nextHeat;
+  return getHeatGroup(ch) === 'cold' && gap >= 500;
+}
+
+function isGapHotRole(ch) {
+  var index = characters.indexOf(ch);
+  if (index < 0 || index >= characters.length - 1) return false;
+  var currentHeat = Math.round((heatAdjustments[characters[index]] || 0) * 100);
+  var nextHeat = Math.round((heatAdjustments[characters[index + 1]] || 0) * 100);
+  var gap = currentHeat - nextHeat;
+  return getHeatGroup(ch) === 'hot' && gap >= 500;
+}
+
+function isUnrestrictedBalanceRole(ch) {
+  if (balanceMode === 'default') return false;
+  var index = characters.indexOf(ch);
+  if (index < 0) return false;
+  var pointDelta = (pointsPerChar[ch] || 0) - (originalPointsPerChar[ch] || 0);
+  if (pointDelta >= -5) return false;
+  var edgeCount = Math.max(1, Math.ceil(characters.length * 0.35));
+  if (index >= edgeCount) return false;
+  var base = Math.round((baseAdjustments[ch] || 0) * 100);
+  if (base <= 0) return false;
+  var nextBase = index < characters.length - 1 ? Math.round((baseAdjustments[characters[index + 1]] || 0) * 100) : 0;
+  var prevBase = index > 0 ? Math.round((baseAdjustments[characters[index - 1]] || 0) * 100) : base;
+  var gapAfter = base - nextBase;
+  var sameAsPrev = index > 0 && Math.abs(prevBase - base) <= 100;
+  return gapAfter >= 500 || sameAsPrev;
+}
+
+function getUnrestrictedBalanceRoles() {
+  var roles = [];
+  for (var i = 0; i < characters.length; i++) {
+    if (isUnrestrictedBalanceRole(characters[i])) roles.push(characters[i]);
+  }
+  return roles;
 }
 
 function getTierConfig(profile) {
@@ -1385,7 +1961,15 @@ function getTierConfig(profile) {
 }
 
 function createAutoPolicy(profile, level) {
-  return {profile:profile, config:getTierConfig(profile), level:level};
+  return {
+    profile:profile,
+    config:getTierConfig(profile),
+    level:level,
+    mode:balanceMode,
+    range:balanceRange,
+    maxPriceMultiplier:balanceMaxPriceMultiplier,
+    customRules:balanceMode !== 'default'
+  };
 }
 
 function createGapFallbackPolicy(profile, fallbackRoles, maxPriceMultiplier) {
@@ -1395,10 +1979,13 @@ function createGapFallbackPolicy(profile, fallbackRoles, maxPriceMultiplier) {
     profile:profile,
     config:getTierConfig(profile),
     level:4,
+    mode:balanceMode,
+    range:balanceRange,
+    customRules:balanceMode !== 'default',
     isGapFallback:true,
     fallbackRoleSet:roleSet,
     maxPriceMultiplier:maxPriceMultiplier,
-    fallbackType:maxPriceMultiplier > 3 ? 'four-times' : 'heat-gap'
+    fallbackType:balanceMode === 'default' ? (maxPriceMultiplier > 3 ? 'four-times' : 'heat-gap') : 'custom-limit'
   };
 }
 
@@ -1444,25 +2031,56 @@ function getHeatGapFallbackRolePlans() {
 
 function getRoleAdjustmentBounds(ch) {
   var maxPriceMultiplier = activeAutoPolicy && activeAutoPolicy.maxPriceMultiplier ? activeAutoPolicy.maxPriceMultiplier : 3;
+  var customRules = activeAutoPolicy && activeAutoPolicy.customRules;
+  var maxPriceByOriginalAverage = Math.max(0, Math.round(avgPriceOrig * maxPriceMultiplier * 100));
   var globalMin = -Math.round(avgPriceActual * 100);
-  var globalMax = Math.round(avgPriceActual * (maxPriceMultiplier - 1) * 100);
+  var globalMax = customRules
+    ? maxPriceByOriginalAverage - Math.round(avgPriceActual * 100)
+    : Math.round(avgPriceActual * (maxPriceMultiplier - 1) * 100);
   var base = Math.round((baseAdjustments[ch] || 0) * 100);
   var pointChanged = (pointsPerChar[ch] || 0) !== (originalPointsPerChar[ch] || 0);
-  if (!pointChanged) return {min:base, max:base};
+  var pointDelta = (pointsPerChar[ch] || 0) - (originalPointsPerChar[ch] || 0);
+  var heatGroup = getHeatGroup(ch);
+  var gapCold = isGapColdRole(ch);
+  if (!pointChanged) {
+    if (!customRules) return {min:base, max:base};
+    return {
+      min:globalMin,
+      max:Math.min(globalMax, base + 1000)
+    };
+  }
   if (activeAutoPolicy && activeAutoPolicy.isGapFallback) {
     if (!activeAutoPolicy.fallbackRoleSet[ch]) return {min:base, max:base};
+    if (heatGroup === 'cold') {
+      if (pointDelta > 0) return {min:globalMin, max:Math.min(globalMax, base)};
+      if (pointDelta < 0) return {min:globalMin, max:Math.min(globalMax, gapCold ? base : base + 500)};
+    }
+    if (pointDelta < 0 && !isUnrestrictedBalanceRole(ch)) {
+      return {min:globalMin, max:Math.min(globalMax, base + 1000)};
+    }
+    return {min:globalMin, max:globalMax};
+  }
+  if (customRules) {
+    if (heatGroup === 'cold') {
+      if (pointDelta > 0) return {min:globalMin, max:Math.min(globalMax, base)};
+      if (pointDelta < 0) return {min:globalMin, max:Math.min(globalMax, gapCold ? base : base + 500)};
+    }
+    if (pointDelta < 0 && !isUnrestrictedBalanceRole(ch)) {
+      return {min:globalMin, max:Math.min(globalMax, base + 1000)};
+    }
     return {min:globalMin, max:globalMax};
   }
   var originalPriceCents = Math.max(0, Math.round((originalPrices[ch] || 0) * 100));
   if (!originalPriceCents) originalPriceCents = Math.max(1, Math.round(avgPriceActual * 100));
   var hardMaxRatio = activeAutoPolicy && activeAutoPolicy.level === 3 && pointChanged ? 0.50 : 0.40;
-  var maxMove = Math.max(1, Math.floor(originalPriceCents * hardMaxRatio));
+  var maxMove = customRules
+    ? Math.max(1, maxPriceByOriginalAverage)
+    : Math.max(1, Math.floor(originalPriceCents * hardMaxRatio));
   var min = Math.max(globalMin, base - maxMove);
   var max = Math.min(globalMax, base + maxMove);
   if (!activeAutoPolicy) return {min:min, max:max};
 
   var policy = activeAutoPolicy;
-  var heatGroup = getHeatGroup(ch);
   var allowedRatio;
   if (policy.level === 0) {
     allowedRatio = pointChanged ? policy.config.changedMax : 0;
@@ -1488,10 +2106,15 @@ function getRoleAdjustmentBounds(ch) {
   // 旧角色优先遵循点数方向：点数减少不降价，点数增加不涨价。
   // 只有最终放宽层允许最多原单价 5% 的反方向移动。
   if (originalCharacterSet[ch]) {
-    var pointDelta = (pointsPerChar[ch] || 0) - (originalPointsPerChar[ch] || 0);
     var wrongDirectionMove = policy.level < 3 ? 0 : Math.max(1, Math.floor(originalPriceCents * 0.05));
-    if (pointDelta < 0) min = Math.max(min, base - wrongDirectionMove);
-    if (pointDelta > 0) max = Math.min(max, base + wrongDirectionMove);
+    if (heatGroup === 'cold' && pointDelta < 0) {
+      max = Math.min(max, gapCold ? base : base + 500);
+    } else if (pointDelta < 0) {
+      min = Math.max(min, base - wrongDirectionMove);
+    }
+    if (pointDelta > 0) {
+      max = Math.min(max, heatGroup === 'cold' ? base : base + wrongDirectionMove);
+    }
   }
   return {min:min, max:max};
 }
@@ -1548,6 +2171,8 @@ function buildPreferredAutoAdjustments(profile) {
       value = base - Math.round(secondMove * 0.35);
     } else if (heat < 0 && delta < 0) {
       value = base + Math.round(secondMove * 0.35);
+    } else if (delta === 0 && base > 0) {
+      value = Math.max(0, base - Math.max(1, Math.round(secondMove * 0.35)));
     } else if (delta > 0) {
       value = base - Math.round(secondMove * 0.5);
     } else if (delta < 0) {
@@ -1567,7 +2192,11 @@ function getRelaxPenalty(ch, deltaCents) {
   if (heat > 0 && pointDelta < 0 && deltaCents > 0) return 1;
   if (heat < 0 && pointDelta > 0 && deltaCents < 0) return 1.2;
   if (heat > 0 && deltaCents > 0) return 1.5;
-  if (pointDelta === 0) return 3;
+  if (pointDelta === 0) {
+    if (balanceMode === 'spread') return 1.6;
+    if (balanceMode === 'conservative') return 8;
+    return 3;
+  }
   if (heat < 0 && pointDelta < 0) return 5;
   return 2.5;
 }
@@ -1595,6 +2224,7 @@ function solveExactMultiRoleAtPolicy(preferred, variantIndex, policy, quantumCen
     if (!candidateKeepsConfirmedHeatOrder(values)) return;
     if (!candidateRespectsColdestPointIncrease(values)) return;
     if (!candidateKeepsUnchangedRoles(values)) return;
+    if (!candidateRespectsUnchangedRoleLimit(values)) return;
     // 新增热门角色高于其他角色，优先级高于“先修改点数差异角色”。
     if (!candidateKeepsPriorityNewPrices(values)) return;
     var key = characters.map(function(ch) { return values[ch]; }).join(',');
@@ -1623,13 +2253,15 @@ function solveExactMultiRoleAtPolicy(preferred, variantIndex, policy, quantumCen
       cost += (delta * delta * points) / 200;
       // 热门大降、冷门大涨属于最后才接受的方向。
       var heatGroup = getHeatGroup(ch);
-      if (heatGroup === 'hot' && baseDelta < 0) cost += Math.abs(baseDelta) * 20000;
+      if (heatGroup === 'hot' && signedPointDelta === 0 && base > 0 && baseDelta > 0) cost += Math.abs(baseDelta) * 20000;
+      else if (heatGroup === 'hot' && signedPointDelta !== 0 && baseDelta < 0) cost += Math.abs(baseDelta) * 20000;
       if (heatGroup === 'cold' && baseDelta > 0) cost += Math.abs(baseDelta) * 20000;
       if (signedPointDelta < 0 && baseDelta < 0) cost += Math.abs(baseDelta) * 100000;
       if (signedPointDelta > 0 && baseDelta > 0) cost += Math.abs(baseDelta) * 100000;
     });
     // 仍偏好少改角色，但该优先级低于避免单角色大幅偏移。
-    cost += modifiedFromBase * 5000;
+    var modifiedPenalty = balanceMode === 'spread' ? 500 : (balanceMode === 'conservative' ? 8000 : 5000);
+    cost += modifiedFromBase * modifiedPenalty;
     candidates.push({
       values:values,
       changed:changed,
@@ -1749,6 +2381,72 @@ function solveExactMultiRoleAtPolicy(preferred, variantIndex, policy, quantumCen
     scanPairFinish(base);
   }
 
+  function tryCustomLimitGreedyFinish() {
+    if (!policy.customRules) return;
+    var values = {};
+    characters.forEach(function(ch) {
+      values[ch] = Math.round((baseAdjustments[ch] || 0) * 100);
+    });
+
+    var coldest = characters[characters.length - 1];
+    if (coldest) {
+      var coldestIncrease = (pointsPerChar[coldest] || 0) - (originalPointsPerChar[coldest] || 0);
+      if (coldestIncrease > 3) {
+        var coldBounds = getRoleAdjustmentBounds(coldest);
+        values[coldest] = Math.max(coldBounds.min, Math.round((baseAdjustments[coldest] || 0) * 100) - quantumCents);
+      }
+    }
+
+    var residual = -getWeightedSum(values);
+    if (residual === 0) {
+      storeCandidate(Object.assign({}, values));
+      return;
+    }
+
+    if (residual > 0) {
+      var unrestrictedRoles = getUnrestrictedBalanceRoles();
+      var upOrder = unrestrictedRoles.concat(characters.filter(function(ch) { return unrestrictedRoles.indexOf(ch) < 0; }));
+      for (var up = 0; up < upOrder.length && residual > 0; up++) {
+        var upRole = upOrder[up];
+        var upIndex = characters.indexOf(upRole);
+        if (upRole === coldest && ((pointsPerChar[upRole] || 0) - (originalPointsPerChar[upRole] || 0)) > 3) continue;
+        var upBounds = getRoleAdjustmentBounds(upRole);
+        var contribution = (pointsPerChar[upRole] || 0) * quantumCents;
+        if (!contribution) continue;
+        var heatMax = (upIndex === 0 || isUnrestrictedBalanceRole(upRole)) ? upBounds.max : Math.min(upBounds.max, values[characters[upIndex - 1]]);
+        var maxUnits = Math.floor((heatMax - values[upRole]) / quantumCents);
+        if (maxUnits <= 0) continue;
+        var units = Math.min(maxUnits, Math.floor(residual / contribution));
+        if (units <= 0 && maxUnits > 0 && (pointsPerChar[upRole] || 0) === 1) units = Math.min(maxUnits, Math.ceil(residual / contribution));
+        if (units <= 0) continue;
+        values[upRole] += units * quantumCents;
+        residual -= units * contribution;
+      }
+    } else {
+      for (var down = characters.length - 1; down >= 0 && residual < 0; down--) {
+        var downRole = characters[down];
+        var downBounds = getRoleAdjustmentBounds(downRole);
+        var downContribution = (pointsPerChar[downRole] || 0) * quantumCents;
+        if (!downContribution) continue;
+        var heatMin = (down === characters.length - 1 || isUnrestrictedBalanceRole(downRole)) ? downBounds.min : Math.max(downBounds.min, values[characters[down + 1]]);
+        if (isUnrestrictedBalanceRole(downRole)) {
+          heatMin = Math.min(heatMin, values[downRole] + Math.floor(residual / downContribution) * quantumCents);
+        }
+        var minUnits = Math.ceil((heatMin - values[downRole]) / quantumCents);
+        if (minUnits >= 0) continue;
+        var downUnits = Math.max(minUnits, Math.ceil(residual / downContribution));
+        if (downUnits >= 0 && minUnits < 0 && (pointsPerChar[downRole] || 0) === 1) downUnits = Math.max(minUnits, Math.floor(residual / downContribution));
+        if (downUnits >= 0) continue;
+        values[downRole] += downUnits * quantumCents;
+        residual -= downUnits * downContribution;
+      }
+    }
+
+    if (residual === 0) storeCandidate(values);
+  }
+
+  tryCustomLimitGreedyFinish();
+
   if (!candidates.length) {
     activeAutoPolicy = null;
     activeAutoQuantumCents = 1;
@@ -1781,7 +2479,7 @@ function solveExactMultiRoleAtPolicy(preferred, variantIndex, policy, quantumCen
 function collectGapFallbackCandidates(preferred, profile, maxPriceMultiplier) {
   var combinedCandidates = [];
   var rolePlans = getHeatGapFallbackRolePlans();
-  var quantumPriority = [100, 10, 1];
+  var quantumPriority = getConfiguredQuantumPriority();
   for (var qi = 0; qi < quantumPriority.length && combinedCandidates.length < 20; qi++) {
     var quantumCents = quantumPriority[qi];
     for (var pi = 0; pi < rolePlans.length && combinedCandidates.length < 20; pi++) {
@@ -1808,9 +2506,129 @@ function collectGapFallbackCandidates(preferred, profile, maxPriceMultiplier) {
   return combinedCandidates;
 }
 
-function solveExactMultiRole(preferred, variantIndex, profile) {
-  var combinedCandidates = [];
+function getLightBalanceCost(values) {
+  var cost = 0;
+  characters.forEach(function(ch) {
+    var base = Math.round((baseAdjustments[ch] || 0) * 100);
+    var delta = values[ch] - base;
+    var points = Math.max(1, pointsPerChar[ch] || 0);
+    cost += Math.abs(delta) * points;
+    cost += (delta * delta * points) / 80;
+  });
+  for (var i = 0; i < characters.length - 1; i++) {
+    var left = values[characters[i]];
+    var right = values[characters[i + 1]];
+    if (left < right) {
+      var violation = right - left;
+      cost += violation * violation * 60;
+    }
+  }
+  return cost;
+}
+
+function solveLightBalance(variantIndex, profile) {
+  var candidates = [];
+  var active = characters.filter(function(ch) { return (pointsPerChar[ch] || 0) > 0; });
+  if (!active.length) return null;
+
+  function getWeightedSum(values) {
+    var sum = 0;
+    characters.forEach(function(ch) { sum += (pointsPerChar[ch] || 0) * values[ch]; });
+    return sum;
+  }
+
+  function store(values, quantumCents) {
+    if (getWeightedSum(values) !== 0) return;
+    for (var n = 0; n < characters.length; n++) {
+      var ch = characters[n];
+      if (Math.round(avgPriceActual * 100) + values[ch] < 0) return;
+    }
+    var key = characters.map(function(ch) { return values[ch]; }).join(',');
+    if (candidates.some(function(item) { return item.key === key; })) return;
+    candidates.push({
+      values:values,
+      changed:characters.filter(function(ch) { return values[ch] !== Math.round((baseAdjustments[ch] || 0) * 100); }).length,
+      cost:getLightBalanceCost(values),
+      key:key,
+      quantumCents:quantumCents,
+      fallbackType:null,
+      relaxationLevel:5
+    });
+    candidates.sort(function(a, b) { return a.cost - b.cost || a.key.localeCompare(b.key); });
+    if (candidates.length > 40) candidates.length = 40;
+  }
+
   var quantumPriority = [100, 10, 1];
+  for (var qi = 0; qi < quantumPriority.length; qi++) {
+    var quantumCents = quantumPriority[qi];
+    var baseValues = {};
+    characters.forEach(function(ch) {
+      baseValues[ch] = Math.round((baseAdjustments[ch] || 0) * 100);
+    });
+    var target = -getWeightedSum(baseValues);
+    if (target === 0) {
+      store(Object.assign({}, baseValues), quantumCents);
+      continue;
+    }
+    if (target % quantumCents !== 0) continue;
+
+    for (var i = 0; i < active.length; i++) {
+      var ci = active[i];
+      var pi = pointsPerChar[ci] || 0;
+      var stepI = pi * quantumCents;
+      if (!stepI) continue;
+      var minXi = Math.ceil((-Math.round(avgPriceActual * 100) - baseValues[ci]) / quantumCents);
+      var maxXi = target > 0 ? Math.ceil(target / stepI) : 0;
+      if (target < 0) {
+        minXi = Math.max(minXi, Math.floor(target / stepI));
+        maxXi = 0;
+      } else {
+        minXi = Math.max(0, minXi);
+      }
+      for (var xi = minXi; xi <= maxXi; xi++) {
+        var remaining = target - xi * stepI;
+        if (remaining === 0) {
+          var single = Object.assign({}, baseValues);
+          single[ci] += xi * quantumCents;
+          store(single, quantumCents);
+        }
+        for (var j = i + 1; j < active.length; j++) {
+          var cj = active[j];
+          var pj = pointsPerChar[cj] || 0;
+          var stepJ = pj * quantumCents;
+          if (!stepJ || remaining % stepJ !== 0) continue;
+          var xj = remaining / stepJ;
+          var minXj = Math.ceil((-Math.round(avgPriceActual * 100) - baseValues[cj]) / quantumCents);
+          if (xj < minXj) continue;
+          var values = Object.assign({}, baseValues);
+          values[ci] += xi * quantumCents;
+          values[cj] += xj * quantumCents;
+          store(values, quantumCents);
+        }
+      }
+    }
+    if (candidates.length) break;
+  }
+
+  if (!candidates.length) return null;
+  var selectedIndex = (variantIndex || 0) % candidates.length;
+  var selected = candidates[selectedIndex];
+  return {
+    values:selected.values,
+    changed:selected.changed,
+    available:candidates.length,
+    selectedIndex:selectedIndex,
+    relaxationLevel:selected.relaxationLevel,
+    profileTier:profile.tier,
+    quantumCents:selected.quantumCents,
+    fallbackType:null
+  };
+}
+
+function solveExactMultiRole(preferred, variantIndex, profile) {
+  if (balanceMode === 'light') return solveLightBalance(variantIndex, profile);
+  var combinedCandidates = [];
+  var quantumPriority = getConfiguredQuantumPriority();
   for (var qi = 0; qi < quantumPriority.length && combinedCandidates.length < 20; qi++) {
     var quantumCents = quantumPriority[qi];
     for (var level = 0; level <= 3 && combinedCandidates.length < 20; level++) {
@@ -1833,8 +2651,14 @@ function solveExactMultiRole(preferred, variantIndex, profile) {
       }
     }
   }
-  if (!combinedCandidates.length) combinedCandidates = collectGapFallbackCandidates(preferred, profile, 3);
-  if (!combinedCandidates.length) combinedCandidates = collectGapFallbackCandidates(preferred, profile, 4);
+  if (!combinedCandidates.length) {
+    if (balanceMode === 'default') {
+      combinedCandidates = collectGapFallbackCandidates(preferred, profile, 3);
+      if (!combinedCandidates.length) combinedCandidates = collectGapFallbackCandidates(preferred, profile, 4);
+    } else {
+      combinedCandidates = collectGapFallbackCandidates(preferred, profile, balanceMaxPriceMultiplier);
+    }
+  }
   if (!combinedCandidates.length) return null;
   var selectedIndex = (variantIndex || 0) % combinedCandidates.length;
   var selected = combinedCandidates[selectedIndex];
@@ -1860,6 +2684,7 @@ function autoBalance(useNextVariant) {
     return;
   }
 
+  applyBalanceRuleConfig(getBalanceRuleConfig());
   if (!useNextVariant) autoBalanceVariant = 0;
   var profile = getPointChangeProfile();
   var preferred = buildPreferredAutoAdjustments(profile);
@@ -1867,8 +2692,13 @@ function autoBalance(useNextVariant) {
 
   if (!solved) {
     autoBalanceAvailable = 0;
-    document.getElementById('autoBalanceResult').textContent = '热度断层兜底及4倍极限范围内仍无精确配平方案。系统不会通过破坏热度顺序强行归零。';
-    showToast('4倍极限范围内仍无精确配平方案', true);
+    var noSolutionText = balanceMode === 'light'
+      ? '轻约束调平仍无精确配平方案。请检查是否存在新单价不能为负导致的下调空间不足。'
+      : (balanceMode === 'default'
+        ? '热度断层兜底及4倍极限范围内仍无精确配平方案。系统不会通过破坏热度顺序强行归零。'
+        : '用户设置的' + balanceMaxPriceMultiplier + '倍原均价上限范围内仍无精确配平方案。系统不会通过破坏热度顺序强行归零。');
+    document.getElementById('autoBalanceResult').textContent = noSolutionText;
+    showToast(balanceMode === 'light' ? '轻约束调平仍无精确配平方案' : (balanceMode === 'default' ? '4倍极限范围内仍无精确配平方案' : balanceMaxPriceMultiplier + '倍原均价上限范围内仍无精确配平方案'), true);
     return;
   }
 
@@ -1885,13 +2715,18 @@ function autoBalance(useNextVariant) {
   var result = document.getElementById('autoBalanceResult');
   var tierText = solved.profileTier === 'small' ? '小差异' : (solved.profileTier === 'large' ? '大差异' : '中差异');
   var quantumText = solved.quantumCents === 100 ? '整数步长' : (solved.quantumCents === 10 ? '一位小数步长' : '两位小数步长');
+  var modeText = balanceMode === 'default' ? '默认规则' : (balanceMode === 'spread' ? '均摊规则' : (balanceMode === 'light' ? '轻约束调平' : '保守规则'));
+  var precisionSearchText = balancePrecision === 'default' ? '，已搜索整数/0.1/0.01三种精度' : '';
+  var limitText = balanceMode === 'light' ? '仅限制新单价不为负' : (balanceMode === 'default' ? '系统原上限' : '热门角色最大单价 ' + balanceMaxPriceMultiplier + ' 倍原均价');
+  var ruleText = modeText + precisionSearchText + '；' + limitText;
   if (solved.fallbackType) {
-    var fallbackText = solved.fallbackType === 'four-times' ? '4倍极限兜底' : '热度断层兜底';
-    result.textContent = '自动配平仅根据热度提供配平方案，结果仅供参考。' + fallbackText +
+    var fallbackLimitText = balanceMode === 'default' ? '4' : balanceMaxPriceMultiplier;
+    var fallbackText = solved.fallbackType === 'custom-limit' ? fallbackLimitText + '倍原均价上限兜底' : (solved.fallbackType === 'four-times' ? fallbackLimitText + '倍上限兜底' : '热度断层兜底');
+    result.textContent = '自动配平仅根据热度提供配平方案，结果仅供参考。' + ruleText + '；' + fallbackText +
       '；当前方案 ' + (solved.selectedIndex + 1) + '/' + solved.available + '，' + quantumText + '。';
   } else {
-    var levelText = ['仅调整点数差异角色', '加入中间热度角色', '加入其他角色', '最终放宽'][solved.relaxationLevel];
-    result.textContent = '自动配平仅根据热度提供配平方案，结果仅供参考。' + tierText + '，' + levelText +
+    var levelText = balanceMode === 'light' ? '热度轻约束' : ['仅调整点数差异角色', '加入中间热度角色', '加入其他角色', '最终放宽'][solved.relaxationLevel];
+    result.textContent = '自动配平仅根据热度提供配平方案，结果仅供参考。' + ruleText + '；' + tierText + '，' + levelText +
       '；当前方案 ' + (solved.selectedIndex + 1) + '/' + solved.available + '，' + quantumText + '。';
   }
   saveDraft();
@@ -1909,7 +2744,9 @@ function restoreAutoBalance() {
   characters.forEach(function(ch) { adjustments[ch] = autoBalanceSnapshot[ch]; });
   renderBalancer();
   var quantumText = autoBalanceQuantumCents === 100 ? '整数步长' : (autoBalanceQuantumCents === 10 ? '一位小数步长' : '两位小数步长');
-  var fallbackText = autoBalanceFallbackType === 'four-times' ? '，4倍极限兜底' : (autoBalanceFallbackType === 'heat-gap' ? '，热度断层兜底' : '');
+  var fallbackText = autoBalanceFallbackType === 'custom-limit'
+    ? '，' + balanceMaxPriceMultiplier + '倍原均价上限兜底'
+    : (autoBalanceFallbackType === 'four-times' ? '，4倍极限兜底' : (autoBalanceFallbackType === 'heat-gap' ? '，热度断层兜底' : ''));
   document.getElementById('autoBalanceResult').textContent = '自动配平仅根据热度提供配平方案，结果仅供参考。已恢复最近一次自动结果，' + quantumText + fallbackText + '。';
   saveDraft();
 }
@@ -2528,6 +3365,10 @@ function buildDraftObject() {
     autoBalanceAvailable: autoBalanceAvailable,
     autoBalanceQuantumCents: autoBalanceQuantumCents,
     autoBalanceFallbackType: autoBalanceFallbackType,
+    balanceMode: balanceMode,
+    balanceRange: balanceRange,
+    balanceMaxPriceMultiplier: balanceMaxPriceMultiplier,
+    balancePrecision: balancePrecision,
     isBalanced: isBalanced,
     kindName: kindName,
     newPrices: newPrices,
@@ -2574,6 +3415,12 @@ function restoreDraft() {
   if (saved.avgPriceOrig) document.getElementById('avgPriceOrig').value = formatFiveDecimals(Number(saved.avgPriceOrig));
   if (saved.avgPriceActual) document.getElementById('avgPriceActual').value = saved.avgPriceActual;
   if (saved.totalPointsInput) document.getElementById('totalPoints').value = saved.totalPointsInput;
+  applyBalanceRuleConfig({
+    mode: saved.balanceMode || 'default',
+    range: saved.balanceRange || 0.10,
+    maxPriceMultiplier: saved.balanceMaxPriceMultiplier || 3,
+    precision: saved.balancePrecision || 'default'
+  });
 
   // Show original file name tag (workbook not restorable)
   if (saved.origFileName) {
@@ -2633,6 +3480,7 @@ function showRestoreBanner(saved) {
     autoBalanceQuantumCents = 1;
     autoBalanceFallbackType = null;
     activeAutoQuantumCents = 1;
+    applyBalanceRuleConfig({mode:'default', range:0.10, maxPriceMultiplier:3, precision:'default'});
     isBalanced = false;
     kindName = '';
     newPrices = {};
@@ -2667,6 +3515,7 @@ function showRestoreBanner(saved) {
 function init() {
   setupDropZone(dzOriginal, fileInputOrig, tagOriginal, true);
   setupDropZone(dzActual, fileInputActual, tagActual, false);
+  applyBalanceRuleConfig({mode:balanceMode, range:balanceRange, maxPriceMultiplier:balanceMaxPriceMultiplier, precision:balancePrecision});
   buildColorSwatches();
 
   // Color swatch click handler
@@ -2682,10 +3531,14 @@ function init() {
 
   // Auto-save on parameter changes
   document.getElementById('avgPriceActual').addEventListener('input', function() {
+    clearStep1ParseError();
     refreshOriginalAverage();
     saveDraft();
   });
-  document.getElementById('totalPoints').addEventListener('input', saveDraft);
+  document.getElementById('totalPoints').addEventListener('input', function() {
+    clearStep1ParseError();
+    saveDraft();
+  });
   document.getElementById('confirmPrices').addEventListener('change', saveDraft);
 
   // File name input change on step 5
