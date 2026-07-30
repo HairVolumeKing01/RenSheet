@@ -206,16 +206,20 @@ export default {
       if (path === '/api/afdian-webhook' && request.method === 'POST') {
         const body = await request.json();
 
-        // Verify Afdian webhook: check token from query param, header, or body
+        // Verify webhook: token is optional, URL itself is the secret
+        // Check query param, header, or body for token — only enforce if AFDIAN_WEBHOOK_SECRET is set AND token is present
         const urlToken = url.searchParams.get('token') || '';
         const headerToken = request.headers.get('X-Af-Token') || '';
         const bodyToken = (body?.data?.token || body?.token || '').toString();
         const receivedToken = urlToken || headerToken || bodyToken;
 
-        if (!env.AFDIAN_WEBHOOK_SECRET) {
-          console.warn('AFDIAN_WEBHOOK_SECRET not set — skipping token verification');
-        } else if (receivedToken !== env.AFDIAN_WEBHOOK_SECRET) {
+        if (env.AFDIAN_WEBHOOK_SECRET && receivedToken && receivedToken !== env.AFDIAN_WEBHOOK_SECRET) {
           return json({ ok: false, error: 'invalid_token', message: 'Webhook token 验证失败' }, 403);
+        }
+
+        // Validate it looks like a real Afdian webhook
+        if (!body || (!body.data && !body.order)) {
+          return json({ ok: false, error: 'invalid_payload', message: '非法的请求格式' }, 400);
         }
 
         // Afdian webhook format: { ec:200, em:"ok", data:{ type:"order", order:{...} } }
