@@ -287,6 +287,11 @@
       html += '<p style="margin:0 0 6px;"><strong>方案：</strong>' + (act.plan === 'monthly' ? '月费 ¥5/月' : '年费 ¥30/年') + '</p>';
       html += '<p style="margin:0 0 6px;"><strong>有效期至：</strong>' + exp.toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) + '</p>';
       html += '<p style="margin:0;color:#A0AEC0;font-size:12px;">' + (daysLeft > 0 ? '剩余 ' + daysLeft + ' 天' : '已过期') + '</p>';
+      // Show activation code + cache warning
+      html += '<hr style="margin:8px 0;border-color:#FEFCBF;">';
+      html += '<p style="margin:0 0 4px;font-size:11px;color:#975A16;font-weight:600;">&#9888; 清除浏览器缓存后 PRO 状态会消失</p>';
+      html += '<p style="margin:0 0 4px;font-size:11px;color:#975A16;">请务必保存激活码：<code style="background:#FEFCBF;padding:1px 4px;border-radius:3px;font-size:11px;">' + (act.code || '') + '</code></p>';
+      html += '<p style="margin:0;font-size:11px;color:#A0AEC0;">丢失后凭订单号联系客服找回</p>';
     } else if (remaining > 0) {
       html += '<p style="margin:0 0 6px;"><strong>免费试用</strong></p>';
       html += '<p style="margin:0 0 6px;">剩余处理次数：<strong>' + remaining + '</strong> / 2</p>';
@@ -297,6 +302,7 @@
     }
     html += '<hr style="margin:10px 0;border-color:#E2E8F0;">';
     html += '<a href="' + AFDIAN_URL + '" target="_blank" style="color:#2B6FA8;text-decoration:none;font-weight:600;font-size:12px;">→ 前往爱发电赞助</a>';
+    html += '<br><a href="get-code.html" target="_blank" style="color:#2B6FA8;text-decoration:none;font-weight:600;font-size:12px;">→ 已赞助？点此取回激活码</a>';
     if (!act) {
       html += '<br><a href="#" id="rensheet-open-modal" style="color:#2B6FA8;text-decoration:none;font-weight:600;font-size:12px;">→ 输入激活码</a>';
     }

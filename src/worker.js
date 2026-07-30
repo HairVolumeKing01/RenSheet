@@ -386,7 +386,7 @@ export default {
 
       if (path === '/api/deliver' && request.method === 'POST') {
         if (!isAdmin(request, env)) return json({ ok: false, error: 'unauthorized' }, 401);
-        const { code, user, plan } = await request.json();
+        const { code, user, plan, month } = await request.json();
         if (!code || !user) return json({ ok: false, error: 'missing_params' }, 400);
 
         const row = await env.DB.prepare('SELECT status FROM activation_codes WHERE code = ?').bind(code).first();
@@ -394,7 +394,8 @@ export default {
         if (row.status === 'revoked') return json({ ok: false, error: 'revoked', message: '该码已吊销' });
 
         const effectivePlan = plan || 'monthly';
-        const days = effectivePlan === 'yearly' ? 365 : 30;
+        const effectiveMonth = Math.max(1, parseInt(month) || 1);
+        const days = effectivePlan === 'yearly' ? 365 : effectiveMonth * 30;
         const now = new Date().toISOString();
         const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
 
