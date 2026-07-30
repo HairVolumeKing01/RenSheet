@@ -263,11 +263,16 @@ export default {
       if (path === '/api/generate' && request.method === 'POST') {
         if (!isAdmin(request, env)) return json({ ok: false, error: 'unauthorized' }, 401);
 
-        const { count, plan, batch_label } = await request.json();
+        const { count, plan, batch_label, expires_at } = await request.json();
         if (!count || count < 1 || count > 100) return json({ ok: false, error: 'invalid_count' }, 400);
-        if (!['monthly', 'yearly'].includes(plan)) return json({ ok: false, error: 'invalid_plan' }, 400);
+        if (!['monthly', 'yearly', 'custom'].includes(plan)) return json({ ok: false, error: 'invalid_plan' }, 400);
 
-        const days = plan === 'monthly' ? 30 : 365;
+        const days = plan === 'monthly' ? 30 : plan === 'yearly' ? 365 : 0;
+        const customExpiry = plan === 'custom' && expires_at ? new Date(expires_at) : null;
+        if (plan === 'custom' && (!customExpiry || isNaN(customExpiry.getTime()))) {
+          return json({ ok: false, error: 'invalid_expires_at' }, 400);
+        }
+
         const codes = [];
         const stmt = env.DB.prepare(
           'INSERT INTO activation_codes (code, plan, expires_at, batch_label) VALUES (?, ?, ?, ?)'
@@ -277,7 +282,9 @@ export default {
         const batch = [];
         for (let i = 0; i < count; i++) {
           const code = await makeCode(env.CODE_SALT);
-          const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
+          const expiresAt = customExpiry
+            ? customExpiry.toISOString()
+            : new Date(Date.now() + days * 86400000).toISOString();
           batch.push(stmt.bind(code, plan, expiresAt, batch_label || null));
           codes.push(code);
         }

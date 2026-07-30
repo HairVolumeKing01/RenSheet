@@ -13,7 +13,7 @@
   var STORAGE_ACTIVATION = 'renshet_activation';
   var STORAGE_USAGE = 'renshet_free_usage';
   var VERIFY_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
-  var AFDIAN_URL = 'https://www.ifdian.net/p/9c65d9cc617011ed81c352540025c377';
+  var AFDIAN_URL = 'https://www.ifdian.net/a/baiyanxi';
 
   // ===== FP COLLECTION =====
   function detectCanvasHash() {
@@ -285,7 +285,7 @@
       var daysLeft = Math.ceil((exp - now) / 86400000);
       html += '<p style="margin:0 0 6px;"><strong>状态：</strong><span style="color:#276749;">已激活</span></p>';
       html += '<p style="margin:0 0 6px;"><strong>方案：</strong>' + (act.plan === 'monthly' ? '月费 ¥5/月' : '年费 ¥30/年') + '</p>';
-      html += '<p style="margin:0 0 6px;"><strong>有效期至：</strong>' + exp.toLocaleDateString('zh-CN') + '</p>';
+      html += '<p style="margin:0 0 6px;"><strong>有效期至：</strong>' + exp.toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) + '</p>';
       html += '<p style="margin:0;color:#A0AEC0;font-size:12px;">' + (daysLeft > 0 ? '剩余 ' + daysLeft + ' 天' : '已过期') + '</p>';
     } else if (remaining > 0) {
       html += '<p style="margin:0 0 6px;"><strong>免费试用</strong></p>';

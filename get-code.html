@@ -66,7 +66,7 @@ async function doQuery() {
       resultEl.innerHTML = '找到激活码：<code>' + data.code + '</code>'
         + '<button class="copy-btn" onclick="copyCode(\'' + data.code + '\')">复制激活码</button>'
         + '<p style="font-size:12px;margin-top:6px;">方案：' + (data.plan === 'monthly' ? '月费 ¥5/月' : '年费 ¥30/年')
-        + ' · 有效期至 ' + new Date(data.expires_at).toLocaleDateString('zh-CN') + '</p>';
+        + ' · 有效期至 ' + new Date(data.expires_at).toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) + '</p>';
     } else {
       resultEl.className = 'result error';
       resultEl.innerHTML = (data.message || '未找到激活码') + '<br><span style="font-size:12px;">提示：请确认已付款成功，或尝试输入爱发电用户名</span>';
