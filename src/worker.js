@@ -414,6 +414,25 @@ export default {
         return json({ ok: true, message: '已吊销' });
       }
 
+      if (path === '/api/revoke-batch' && request.method === 'POST') {
+        if (!isAdmin(request, env)) return json({ ok: false, error: 'unauthorized' }, 401);
+        const { codes } = await request.json();
+        if (!codes || !Array.isArray(codes) || codes.length === 0) {
+          return json({ ok: false, error: 'missing_codes' }, 400);
+        }
+        const stmt = env.DB.prepare("UPDATE activation_codes SET status = 'revoked' WHERE code = ?");
+        const batch = codes.map(c => stmt.bind(c));
+        await env.DB.batch(batch);
+        return json({ ok: true, count: codes.length, message: '已批量吊销' });
+      }
+
+      if (path === '/api/clear-all' && request.method === 'POST') {
+        if (!isAdmin(request, env)) return json({ ok: false, error: 'unauthorized' }, 401);
+        const codesResult = await env.DB.prepare("DELETE FROM activation_codes").run();
+        const trialsResult = await env.DB.prepare("DELETE FROM trial_usage").run();
+        return json({ ok: true, codes: codesResult.meta?.changes_written || 0, trials: trialsResult.meta?.changes_written || 0, message: '数据库已清空' });
+      }
+
       // 404
       return json({ ok: false, error: 'not_found' }, 404);
 
