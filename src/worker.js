@@ -226,32 +226,49 @@ export default {
         const remark = (orderData?.remark || '').toString().toLowerCase();
         const totalAmount = parseFloat(orderData?.total_amount) || 0;
 
-        // Determine plan from: remark > plan_id mapping > month count
+        // Determine plan + duration from month count and remark
+        // month<12 and not marked as yearly → monthly × N months
+        // month>=12 or explicitly yearly → yearly (365d)
         let plan = 'monthly';
+        let durationDays = month * 30;
         if (remark.includes('年费') || remark.includes('yearly') || remark.includes('年度')) {
           plan = 'yearly';
+          durationDays = 365;
         } else if (remark.includes('月费') || remark.includes('monthly') || remark.includes('月度')) {
           plan = 'monthly';
+          durationDays = month * 30;
         } else if (month >= 12) {
           plan = 'yearly';
+          durationDays = 365;
         } else if (totalAmount >= 25) {
-          // Heuristic: ≥25元 likely yearly
           plan = 'yearly';
+          durationDays = 365;
         }
 
-        // Find an unused code matching the plan
+        // Find any unused code — expiry gets set at delivery time
         const codeRow = await env.DB.prepare(
-          "SELECT code FROM activation_codes WHERE status = 'unused' AND plan = ? ORDER BY created_at ASC LIMIT 1"
-        ).bind(plan).first();
+          "SELECT code FROM activation_codes WHERE status = 'unused' ORDER BY created_at ASC LIMIT 1"
+        ).first();
 
         if (!codeRow) return json({ ok: false, error: 'no_codes_available', message: '暂无可用激活码，请联系管理员补充库存' });
 
-        const now = new Date().toISOString();
-        await env.DB.prepare(
-          "UPDATE activation_codes SET status = 'delivered', delivered_to = ?, delivered_at = ? WHERE code = ?"
-        ).bind(userId, now, codeRow.code).run();
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + durationDays * 86400000).toISOString();
 
-        return json({ ok: true, code: codeRow.code, plan: plan, message: '发货成功' });
+        // Assign code + override plan & expiry based on actual purchase
+        await env.DB.prepare(
+          "UPDATE activation_codes SET status = 'delivered', plan = ?, expires_at = ?, delivered_to = ?, delivered_at = ? WHERE code = ?"
+        ).bind(plan, expiresAt, userId, now.toISOString(), codeRow.code).run();
+
+        return json({
+          ok: true,
+          code: codeRow.code,
+          plan: plan,
+          expires_at: expiresAt,
+          duration_days: durationDays,
+          month: month,
+          message: '发货成功'
+        });
       }
 
       // ---- Admin endpoints (require Bearer token) ----
