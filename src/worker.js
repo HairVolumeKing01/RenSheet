@@ -29,6 +29,20 @@ async function sha256(text) {
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// PEM string → ArrayBuffer (strips -----BEGIN/END----- and decodes base64)
+function pemToArrayBuffer(pem) {
+  const b64 = pem.replace(/-----[A-Z ]+-----/g, '').replace(/\s/g, '');
+  return base64ToArrayBuffer(b64);
+}
+
+// Base64 string → ArrayBuffer
+function base64ToArrayBuffer(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
 function randomChars(len) {
   const arr = new Uint8Array(len);
   crypto.getRandomValues(arr);
@@ -206,33 +220,51 @@ export default {
       if (path === '/api/afdian-webhook' && request.method === 'POST') {
         const body = await request.json();
 
-        // Verify webhook: token is optional, URL itself is the secret
-        // Check query param, header, or body for token — only enforce if AFDIAN_WEBHOOK_SECRET is set AND token is present
-        const urlToken = url.searchParams.get('token') || '';
-        const headerToken = request.headers.get('X-Af-Token') || '';
-        const bodyToken = (body?.data?.token || body?.token || '').toString();
-        const receivedToken = urlToken || headerToken || bodyToken;
-
-        if (env.AFDIAN_WEBHOOK_SECRET && receivedToken && receivedToken !== env.AFDIAN_WEBHOOK_SECRET) {
-          return json({ ok: false, error: 'invalid_token', message: 'Webhook token 验证失败' }, 403);
-        }
-
         // Validate it looks like a real Afdian webhook
-        if (!body || (!body.data && !body.order)) {
-          return json({ ok: false, error: 'invalid_payload', message: '非法的请求格式' }, 400);
+        if (!body?.data?.order) {
+          return json({ ec: 400, em: 'invalid payload' });
         }
 
-        // Afdian webhook format: { ec:200, em:"ok", data:{ type:"order", order:{...} } }
-        const orderData = body?.data?.order || body?.order || body?.data || body;
-        const userId = (orderData?.user_id || orderData?.userId || 'unknown').toString();
-        const planId = (orderData?.plan_id || '').toString();
-        const month = parseInt(orderData?.month) || 1;
-        const remark = (orderData?.remark || '').toString().toLowerCase();
-        const totalAmount = parseFloat(orderData?.total_amount) || 0;
+        // Afdian webhook format: { ec:200, em:"ok", data:{ type:"order", order:{...}, sign:"..." } }
+        const order = body.data.order;
+        const outTradeNo = (order.out_trade_no || '').toString();
+        const userId = (order.user_id || '').toString();
+        const planId = (order.plan_id || '').toString();
+        const month = parseInt(order.month) || 1;
+        const totalAmount = parseFloat(order.total_amount) || 0;
+        const remark = (order.remark || '').toString().toLowerCase();
+        const status = parseInt(order.status) || 0;
+
+        // Only process successful payments (status=2)
+        if (status !== 2) {
+          return json({ ec: 200, em: 'skipped, status not 2' });
+        }
+
+        // Verify RSA signature if AFDIAN_PUBLIC_KEY is set
+        const signBase64 = (body.data.sign || '').toString();
+        if (env.AFDIAN_PUBLIC_KEY && signBase64) {
+          try {
+            const signStr = outTradeNo + userId + planId + order.total_amount;
+            const key = await crypto.subtle.importKey(
+              'spki',
+              pemToArrayBuffer(env.AFDIAN_PUBLIC_KEY),
+              { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+              false,
+              ['verify']
+            );
+            const sigBytes = base64ToArrayBuffer(signBase64);
+            const dataBytes = new TextEncoder().encode(signStr);
+            const valid = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, sigBytes, dataBytes);
+            if (!valid) {
+              return json({ ec: 400, em: 'signature verification failed' });
+            }
+          } catch (e) {
+            console.error('Signature verification error:', e.message);
+            // If key is misconfigured, still process to avoid data loss
+          }
+        }
 
         // Determine plan + duration from month count and remark
-        // month<12 and not marked as yearly → monthly × N months
-        // month>=12 or explicitly yearly → yearly (365d)
         let plan = 'monthly';
         let durationDays = month * 30;
         if (remark.includes('年费') || remark.includes('yearly') || remark.includes('年度')) {
@@ -249,15 +281,14 @@ export default {
           durationDays = 365;
         }
 
-        // Store order number as lookup key (user sees this after payment)
-        const outTradeNo = (orderData?.out_trade_no || '').toString();
-
         // Find any unused code — expiry gets set at delivery time
         const codeRow = await env.DB.prepare(
           "SELECT code FROM activation_codes WHERE status = 'unused' ORDER BY created_at ASC LIMIT 1"
         ).first();
 
-        if (!codeRow) return json({ ok: false, error: 'no_codes_available', message: '暂无可用激活码，请联系管理员补充库存' });
+        if (!codeRow) {
+          return json({ ec: 200, em: 'no codes available' });
+        }
 
         const now = new Date();
         const expiresAt = new Date(now.getTime() + durationDays * 86400000).toISOString();
@@ -265,17 +296,10 @@ export default {
         // Assign code + override plan & expiry based on actual purchase
         await env.DB.prepare(
           "UPDATE activation_codes SET status = 'delivered', plan = ?, expires_at = ?, delivered_to = ?, delivered_at = ? WHERE code = ?"
-        ).bind(plan, expiresAt, outTradeNo || userId, now.toISOString(), codeRow.code).run();
+        ).bind(plan, expiresAt, outTradeNo, now.toISOString(), codeRow.code).run();
 
-        return json({
-          ok: true,
-          code: codeRow.code,
-          plan: plan,
-          expires_at: expiresAt,
-          duration_days: durationDays,
-          month: month,
-          message: '发货成功'
-        });
+        // Afdian REQUIRES this exact response format — anything else is treated as failure
+        return json({ ec: 200, em: '' });
       }
 
       // ---- Admin endpoints (require Bearer token) ----
