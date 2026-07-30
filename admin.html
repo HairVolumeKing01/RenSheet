@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RenSheet Admin</title>
+<style>
+:root {
+  --blue-900: #0D2137; --blue-700: #1A4570; --blue-500: #2B6FA8; --blue-300: #7BB3DD;
+  --blue-100: #D6EAF5; --blue-50: #EDF5FA; --water: #B8D8E3;
+  --gray-700: #4A5568; --gray-400: #A0AEC0; --gray-200: #E2E8F0; --gray-100: #F7FAFC;
+  --white: #FFFFFF; --radius: 8px;
+  --font: 'Segoe UI','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:var(--font); background:var(--gray-100); color:var(--gray-700); min-height:100vh; }
+.container { max-width:900px; margin:0 auto; padding:48px 24px; }
+.header { text-align:center; padding:0 0 40px; }
+.header h1 { font-size:32px; font-weight:300; color:var(--blue-900); letter-spacing:4px; }
+.card { background:var(--white); border-radius:var(--radius); padding:28px 32px; margin-bottom:18px; border:1px solid var(--gray-200); box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+.card-title { font-size:14px; font-weight:600; color:var(--blue-700); text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; }
+.btn { padding:10px 22px; border:none; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; letter-spacing:1px; transition:all 0.25s; }
+.btn-primary { background:var(--blue-700); color:#fff; }
+.btn-primary:hover { background:var(--blue-500); }
+.btn-secondary { background:var(--white); color:var(--blue-700); border:1px solid var(--blue-300); }
+.btn-danger { background:#C53030; color:#fff; }
+.btn-sm { padding:5px 12px; font-size:12px; }
+.form-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+.input-text { padding:10px 14px; border:2px solid var(--gray-200); border-radius:6px; font-size:14px; width:100%; }
+.input-text:focus { outline:none; border-color:var(--blue-500); }
+.form-group { text-align:left; }
+.form-group label { display:block; font-size:12px; font-weight:600; color:var(--gray-700); margin-bottom:4px; letter-spacing:1px; }
+select { padding:10px 14px; border:2px solid var(--gray-200); border-radius:6px; font-size:14px; background:var(--white); }
+.result-box { background:var(--blue-50); border:1px solid var(--blue-100); border-radius:6px; padding:14px 18px; font-family:monospace; font-size:13px; max-height:300px; overflow-y:auto; white-space:pre-wrap; word-break:break-all; margin-top:10px; }
+.status-badge { display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+.s-unused { background:#E2E8F0; color:#4A5568; }
+.s-delivered { background:#FEFCBF; color:#975A16; }
+.s-activated { background:#C6F6D5; color:#276749; }
+.s-expired { background:#FED7D7; color:#C53030; }
+.s-revoked { background:#1A202C; color:#FFF; }
+table { width:100%; border-collapse:collapse; font-size:12px; margin-top:10px; }
+th, td { padding:8px 10px; text-align:left; border-bottom:1px solid var(--gray-200); }
+th { color:var(--blue-700); font-weight:600; background:var(--blue-50); }
+.toast { position:fixed; bottom:32px; left:50%; transform:translateX(-50%); padding:12px 28px; border-radius:20px; font-size:13px; font-weight:600; z-index:999; opacity:0; transition:opacity 0.3s; }
+.toast.show { opacity:1; }
+.toast.success { background:#C6F6D5; color:#276749; }
+.toast.error { background:#FED7D7; color:#C53030; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>RenSheet Admin</h1>
+    <p style="color:var(--gray-400);font-size:13px;margin-top:4px;">激活码管理 · 仅本地使用</p>
+  </div>
+
+  <!-- Auth Gate -->
+  <div class="card" id="auth-card">
+    <div class="card-title">管理员验证</div>
+    <div class="form-row">
+      <input type="password" id="admin-password" class="input-text" placeholder="输入 ADMIN_SECRET" style="max-width:320px;">
+      <button class="btn btn-primary" onclick="doAuth()">验证</button>
+    </div>
+  </div>
+
+  <!-- Main UI (hidden until auth) -->
+  <div id="main-ui" style="display:none;">
+
+    <!-- Generate -->
+    <div class="card">
+      <div class="card-title">生成激活码</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>方案</label>
+          <select id="gen-plan" onchange="onPlanChange()"><option value="monthly">月费 30天</option><option value="yearly">年费 365天</option><option value="custom">自定义</option></select>
+        </div>
+        <div class="form-group">
+          <label>数量</label>
+          <input type="number" id="gen-count" class="input-text" value="5" min="1" max="100" style="width:80px;">
+        </div>
+        <div class="form-group" id="custom-expiry-group" style="display:none;">
+          <label>过期时间</label>
+          <input type="datetime-local" id="gen-expiry" class="input-text" style="width:220px;">
+        </div>
+        <div class="form-group">
+          <label>批次标签</label>
+          <input type="text" id="gen-label" class="input-text" placeholder="可选" style="width:160px;">
+        </div>
+        <button class="btn btn-primary" onclick="doGenerate()" style="align-self:flex-end;">生成</button>
+      </div>
+      <div id="gen-result" class="result-box" style="display:none;"></div>
+    </div>
+
+    <!-- Code List -->
+    <div class="card">
+      <div class="card-title">激活码列表 <span style="font-weight:400;font-size:12px;color:var(--gray-400);">（最多 200 条）</span></div>
+      <div class="form-row">
+        <select id="filter-status" onchange="doList()">
+          <option value="">全部</option><option value="unused">未使用</option><option value="delivered">已分发</option><option value="activated">已激活</option><option value="expired">已过期</option><option value="revoked">已吊销</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="doList()">刷新</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportCodes()">导出 TXT</button>
+        <button class="btn btn-danger btn-sm" onclick="doBatchRevoke()">批量吊销当前页</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="code-table"><thead><tr><th>激活码</th><th>方案</th><th>状态</th><th>过期时间</th><th>分发至</th><th>激活时间</th><th>操作</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <!-- Manual Deliver -->
+    <div class="card">
+      <div class="card-title">手动分发（Webhook 漏单时使用）</div>
+      <div class="form-row">
+        <input type="text" id="deliver-code" class="input-text" placeholder="RENS-XXXX-XXXX-XXXX-XXXX" style="max-width:300px;">
+        <input type="text" id="deliver-user" class="input-text" placeholder="订单号" style="max-width:200px;">
+        <input type="number" id="deliver-month" class="input-text" value="1" min="1" max="60" style="width:70px;" title="购买月数">
+        <select id="deliver-plan"><option value="monthly">月费</option><option value="yearly">年费</option></select>
+        <button class="btn btn-primary btn-sm" onclick="doDeliver()">分发</button>
+      </div>
+      <div id="deliver-result" style="font-size:13px;margin-top:6px;"></div>
+    </div>
+
+    <!-- Renew -->
+    <div class="card">
+      <div class="card-title">续期 / 吊销</div>
+      <div class="form-row">
+        <input type="text" id="renew-code" class="input-text" placeholder="RENS-XXXX-XXXX-XXXX-XXXX" style="max-width:300px;">
+        <select id="renew-plan"><option value="monthly">月费 +30天</option><option value="yearly">年费 +365天</option></select>
+        <button class="btn btn-primary btn-sm" onclick="doRenew()">续期</button>
+        <button class="btn btn-danger btn-sm" onclick="doRevoke()">吊销</button>
+      </div>
+      <div id="renew-result" style="font-size:13px;margin-top:6px;"></div>
+    </div>
+
+    <!-- Danger Zone -->
+    <div class="card" style="border-color:#FED7D7;">
+      <div class="card-title" style="color:#C53030;">危险操作</div>
+      <div class="form-row">
+        <button class="btn btn-danger" onclick="doClearAll()">清空全部数据（激活码 + 试用记录）</button>
+      </div>
+      <p style="font-size:11px;color:#C53030;margin-top:8px;">此操作不可逆，将删除数据库中所有激活码和试用记录。</p>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var API = 'https://api.rensheet.top';
+var token = sessionStorage.getItem('renshet_admin_token') || '';
+
+function onPlanChange() {
+  var plan = document.getElementById('gen-plan').value;
+  document.getElementById('custom-expiry-group').style.display = plan === 'custom' ? '' : 'none';
+}
+
+function showToast(msg, isErr) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (isErr ? 'error' : 'success') + ' show';
+  setTimeout(function(){ t.classList.remove('show'); }, 2500);
+}
+
+async function api(path, body, method) {
+  var opts = { method: method || (body ? 'POST' : 'GET'), headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token } };
+  if (body) opts.body = JSON.stringify(body);
+  var resp = await fetch(API + path, opts);
+  return resp.json();
+}
+
+function doAuth() {
+  var pw = document.getElementById('admin-password').value.trim();
+  if (!pw) return showToast('请输入密码', true);
+  token = pw;
+  sessionStorage.setItem('renshet_admin_token', token);
+  // Quick test
+  api('/api/codes?status=active').then(function(r){
+    if (r.ok !== undefined) {
+      document.getElementById('auth-card').style.display = 'none';
+      document.getElementById('main-ui').style.display = 'block';
+      showToast('验证通过');
+      doList();
+    } else {
+      showToast('验证失败', true);
+      token = '';
+      sessionStorage.removeItem('renshet_admin_token');
+    }
+  });
+}
+
+async function doGenerate() {
+  var plan = document.getElementById('gen-plan').value;
+  var count = parseInt(document.getElementById('gen-count').value) || 5;
+  var label = document.getElementById('gen-label').value.trim();
+  var body = { count: count, plan: plan };
+  if (label) body.batch_label = label;
+  if (plan === 'custom') {
+    var expiry = document.getElementById('gen-expiry').value;
+    if (!expiry) return showToast('请选择过期时间', true);
+    body.expires_at = new Date(expiry).toISOString();
+  }
+  var r = await api('/api/generate', body);
+  if (r.ok) {
+    var planLabel = plan === 'monthly' ? '月费' : plan === 'yearly' ? '年费' : '自定义';
+    var box = document.getElementById('gen-result');
+    box.style.display = 'block';
+    box.innerHTML = '生成 ' + r.count + ' 个 ' + planLabel + ' 码：<br><br><code>' + r.codes.join('<br>') + '</code>'
+      + '<br><br><button class="btn btn-secondary btn-sm" onclick="copyAll(\'' + r.codes.join('\\n') + '\')">复制全部</button>';
+    showToast('已生成 ' + r.count + ' 个激活码');
+    doList();
+  } else {
+    showToast((r.message || r.error) || '生成失败', true);
+  }
+}
+
+async function doList() {
+  var status = document.getElementById('filter-status').value;
+  var path = '/api/codes';
+  if (status) path += '?status=' + status;
+  var r = await api(path);
+  if (!r.ok) return showToast('获取列表失败', true);
+  var tbody = document.querySelector('#code-table tbody');
+  tbody.innerHTML = '';
+  (r.codes || []).forEach(function(c){
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td style="font-family:monospace;font-size:11px;">' + c.code + '</td>'
+      + '<td>' + (c.plan === 'monthly' ? '月费' : '年费') + '</td>'
+      + '<td><span class="status-badge s-' + c.status + '">' + c.status + '</span></td>'
+      + '<td>' + (c.expires_at ? new Date(c.expires_at).toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '-') + '</td>'
+      + '<td>' + (c.delivered_to || '-') + '</td>'
+      + '<td>' + (c.activated_at ? new Date(c.activated_at).toLocaleString('zh-CN') : '-') + '</td>'
+      + '<td><button class="btn btn-secondary btn-sm" onclick="copyCode(\'' + c.code + '\')">复制</button> '
+      + '<button class="btn btn-danger btn-sm" onclick="doRevokeCode(\'' + c.code + '\')">吊销</button></td>';
+    tbody.appendChild(tr);
+  });
+}
+
+async function doDeliver() {
+  var code = document.getElementById('deliver-code').value.trim();
+  var user = document.getElementById('deliver-user').value.trim();
+  var plan = document.getElementById('deliver-plan').value;
+  var month = parseInt(document.getElementById('deliver-month').value) || 1;
+  if (!code || !user) return showToast('请输入激活码和订单号', true);
+  var r = await api('/api/deliver', { code: code, user: user, plan: plan, month: month });
+  var el = document.getElementById('deliver-result');
+  if (r.ok) {
+    el.innerHTML = '<span style="color:#276749;">已分发至订单 ' + user + '，有效期至 ' + new Date(r.expires_at).toLocaleString('zh-CN', { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }) + '</span>';
+    showToast('分发成功');
+    doList();
+  } else {
+    el.innerHTML = '<span style="color:#C53030;">' + (r.message || '分发失败') + '</span>';
+  }
+}
+
+function copyCode(code) {
+  navigator.clipboard.writeText(code).then(function(){ showToast('已复制: ' + code); });
+}
+
+function copyAll(text) {
+  navigator.clipboard.writeText(text).then(function(){ showToast('已复制全部到剪贴板'); });
+}
+
+function exportCodes() {
+  var rows = document.querySelectorAll('#code-table tbody tr');
+  if (!rows.length) return showToast('没有可导出的码', true);
+  var codes = [];
+  rows.forEach(function(tr) {
+    var td = tr.querySelector('td');
+    if (td) codes.push(td.textContent.trim());
+  });
+  var blob = new Blob([codes.join('\r\n')], { type: 'text/plain;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  var filter = document.getElementById('filter-status').value || 'all';
+  a.download = 'rensheet-codes-' + filter + '-' + new Date().toISOString().slice(0,10) + '.txt';
+  a.click();
+  showToast('已导出 ' + codes.length + ' 个码');
+}
+
+async function doRenew() {
+  var code = document.getElementById('renew-code').value.trim();
+  var plan = document.getElementById('renew-plan').value;
+  if (!code) return showToast('请输入激活码', true);
+  var r = await api('/api/renew', { code: code, plan: plan });
+  var el = document.getElementById('renew-result');
+  if (r.ok) {
+    el.innerHTML = '<span style="color:#276749;">续期成功！新过期时间: ' + new Date(r.expires_at).toLocaleString('zh-CN') + '</span>';
+    doList();
+  } else {
+    el.innerHTML = '<span style="color:#C53030;">' + (r.message || '续期失败') + '</span>';
+  }
+}
+
+async function doRevokeCode(code) {
+  if (!confirm('确认吊销 ' + code + '？')) return;
+  var r = await api('/api/revoke', { code: code });
+  if (r.ok) { showToast('已吊销'); doList(); }
+  else { showToast(r.message || '吊销失败', true); }
+}
+
+async function doBatchRevoke() {
+  var rows = document.querySelectorAll('#code-table tbody tr');
+  if (!rows.length) return showToast('当前页没有可吊销的码', true);
+  var filter = document.getElementById('filter-status').value;
+  var label = filter || '全部';
+  if (!confirm('确认批量吊销当前筛选「' + label + '」下的 ' + rows.length + ' 个码？此操作不可逆！')) return;
+  var codes = [];
+  rows.forEach(function(tr) { var td = tr.querySelector('td'); if (td) codes.push(td.textContent.trim()); });
+  var r = await api('/api/revoke-batch', { codes: codes });
+  if (r.ok) { showToast('已吊销 ' + r.count + ' 个码'); doList(); }
+  else { showToast(r.message || '批量吊销失败', true); }
+}
+
+async function doClearAll() {
+  if (!confirm('⚠ 确认清空数据库全部数据？\n\n这将删除所有激活码和试用记录。\n此操作不可逆！')) return;
+  if (!confirm('再次确认：真的要清空全部数据吗？')) return;
+  var r = await api('/api/clear-all', {});
+  if (r.ok) { showToast('已清空全部数据：' + r.codes + ' 个激活码，' + r.trials + ' 条试用记录'); doList(); }
+  else { showToast(r.message || '清空失败', true); }
+}
+
+async function doRevoke() {
+  var code = document.getElementById('renew-code').value.trim();
+  if (!code) return showToast('请输入激活码', true);
+  if (!confirm('确认吊销 ' + code + '？')) return;
+  var r = await api('/api/revoke', { code: code });
+  var el = document.getElementById('renew-result');
+  if (r.ok) {
+    el.innerHTML = '<span style="color:#C53030;">已吊销: ' + code + '</span>';
+    showToast('已吊销');
+    doList();
+  } else {
+    el.innerHTML = '<span style="color:#C53030;">' + (r.message || '吊销失败') + '</span>';
+  }
+}
+
+// Auto-auth if token exists
+if (token) {
+  api('/api/codes?limit=1').then(function(r){
+    if (r.ok !== undefined) {
+      document.getElementById('auth-card').style.display = 'none';
+      document.getElementById('main-ui').style.display = 'block';
+      doList();
+    }
+  });
+}
+</script>
+</body>
+</html>
