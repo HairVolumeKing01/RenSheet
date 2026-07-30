@@ -357,6 +357,27 @@ export default {
         return json({ ok: true, code: code, plan: plan, expires_at: newExpiry, message: '续期成功' });
       }
 
+      if (path === '/api/deliver' && request.method === 'POST') {
+        if (!isAdmin(request, env)) return json({ ok: false, error: 'unauthorized' }, 401);
+        const { code, user, plan } = await request.json();
+        if (!code || !user) return json({ ok: false, error: 'missing_params' }, 400);
+
+        const row = await env.DB.prepare('SELECT status FROM activation_codes WHERE code = ?').bind(code).first();
+        if (!row) return json({ ok: false, error: 'code_not_found', message: '激活码不存在' });
+        if (row.status === 'revoked') return json({ ok: false, error: 'revoked', message: '该码已吊销' });
+
+        const effectivePlan = plan || 'monthly';
+        const days = effectivePlan === 'yearly' ? 365 : 30;
+        const now = new Date().toISOString();
+        const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
+
+        await env.DB.prepare(
+          "UPDATE activation_codes SET status = 'delivered', plan = ?, expires_at = ?, delivered_to = ?, delivered_at = ? WHERE code = ?"
+        ).bind(effectivePlan, expiresAt, user, now, code).run();
+
+        return json({ ok: true, code: code, plan: effectivePlan, expires_at: expiresAt, message: '分发成功' });
+      }
+
       if (path === '/api/revoke' && request.method === 'POST') {
         if (!isAdmin(request, env)) return json({ ok: false, error: 'unauthorized' }, 401);
         const { code } = await request.json();
