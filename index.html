@@ -63,15 +63,46 @@ body {
   background: linear-gradient(90deg, #EDF5FA 0%, #D6EAF5 100%);
   border: 1px solid var(--blue-300);
   border-radius: var(--radius);
-  padding: 10px 20px;
   margin-bottom: 24px;
+  overflow: hidden;
 }
-.notice-content { max-width: 860px; margin: 0 auto; }
+.notice-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 20px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+.notice-bar:hover { background: rgba(43,111,168,0.06); }
+.notice-bar-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--blue-700);
+  letter-spacing: 0.5px;
+}
+.notice-bar-toggle {
+  font-size: 11px;
+  color: var(--blue-500);
+  font-weight: 500;
+  letter-spacing: 1px;
+  transition: transform 0.25s;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+.notice-bar-toggle.open { transform: rotate(180deg); }
+.notice-body {
+  display: none;
+  padding: 0 20px 10px;
+  border-top: 1px solid rgba(123,179,221,0.3);
+}
+.notice-body.open { display: block; }
 .notice-line {
   font-size: 12.5px;
   color: var(--blue-900);
   margin: 0;
-  line-height: 1.7;
+  line-height: 1.8;
   font-weight: 500;
   letter-spacing: 0.3px;
 }
@@ -416,9 +447,14 @@ body {
 <div class="container">
 
   <!-- Notification Banner -->
-  <div class="notice-banner">
-    <div class="notice-content">
-      <p class="notice-line"><strong>重要通知：</strong>国际表已上线<a href="https://www.ifdian.net/a/baiyanxi" target="_blank" class="notice-link">爱发电赞助方案</a>（限时特惠！！月费 ¥5 / 年费 ¥30），赞助后凭订单号<a href="get-code.html" class="notice-link">自助取码</a>激活，一次激活 · 无限使用。&nbsp;&nbsp;<strong>功能更新：</strong>二调退补表已支持 <strong>自动配平</strong>，轻松导入排表，几步生成退补明细，解放大脑。</p>
+  <div class="notice-banner" id="noticeBanner">
+    <div class="notice-bar" onclick="document.getElementById('noticeBody').classList.toggle('open');document.getElementById('noticeToggle').classList.toggle('open');">
+      <span class="notice-bar-title">国际表付费上线 · 二调自动配平 · 恳请支持</span>
+      <span class="notice-bar-toggle" id="noticeToggle">&#9660;</span>
+    </div>
+    <div class="notice-body" id="noticeBody">
+      <p class="notice-line"><strong>重要通知：</strong>国际表已上线<a href="https://www.ifdian.net/a/baiyanxi" target="_blank" class="notice-link">爱发电赞助方案</a>（限时特惠！！月费 ¥5 / 年费 ¥30），赞助后凭订单号<a href="get-code.html" class="notice-link">自助取码</a>激活，一次激活 · 无限使用。</p>
+      <p class="notice-line"><strong>功能更新：</strong>二调退补表已支持 <strong>自动配平</strong>，轻松导入原排表与拆配实际排表，几步生成退补明细，解放大脑。</p>
       <p class="notice-line">网站维护不易，恳请大家多多支持 RenSheet，后续会上线更多有用的开团功能！非常感谢！</p>
     </div>
   </div>
