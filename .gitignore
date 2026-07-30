@@ -9,3 +9,5 @@ package.json
 package-lock.json
 .DS_Store
 Thumbs.db
+admin.html
+.wrangler/

@@ -1,0 +1,9 @@
+name = "rensheet-api"
+main = "src/worker.js"
+compatibility_date = "2025-01-01"
+account_id = "f35478cf0f8e89503824cebcd31a2ea9"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rensheet-db"
+database_id = "b17aeb38-2166-45ed-8463-0591795229fa"

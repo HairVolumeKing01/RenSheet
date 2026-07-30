@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RenSheet — 获取激活码</title>
+<style>
+:root {
+  --blue-900: #0D2137; --blue-700: #1A4570; --blue-500: #2B6FA8; --blue-300: #7BB3DD;
+  --blue-100: #D6EAF5; --blue-50: #EDF5FA; --gray-700: #4A5568; --gray-400: #A0AEC0;
+  --gray-200: #E2E8F0; --gray-100: #F7FAFC; --white: #FFFFFF; --radius: 8px;
+  --font: 'Segoe UI','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:var(--font); background:var(--gray-100); color:var(--gray-700); min-height:100vh; display:flex; align-items:center; justify-content:center; }
+.card { background:var(--white); border-radius:12px; padding:48px 40px; max-width:480px; width:90%; text-align:center; border:1px solid var(--gray-200); box-shadow:0 4px 16px rgba(0,0,0,0.06); }
+h2 { font-size:22px; font-weight:600; color:var(--blue-900); margin:0 0 6px; letter-spacing:2px; }
+.subtitle { font-size:14px; color:var(--gray-400); margin:0 0 28px; }
+.input-wrap { display:flex; gap:8px; margin-bottom:16px; }
+.input-text { flex:1; padding:12px 16px; border:2px solid var(--gray-200); border-radius:8px; font-size:15px; outline:none; transition:border-color 0.25s; }
+.input-text:focus { border-color:var(--blue-500); }
+.btn { padding:12px 24px; border:none; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; letter-spacing:1px; transition:all 0.25s; background:var(--blue-700); color:#fff; }
+.btn:hover { background:var(--blue-500); }
+.result { margin-top:16px; padding:16px; border-radius:8px; font-size:14px; display:none; }
+.result.success { display:block; background:#C6F6D5; color:#276749; }
+.result.error { display:block; background:#FED7D7; color:#C53030; }
+.result code { display:block; font-size:18px; letter-spacing:2px; margin:8px 0; font-weight:700; background:rgba(255,255,255,0.5); padding:8px 12px; border-radius:4px; word-break:break-all; }
+.copy-btn { display:inline-block; margin-top:6px; padding:6px 16px; border:none; border-radius:6px; background:var(--blue-500); color:#fff; font-size:12px; font-weight:600; cursor:pointer; }
+.back-link { display:block; margin-top:24px; font-size:13px; color:var(--blue-500); text-decoration:none; }
+.back-link:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>获取激活码</h2>
+  <p class="subtitle">付款后输入订单号或爱发电用户名即可领取</p>
+  <div class="input-wrap">
+    <input type="text" id="order-input" class="input-text" placeholder="订单号 / 爱发电用户名" autocomplete="off">
+    <button class="btn" id="query-btn" onclick="doQuery()">查询</button>
+  </div>
+  <p style="font-size:12px;color:var(--gray-400);">也可以在付款后收到的爱发电私信中查看激活码</p>
+  <div id="result" class="result"></div>
+  <a href="guoji.html" class="back-link">← 返回国际表</a>
+</div>
+
+<script>
+var API = 'https://api.rensheet.top';
+
+document.getElementById('order-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doQuery();
+});
+
+async function doQuery() {
+  var q = document.getElementById('order-input').value.trim();
+  var resultEl = document.getElementById('result');
+  if (!q) { resultEl.className = 'result error'; resultEl.innerHTML = '请输入订单号或用户名'; return; }
+
+  var btn = document.getElementById('query-btn');
+  btn.textContent = '查询中...'; btn.disabled = true;
+
+  try {
+    var resp = await fetch(API + '/api/get-code?order=' + encodeURIComponent(q));
+    var data = await resp.json();
+    if (data.ok) {
+      resultEl.className = 'result success';
+      resultEl.innerHTML = '找到激活码：<code>' + data.code + '</code>'
+        + '<button class="copy-btn" onclick="copyCode(\'' + data.code + '\')">复制激活码</button>'
+        + '<p style="font-size:12px;margin-top:6px;">方案：' + (data.plan === 'monthly' ? '月费 ¥5/月' : '年费 ¥30/年')
+        + ' · 有效期至 ' + new Date(data.expires_at).toLocaleDateString('zh-CN') + '</p>';
+    } else {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = (data.message || '未找到激活码') + '<br><span style="font-size:12px;">提示：请确认已付款成功，或尝试输入爱发电用户名</span>';
+    }
+  } catch(e) {
+    resultEl.className = 'result error';
+    resultEl.innerHTML = '网络错误，请稍后重试';
+  }
+  btn.textContent = '查询'; btn.disabled = false;
+}
+
+function copyCode(code) {
+  navigator.clipboard.writeText(code).then(function(){
+    alert('已复制！请返回国际表页面粘贴激活');
+  });
+}
+</script>
+</body>
+</html>

@@ -6,6 +6,7 @@
 <title>RenSheet — 国际表生成器</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="activation.js"></script>
 <style>
 :root {
   --blue-900: #0D2137;
@@ -598,6 +599,9 @@ body {
     <div class="btn-row" style="justify-content:center;">
       <button class="btn btn-primary" id="processBtn" disabled>开始处理</button>
       <button class="btn btn-export" id="exportBtn" disabled>导出国际表</button>
+    </div>
+    <div style="text-align:center;margin-top:10px;">
+      <a href="get-code.html" target="_blank" style="font-size:12px;color:#2B6FA8;text-decoration:none;">付款后查激活码 →</a>
     </div>
   </div>
 
@@ -1438,11 +1442,11 @@ function processAll() {
   renderPreview();
   exportBtn.disabled = false;
   saveDraft();
+  if (typeof markTrialUsed === 'function') markTrialUsed('guoji');
   var toastMsg = '处理完成！共 ' + filteredRows.length + ' 人';
   if (deletedCns.length) toastMsg += '（已移除 ' + deletedCns.length + ' 条全零数据）';
   if (validationErrors.length) toastMsg += '\n校验发现 ' + validationErrors.length + ' 个异常，请查看预览区';
   showToast(toastMsg, validationErrors.length > 0);
-  return computedResults;('处理完成！共 ' + rows.length + ' 人');
   return computedResults;
 }
 
@@ -1465,12 +1469,14 @@ function validateBeforeProcess() {
   return errors;
 }
 
-processBtn.addEventListener('click', function() {
+processBtn.addEventListener('click', async function() {
   var errors = validateBeforeProcess();
   if (errors.length) {
     showToast(errors.join('\n'), true);
     return;
   }
+  var ok = await ensureActivated('guoji');
+  if (!ok) return;
   processAll();
 });
 
