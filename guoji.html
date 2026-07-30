@@ -6,7 +6,7 @@
 <title>RenSheet — 国际表生成器</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-<script src="activation.js"></script>
+<!-- TODO: 爱发电认证通过后取消注释 <script src="activation.js"></script> -->
 <style>
 :root {
   --blue-900: #0D2137;
@@ -1475,7 +1475,7 @@ processBtn.addEventListener('click', async function() {
     showToast(errors.join('\n'), true);
     return;
   }
-  var ok = await ensureActivated('guoji');
+  var ok = typeof ensureActivated === 'function' ? await ensureActivated('guoji') : true;
   if (!ok) return;
   processAll();
 });
