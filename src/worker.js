@@ -249,6 +249,9 @@ export default {
           durationDays = 365;
         }
 
+        // Store order number as lookup key (user sees this after payment)
+        const outTradeNo = (orderData?.out_trade_no || '').toString();
+
         // Find any unused code — expiry gets set at delivery time
         const codeRow = await env.DB.prepare(
           "SELECT code FROM activation_codes WHERE status = 'unused' ORDER BY created_at ASC LIMIT 1"
@@ -262,7 +265,7 @@ export default {
         // Assign code + override plan & expiry based on actual purchase
         await env.DB.prepare(
           "UPDATE activation_codes SET status = 'delivered', plan = ?, expires_at = ?, delivered_to = ?, delivered_at = ? WHERE code = ?"
-        ).bind(plan, expiresAt, userId, now.toISOString(), codeRow.code).run();
+        ).bind(plan, expiresAt, outTradeNo || userId, now.toISOString(), codeRow.code).run();
 
         return json({
           ok: true,
