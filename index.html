@@ -58,6 +58,49 @@ body {
   color: var(--gold-300);
 }
 
+/* Notification Banner */
+.notice-banner {
+  background: linear-gradient(135deg, #EDF5FA 0%, #D6EAF5 100%);
+  border: 1px solid var(--blue-300);
+  border-radius: var(--radius);
+  padding: 16px 24px;
+  margin-bottom: 28px;
+  text-align: center;
+}
+.notice-content { max-width: 800px; margin: 0 auto; }
+.notice-main {
+  font-size: 14px;
+  color: var(--blue-900);
+  margin: 0 0 6px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+.notice-main strong { color: var(--blue-700); }
+.notice-sub {
+  font-size: 13px;
+  color: var(--gray-700);
+  margin: 0 0 6px;
+  font-weight: 500;
+}
+.notice-sub strong { color: var(--blue-700); }
+.notice-plead {
+  font-size: 12px;
+  color: #718096;
+  margin: 0;
+  font-style: italic;
+}
+.notice-link {
+  color: var(--blue-500);
+  text-decoration: none;
+  font-weight: 600;
+  border-bottom: 1px dashed var(--blue-300);
+  transition: all 0.25s;
+}
+.notice-link:hover {
+  color: var(--blue-700);
+  border-bottom-color: var(--blue-700);
+}
+
 /* Header */
 .header {
   text-align: center;
@@ -382,6 +425,21 @@ body {
 <body>
 
 <div class="container">
+
+  <!-- Notification Banner -->
+  <div class="notice-banner">
+    <div class="notice-content">
+      <p class="notice-main">
+        <strong>重要通知：</strong>国际表已上线<a href="https://www.ifdian.net/a/baiyanxi" target="_blank" class="notice-link">爱发电赞助方案</a>（限时特惠！！月费 ¥5 / 年费 ¥30），赞助后凭订单号<a href="get-code.html" class="notice-link">自助取码</a>激活，一次激活 · 无限使用。
+      </p>
+      <p class="notice-sub">
+        <strong>重要功能更新：</strong>二调退补表现已支持 <strong>自动配平</strong>：轻松导入原排表与拆配实际排表，几步生成二调方案和退补明细，解放大脑。
+      </p>
+      <p class="notice-plead">
+        网站维护不易，恳请大家多多支持 RenSheet，后续会上线更多有用的开团功能！非常感谢！
+      </p>
+    </div>
+  </div>
 
   <div class="main-content">
 

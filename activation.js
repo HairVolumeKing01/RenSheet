@@ -130,7 +130,7 @@
       + '<path d="M16 24l5 6 11-12" stroke="#1A4570" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
       + '</div>'
       + '<h2 style="font-size:22px;font-weight:600;color:#0D2137;margin:0 0 6px;letter-spacing:2px;">激活 RenSheet 国际表</h2>'
-      + '<p style="font-size:14px;color:#4A5568;margin:0 0 28px;font-weight:500;">一次激活，无限使用 · 月费仅 5 元</p>'
+      + '<p style="font-size:14px;color:#4A5568;margin:0 0 20px;font-weight:500;">输入激活码，解锁无限次处理与导出</p>'
       + '<div id="rensheet-code-input-group" style="display:flex;gap:0;justify-content:center;margin-bottom:20px;">'
       + '<input id="rensheet-code-input" type="text" placeholder="RENS-XXXX-XXXX-XXXX-XXXX" maxlength="24" autocomplete="off" '
       + 'style="width:100%;padding:14px 16px;border:2px solid #E2E8F0;border-radius:8px;font-size:16px;text-align:center;'
@@ -142,12 +142,14 @@
       + 'font-weight:600;cursor:pointer;letter-spacing:2px;transition:background 0.25s;" '
       + 'onmouseover="this.style.background=\'#2B6FA8\'" onmouseout="this.style.background=\'#1A4570\'">激活</button>'
       + '<p id="rensheet-status" style="font-size:13px;margin:12px 0 0;min-height:20px;"></p>'
-      + '<div style="margin-top:24px;padding-top:20px;border-top:1px solid #E2E8F0;">'
-      + '<p style="font-size:12px;color:#A0AEC0;margin:0;">如何获取激活码？</p>'
-      + '<p style="font-size:13px;color:#4A5568;margin:6px 0 0;font-weight:500;">前往 <a href="' + AFDIAN_URL + '" target="_blank" '
-      + 'style="color:#2B6FA8;text-decoration:none;font-weight:600;">爱发电</a> 赞助 5 元/月 或 30 元/年 即可获得</p>'
-      + '<p style="font-size:12px;color:#A0AEC0;margin:4px 0 0;">付款后如未收到码，请前往 <a href="get-code.html" target="_blank" '
-      + 'style="color:#2B6FA8;text-decoration:none;">自助取码页</a> 输入用户名领取</p>'
+      + '<div style="margin-top:20px;padding-top:16px;border-top:1px solid #E2E8F0;text-align:left;">'
+      + '<p style="font-size:11px;color:#C53030;margin:0 0 8px;font-weight:600;">&#9888; 一个激活码仅可激活一次，清除浏览器缓存后需重新输入。续费请重新赞助获取新码。</p>'
+      + '<p style="font-size:12px;color:#4A5568;margin:0 0 4px;"><strong>如何获取激活码？</strong></p>'
+      + '<p style="font-size:12px;color:#4A5568;margin:0 0 4px;">1. 前往 <a href="' + AFDIAN_URL + '" target="_blank" '
+      + 'style="color:#2B6FA8;text-decoration:none;font-weight:600;">爱发电</a> 赞助（月费 ¥5 / 年费 ¥30）</p>'
+      + '<p style="font-size:12px;color:#4A5568;margin:0 0 4px;">2. 付款后前往 <a href="get-code.html" target="_blank" '
+      + 'style="color:#2B6FA8;text-decoration:none;font-weight:600;">取码页</a>，输入订单号领取激活码</p>'
+      + '<p style="font-size:12px;color:#4A5568;margin:0;">3. 如取码页查询不到（漏单），请联系客服处理</p>'
       + '</div>'
       + '<button id="rensheet-close-modal" style="position:absolute;top:12px;right:16px;background:none;border:none;'
       + 'font-size:22px;color:#A0AEC0;cursor:pointer;line-height:1;" title="关闭">×</button>'
@@ -287,11 +289,9 @@
       html += '<p style="margin:0 0 6px;"><strong>方案：</strong>' + (act.plan === 'monthly' ? '月费 ¥5/月' : '年费 ¥30/年') + '</p>';
       html += '<p style="margin:0 0 6px;"><strong>有效期至：</strong>' + exp.toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) + '</p>';
       html += '<p style="margin:0;color:#A0AEC0;font-size:12px;">' + (daysLeft > 0 ? '剩余 ' + daysLeft + ' 天' : '已过期') + '</p>';
-      // Show activation code + cache warning
       html += '<hr style="margin:8px 0;border-color:#FEFCBF;">';
       html += '<p style="margin:0 0 4px;font-size:11px;color:#975A16;font-weight:600;">&#9888; 清除浏览器缓存后 PRO 状态会消失</p>';
-      html += '<p style="margin:0 0 4px;font-size:11px;color:#975A16;">请务必保存激活码：<code style="background:#FEFCBF;padding:1px 4px;border-radius:3px;font-size:11px;">' + (act.code || '') + '</code></p>';
-      html += '<p style="margin:0;font-size:11px;color:#A0AEC0;">丢失后凭订单号联系客服找回</p>';
+      html += '<p style="margin:0;font-size:11px;color:#975A16;">忘记激活码？凭订单号前往取码页找回</p>';
     } else if (remaining > 0) {
       html += '<p style="margin:0 0 6px;"><strong>免费试用</strong></p>';
       html += '<p style="margin:0 0 6px;">剩余处理次数：<strong>' + remaining + '</strong> / 2</p>';
@@ -302,7 +302,7 @@
     }
     html += '<hr style="margin:10px 0;border-color:#E2E8F0;">';
     html += '<a href="' + AFDIAN_URL + '" target="_blank" style="color:#2B6FA8;text-decoration:none;font-weight:600;font-size:12px;">→ 前往爱发电赞助</a>';
-    html += '<br><a href="get-code.html" target="_blank" style="color:#2B6FA8;text-decoration:none;font-weight:600;font-size:12px;">→ 已赞助？点此取回激活码</a>';
+    html += '<br><a href="get-code.html" target="_blank" style="color:#2B6FA8;text-decoration:none;font-weight:600;font-size:12px;">→ 已赞助？凭订单号取回激活码</a>';
     if (!act) {
       html += '<br><a href="#" id="rensheet-open-modal" style="color:#2B6FA8;text-decoration:none;font-weight:600;font-size:12px;">→ 输入激活码</a>';
     }
