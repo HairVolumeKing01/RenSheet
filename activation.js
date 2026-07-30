@@ -132,7 +132,7 @@
       + '<h2 style="font-size:22px;font-weight:600;color:#0D2137;margin:0 0 6px;letter-spacing:2px;">激活 RenSheet 国际表</h2>'
       + '<p style="font-size:14px;color:#4A5568;margin:0 0 28px;font-weight:500;">一次激活，无限使用 · 月费仅 5 元</p>'
       + '<div id="rensheet-code-input-group" style="display:flex;gap:0;justify-content:center;margin-bottom:20px;">'
-      + '<input id="rensheet-code-input" type="text" placeholder="RENS-XXXX-XXXX-XXXX" maxlength="19" autocomplete="off" '
+      + '<input id="rensheet-code-input" type="text" placeholder="RENS-XXXX-XXXX-XXXX-XXXX" maxlength="24" autocomplete="off" '
       + 'style="width:100%;padding:14px 16px;border:2px solid #E2E8F0;border-radius:8px;font-size:16px;text-align:center;'
       + 'letter-spacing:2px;font-family:monospace;color:#0D2137;outline:none;transition:border-color 0.25s;" '
       + 'onfocus="this.style.borderColor=\'#2B6FA8\'" onblur="this.style.borderColor=\'#E2E8F0\'" />'
@@ -165,8 +165,10 @@
     // Format input
     inputEl.addEventListener('input', function () {
       var raw = this.value.toUpperCase().replace(/[^0-9A-Z]/g, '');
+      // Strip leading RENS if user pasted full code, we add it back
+      if (raw.substring(0, 4) === 'RENS') raw = raw.substring(4);
       var formatted = 'RENS-';
-      for (var i = 0; i < 12 && i < raw.length; i++) {
+      for (var i = 0; i < 16 && i < raw.length; i++) {
         if (i > 0 && i % 4 === 0) formatted += '-';
         formatted += raw[i];
       }
@@ -198,7 +200,7 @@
 
   async function activateHandler() {
     var code = (inputEl.value || '').trim();
-    if (!code || code.length < 19) {
+    if (!code || code.length < 24) {
       statusEl.textContent = '请输入完整的激活码';
       statusEl.style.color = '#C53030';
       return;
