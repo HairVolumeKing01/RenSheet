@@ -345,20 +345,27 @@ export default {
         if (!isAdmin(request, env)) return json({ ok: false, error: 'unauthorized' }, 401);
 
         const statusFilter = url.searchParams.get('status');
-        let query = 'SELECT code, plan, status, expires_at, created_at, renewed_at, delivered_to, delivered_at, activated_at, batch_label FROM activation_codes';
-        let params = [];
+        const page = Math.max(1, parseInt(url.searchParams.get('page')) || 1);
+        const perPage = Math.min(100, Math.max(10, parseInt(url.searchParams.get('per_page')) || 50));
 
+        let whereClause = '';
+        let params = [];
         if (statusFilter) {
-          query += ' WHERE status = ?';
+          whereClause = ' WHERE status = ?';
           params.push(statusFilter);
         }
-        query += ' ORDER BY created_at DESC LIMIT 200';
 
-        let stmt = env.DB.prepare(query);
-        for (const p of params) stmt = stmt.bind(p);
-        const rows = await stmt.all();
+        // Count total
+        const countRow = await env.DB.prepare('SELECT COUNT(*) as total FROM activation_codes' + whereClause).bind(...params).first();
+        const total = countRow.total;
 
-        return json({ ok: true, total: rows.results.length, codes: rows.results });
+        // Fetch page
+        const offset = (page - 1) * perPage;
+        const rows = await env.DB.prepare(
+          'SELECT code, plan, status, expires_at, created_at, renewed_at, delivered_to, delivered_at, activated_at, batch_label FROM activation_codes' + whereClause + ' ORDER BY created_at DESC LIMIT ? OFFSET ?'
+        ).bind(...params, perPage, offset).all();
+
+        return json({ ok: true, total: total, page: page, per_page: perPage, total_pages: Math.ceil(total / perPage), codes: rows.results });
       }
 
       if (path === '/api/renew' && request.method === 'POST') {

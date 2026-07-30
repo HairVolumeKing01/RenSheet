@@ -45,6 +45,12 @@ th { color:var(--blue-700); font-weight:600; background:var(--blue-50); }
 .toast.show { opacity:1; }
 .toast.success { background:#C6F6D5; color:#276749; }
 .toast.error { background:#FED7D7; color:#C53030; }
+.pagination { display:flex; justify-content:center; align-items:center; gap:6px; margin-top:16px; font-size:13px; color:var(--gray-700); }
+.pagination button { padding:6px 14px; border:1px solid var(--gray-200); border-radius:6px; background:var(--white); color:var(--blue-700); font-size:12px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+.pagination button:hover { background:var(--blue-50); border-color:var(--blue-300); }
+.pagination button:disabled { opacity:0.35; cursor:default; }
+.pagination button.active { background:var(--blue-700); color:#fff; border-color:var(--blue-700); }
+.pagination span { padding:0 4px; }
 </style>
 </head>
 <body>
@@ -105,6 +111,7 @@ th { color:var(--blue-700); font-weight:600; background:var(--blue-50); }
       <div style="overflow-x:auto;">
         <table id="code-table"><thead><tr><th>激活码</th><th>方案</th><th>状态</th><th>过期时间</th><th>分发至</th><th>激活时间</th><th>操作</th></tr></thead><tbody></tbody></table>
       </div>
+      <div id="pagination" class="pagination" style="display:none;"></div>
     </div>
 
     <!-- Manual Deliver -->
@@ -214,18 +221,23 @@ async function doGenerate() {
   }
 }
 
-async function doList() {
+var listPage = 1;
+
+async function doList(page) {
+  page = page || listPage;
   var status = document.getElementById('filter-status').value;
-  var path = '/api/codes';
-  if (status) path += '?status=' + status;
+  var path = '/api/codes?page=' + page + '&per_page=30';
+  if (status) path += '&status=' + status;
   var r = await api(path);
   if (!r.ok) return showToast('获取列表失败', true);
+  listPage = r.page;
   var tbody = document.querySelector('#code-table tbody');
   tbody.innerHTML = '';
   (r.codes || []).forEach(function(c){
+    var planLabel = c.plan === 'monthly' ? '月费' : c.plan === 'yearly' ? '年费' : c.plan;
     var tr = document.createElement('tr');
     tr.innerHTML = '<td style="font-family:monospace;font-size:11px;">' + c.code + '</td>'
-      + '<td>' + (c.plan === 'monthly' ? '月费' : '年费') + '</td>'
+      + '<td>' + planLabel + '</td>'
       + '<td><span class="status-badge s-' + c.status + '">' + c.status + '</span></td>'
       + '<td>' + (c.expires_at ? new Date(c.expires_at).toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '-') + '</td>'
       + '<td>' + (c.delivered_to || '-') + '</td>'
@@ -234,6 +246,17 @@ async function doList() {
       + '<button class="btn btn-danger btn-sm" onclick="doRevokeCode(\'' + c.code + '\')">吊销</button></td>';
     tbody.appendChild(tr);
   });
+  renderPagination(r);
+}
+
+function renderPagination(r) {
+  var pg = document.getElementById('pagination');
+  if (r.total_pages <= 1) { pg.style.display = 'none'; return; }
+  pg.style.display = 'flex';
+  var html = '<button ' + (r.page <= 1 ? 'disabled' : '') + ' onclick="doList(' + (r.page - 1) + ')">上一页</button>';
+  html += '<span>' + r.page + ' / ' + r.total_pages + '</span>';
+  html += '<button ' + (r.page >= r.total_pages ? 'disabled' : '') + ' onclick="doList(' + (r.page + 1) + ')">下一页</button>';
+  pg.innerHTML = html;
 }
 
 async function doDeliver() {
