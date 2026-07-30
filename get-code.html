@@ -12,35 +12,68 @@
   --font: 'Segoe UI','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:var(--font); background:var(--gray-100); color:var(--gray-700); min-height:100vh; display:flex; align-items:center; justify-content:center; }
-.card { background:var(--white); border-radius:12px; padding:48px 40px; max-width:480px; width:90%; text-align:center; border:1px solid var(--gray-200); box-shadow:0 4px 16px rgba(0,0,0,0.06); }
-h2 { font-size:22px; font-weight:600; color:var(--blue-900); margin:0 0 6px; letter-spacing:2px; }
-.subtitle { font-size:14px; color:var(--gray-400); margin:0 0 28px; }
-.input-wrap { display:flex; gap:8px; margin-bottom:16px; }
+body {
+  font-family:var(--font); background:var(--gray-100); color:var(--gray-700);
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+}
+.card {
+  background:var(--white); border-radius:12px; padding:40px 36px;
+  max-width:500px; width:90%; border:1px solid var(--gray-200);
+  box-shadow:0 4px 16px rgba(0,0,0,0.06);
+}
+h2 { font-size:22px; font-weight:600; color:var(--blue-900); margin:0 0 4px; letter-spacing:2px; text-align:center; }
+.subtitle { font-size:13px; color:var(--gray-400); margin:0 0 24px; text-align:center; }
+
+.steps { background:var(--blue-50); border-radius:8px; padding:16px 20px; margin-bottom:24px; text-align:left; }
+.steps ol { margin:0; padding:0 0 0 18px; font-size:13px; color:var(--gray-700); line-height:2; }
+.steps ol li::marker { color:var(--blue-500); font-weight:600; }
+
+.input-wrap { display:flex; gap:8px; margin-bottom:14px; }
 .input-text { flex:1; padding:12px 16px; border:2px solid var(--gray-200); border-radius:8px; font-size:15px; outline:none; transition:border-color 0.25s; }
 .input-text:focus { border-color:var(--blue-500); }
-.btn { padding:12px 24px; border:none; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; letter-spacing:1px; transition:all 0.25s; background:var(--blue-700); color:#fff; }
+.btn { padding:12px 24px; border:none; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; letter-spacing:1px; transition:all 0.25s; background:var(--blue-700); color:#fff; white-space:nowrap; }
 .btn:hover { background:var(--blue-500); }
-.result { margin-top:16px; padding:16px; border-radius:8px; font-size:14px; display:none; }
+.hint { font-size:12px; color:var(--gray-400); text-align:center; margin-bottom:0; }
+
+.result { margin-top:14px; padding:16px; border-radius:8px; font-size:14px; display:none; text-align:center; }
 .result.success { display:block; background:#C6F6D5; color:#276749; }
 .result.error { display:block; background:#FED7D7; color:#C53030; }
-.result code { display:block; font-size:18px; letter-spacing:2px; margin:8px 0; font-weight:700; background:rgba(255,255,255,0.5); padding:8px 12px; border-radius:4px; word-break:break-all; }
-.copy-btn { display:inline-block; margin-top:6px; padding:6px 16px; border:none; border-radius:6px; background:var(--blue-500); color:#fff; font-size:12px; font-weight:600; cursor:pointer; }
-.back-link { display:block; margin-top:24px; font-size:13px; color:var(--blue-500); text-decoration:none; }
-.back-link:hover { text-decoration:underline; }
+.result code { display:block; font-size:18px; letter-spacing:2px; margin:10px 0; font-weight:700; background:rgba(255,255,255,0.5); padding:10px 14px; border-radius:4px; word-break:break-all; }
+.result .meta { font-size:12px; color:var(--gray-700); margin-top:4px; }
+.copy-btn { display:inline-block; margin-top:8px; padding:8px 20px; border:none; border-radius:6px; background:var(--blue-500); color:#fff; font-size:13px; font-weight:600; cursor:pointer; }
+.copy-btn:hover { background:var(--blue-700); }
+
+.links { margin-top:20px; text-align:center; }
+.links a { display:inline-block; margin:0 10px; font-size:13px; color:var(--blue-500); text-decoration:none; }
+.links a:hover { text-decoration:underline; }
 </style>
 </head>
 <body>
 <div class="card">
   <h2>获取激活码</h2>
-  <p class="subtitle">付款后输入订单号或爱发电用户名即可领取</p>
+  <p class="subtitle">赞助成功后在此领取您的 RenSheet 激活码</p>
+
+  <div class="steps">
+    <ol>
+      <li>前往 <strong>爱发电</strong> 赞助 RenSheet（月费 5 元 / 年费 30 元）</li>
+      <li>付款成功后，复制您的<strong>爱发电用户名</strong></li>
+      <li>回到本页面，在下方输入框中粘贴用户名</li>
+      <li>点击「查询」获取激活码，复制后前往国际表激活</li>
+    </ol>
+  </div>
+
   <div class="input-wrap">
-    <input type="text" id="order-input" class="input-text" placeholder="订单号 / 爱发电用户名" autocomplete="off">
+    <input type="text" id="order-input" class="input-text" placeholder="输入您的爱发电用户名" autocomplete="off">
     <button class="btn" id="query-btn" onclick="doQuery()">查询</button>
   </div>
-  <p style="font-size:12px;color:var(--gray-400);">也可以在付款后收到的爱发电私信中查看激活码</p>
+  <p class="hint">输入您在爱发电的个人主页用户名，例如 baiyanxi</p>
+
   <div id="result" class="result"></div>
-  <a href="guoji.html" class="back-link">← 返回国际表</a>
+
+  <div class="links">
+    <a href="https://www.ifdian.net/a/baiyanxi" target="_blank">→ 前往爱发电赞助</a>
+    <a href="guoji.html">→ 返回国际表激活</a>
+  </div>
 </div>
 
 <script>
@@ -53,7 +86,7 @@ document.getElementById('order-input').addEventListener('keydown', function(e) {
 async function doQuery() {
   var q = document.getElementById('order-input').value.trim();
   var resultEl = document.getElementById('result');
-  if (!q) { resultEl.className = 'result error'; resultEl.innerHTML = '请输入订单号或用户名'; return; }
+  if (!q) { resultEl.className = 'result error'; resultEl.innerHTML = '请输入您的爱发电用户名'; return; }
 
   var btn = document.getElementById('query-btn');
   btn.textContent = '查询中...'; btn.disabled = true;
@@ -63,13 +96,17 @@ async function doQuery() {
     var data = await resp.json();
     if (data.ok) {
       resultEl.className = 'result success';
-      resultEl.innerHTML = '找到激活码：<code>' + data.code + '</code>'
+      resultEl.innerHTML = '您的激活码：<code>' + data.code + '</code>'
         + '<button class="copy-btn" onclick="copyCode(\'' + data.code + '\')">复制激活码</button>'
-        + '<p style="font-size:12px;margin-top:6px;">方案：' + (data.plan === 'monthly' ? '月费 ¥5/月' : '年费 ¥30/年')
-        + ' · 有效期至 ' + new Date(data.expires_at).toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) + '</p>';
+        + '<p class="meta">'
+        + (data.plan === 'monthly' ? '月费' : '年费')
+        + ' · 有效期至 ' + new Date(data.expires_at).toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+        + '</p>'
+        + '<p class="meta" style="margin-top:4px;">请复制激活码，打开 <a href="guoji.html" style="color:#2B6FA8;">国际表</a> 页面粘贴激活</p>';
     } else {
       resultEl.className = 'result error';
-      resultEl.innerHTML = (data.message || '未找到激活码') + '<br><span style="font-size:12px;">提示：请确认已付款成功，或尝试输入爱发电用户名</span>';
+      resultEl.innerHTML = (data.message || '未找到激活码')
+        + '<br><span style="font-size:12px;display:block;margin-top:4px;">可能原因：付款尚未处理（请等待 1-2 分钟）、输入的用户名与爱发电不一致、或订单未成功。如持续无法获取，请联系客服。</span>';
     }
   } catch(e) {
     resultEl.className = 'result error';
@@ -80,7 +117,9 @@ async function doQuery() {
 
 function copyCode(code) {
   navigator.clipboard.writeText(code).then(function(){
-    alert('已复制！请返回国际表页面粘贴激活');
+    var btn = event.target;
+    btn.textContent = '已复制!';
+    setTimeout(function(){ btn.textContent = '复制激活码'; }, 1500);
   });
 }
 </script>
