@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RenSheet — 肾表生成器</title>
 <script src="lib/xlsx.full.min.js"></script>
@@ -601,6 +602,12 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function sanitizeCellValue(val) {
+  if (typeof val === 'number' || val == null) return val;
+  var s = String(val);
+  return /^[=+\-@]/.test(s) ? "'" + s : val;
 }
 
 function switchUploadMode() {
@@ -1442,7 +1449,7 @@ exportBtn.addEventListener('click', function() {
           cell.value = Number(row[c]);
           cell.numFmt = isPointColumn ? '0' : '0.00';
         } else {
-          cell.value = row[c];
+          cell.value = sanitizeCellValue(row[c]);
         }
         cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:bg}};
         cell.border = {bottom:{style:'thin', color:{argb:'D0D5DD'}}};
@@ -1768,17 +1775,17 @@ function buildDraftObject() {
 function saveDraft() {
   try {
     var draft = buildDraftObject();
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
   } catch(e) {}
 }
 
 function clearDraft() {
-  try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+  try { sessionStorage.removeItem(DRAFT_KEY); } catch(e) {}
 }
 
 function restoreDraft() {
   var raw;
-  try { raw = localStorage.getItem(DRAFT_KEY); } catch(e) { return false; }
+  try { raw = sessionStorage.getItem(DRAFT_KEY); } catch(e) { return false; }
   if (!raw) return false;
   var saved;
   try { saved = JSON.parse(raw); } catch(e) { clearDraft(); return false; }

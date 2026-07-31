@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RenSheet — 二调退补表</title>
 <script src="lib/xlsx.full.min.js"></script>
@@ -823,6 +824,12 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function sanitizeCellValue(val) {
+  if (typeof val === 'number' || val == null) return val;
+  var s = String(val);
+  return /^[=+\-@]/.test(s) ? "'" + s : val;
 }
 
 function getDisplayValue(value) {
@@ -3103,7 +3110,7 @@ function downloadNewSheet() {
     var excelRow = ws2.getRow(r2 + 1);
     for (var c2 = 0; c2 < newData[r2].length; c2++) {
       var cell = excelRow.getCell(c2 + 1);
-      cell.value = newData[r2][c2] !== undefined && newData[r2][c2] !== '' ? newData[r2][c2] : '';
+      cell.value = sanitizeCellValue(newData[r2][c2] !== undefined && newData[r2][c2] !== '' ? newData[r2][c2] : '');
       cell.alignment = {horizontal:'center', vertical:'middle'};
     }
   }
@@ -3435,17 +3442,17 @@ function exportFinalTable() {
 
       // 点数和所有肾额列以 Excel 数值单元格导出
       if (c >= 2) {
-        cell.value = row[c];
+        cell.value = sanitizeCellValue(row[c]);
         cell.numFmt = c === 2 ? '0' : '0.00';
         cell.alignment = {horizontal:'center', vertical:'middle'};
       } else if (c === 1) {
         // Detail column: wrap text
-        cell.value = row[c];
+        cell.value = sanitizeCellValue(row[c]);
         var lines = (String(row[c]).match(/\n/g) || []).length + 1;
         if (lines > detailLines) detailLines = lines;
         cell.alignment = {horizontal:'center', vertical:'center', wrapText:true};
       } else {
-        cell.value = row[c];
+        cell.value = sanitizeCellValue(row[c]);
         cell.alignment = {horizontal:'center', vertical:'middle'};
       }
       cell.font = {size:11, color:{argb:'4A5568'}};
@@ -3540,17 +3547,17 @@ function buildDraftObject() {
 function saveDraft() {
   try {
     var draft = buildDraftObject();
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
   } catch(e) {}
 }
 
 function clearDraft() {
-  try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+  try { sessionStorage.removeItem(DRAFT_KEY); } catch(e) {}
 }
 
 function restoreDraft() {
   var raw;
-  try { raw = localStorage.getItem(DRAFT_KEY); } catch(e) { return false; }
+  try { raw = sessionStorage.getItem(DRAFT_KEY); } catch(e) { return false; }
   if (!raw) return false;
   var saved;
   try { saved = JSON.parse(raw); } catch(e) { clearDraft(); return false; }
