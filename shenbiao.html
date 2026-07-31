@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RenSheet — 肾表生成器</title>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/exceljs.min.js"></script>
 <style>
 :root {
   --blue-900: #0D2137;
@@ -593,6 +593,16 @@ let fileValidationInputs = {};  // {fileIndex: {unitPrice, points}}
 let validationResults = null;   // stored separately from processedData
 let depositModeEnabled = false;
 
+// ==================== SECURITY ====================
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function switchUploadMode() {
   var radios = document.getElementsByName('uploadMode');
   for (var r = 0; r < radios.length; r++) {
@@ -718,18 +728,18 @@ function renderFileList() {
     var previewHtml = '';
     if (f.preview) {
       if (f.preview.error) {
-        previewHtml = '<div class="file-preview-stats error">' + f.preview.error + '</div>';
+        previewHtml = '<div class="file-preview-stats error">' + escapeHtml(f.preview.error) + '</div>';
       } else {
         var kindInfo = '';
         if (uploadMode === 'multiSheet' && f.preview.kind && f.preview.kind.indexOf('+') !== -1) {
           var sheetCount = f.preview.kind.split('+').length;
-          kindInfo = '、' + sheetCount + ' 个品类（' + f.preview.kind + '）';
+          kindInfo = '、' + sheetCount + ' 个品类（' + escapeHtml(f.preview.kind) + '）';
         }
         previewHtml = '<div class="file-preview-stats">识别到 ' + f.preview.cnCount + ' 个CN、' + f.preview.roleCount + ' 个角色、' + f.preview.recordCount + ' 个点数' + kindInfo + '</div>';
       }
     }
     return '<div class="file-preview-item">' +
-      '<span class="file-tag">' + f.name + '<span class="remove-file" data-idx="' + i + '">&times;</span></span>' +
+      '<span class="file-tag">' + escapeHtml(f.name) + '<span class="remove-file" data-idx="' + i + '">&times;</span></span>' +
       previewHtml +
       '</div>';
   }).join('');
@@ -1223,10 +1233,10 @@ function buildTableHtml(tableData, fmt, title, themeColors) {
   var html = '<table class="preview-table" style="border-collapse:collapse;width:100%;margin-bottom:20px">';
   var colspan = tableData.headers.length;
   html += '<thead>';
-  html += '<tr><th colspan="' + colspan + '" style="background:' + themeColors.titleBg + ';color:' + themeColors.titleFg + ';font-size:15px;padding:12px;letter-spacing:2px;text-align:center;border-radius:0">' + title + '</th></tr>';
+  html += '<tr><th colspan="' + colspan + '" style="background:' + themeColors.titleBg + ';color:' + themeColors.titleFg + ';font-size:15px;padding:12px;letter-spacing:2px;text-align:center;border-radius:0">' + escapeHtml(title) + '</th></tr>';
   html += '<tr>';
   for (var h = 0; h < tableData.headers.length; h++) {
-    html += '<th style="background:' + themeColors.headerBg + '">' + tableData.headers[h] + '</th>';
+    html += '<th style="background:' + themeColors.headerBg + '">' + escapeHtml(tableData.headers[h]) + '</th>';
   }
   html += '</tr></thead><tbody>';
 
@@ -1241,7 +1251,7 @@ function buildTableHtml(tableData, fmt, title, themeColors) {
       else if (c === 1 && fmt === 'list') cellClass = 'col-detail';
       else if (headerName === '点数') cellClass = 'col-count';
       else if (headerName === '肾' || headerName === '定金' || headerName === '尾款' || headerName === '总肾') cellClass = 'col-cost';
-      html += '<td class="' + cellClass + '" style="background:' + bg + '">' + row[c] + '</td>';
+      html += '<td class="' + cellClass + '" style="background:' + bg + '">' + escapeHtml(row[c]) + '</td>';
     }
     html += '</tr>';
   }
@@ -1270,7 +1280,7 @@ function renderPreview() {
     for (var ei = 0; ei < processedData.validationErrors.length; ei++) {
       var ve = processedData.validationErrors[ei];
       html += '<div style="font-size:13px;color:#9B2C2C;margin-bottom:2px;">';
-      html += '<strong>' + ve.person + '</strong>：肾额 ' + ve.totalCost.toFixed(2) + ' vs 预期 ' + ve.expectedCost.toFixed(2) + '（差' + (ve.diff > 0 ? '+' : '') + ve.diff.toFixed(2) + '）';
+      html += '<strong>' + escapeHtml(ve.person) + '</strong>：肾额 ' + ve.totalCost.toFixed(2) + ' vs 预期 ' + ve.expectedCost.toFixed(2) + '（差' + (ve.diff > 0 ? '+' : '') + ve.diff.toFixed(2) + '）';
       html += '</div>';
     }
     html += '<div style="font-size:12px;color:#9B2C2C;margin-top:6px;">可能原因：同一角色在不同排表中单价不一致，或排表数据有误</div>';
@@ -1318,8 +1328,8 @@ function renderPreview() {
       var rowBg = row.isTotal ? (allPass ? '#C6F6D5' : '#FBD38D') : 'transparent';
       var rowWeight = row.isTotal ? 'font-weight:700;' : '';
       html += '<tr style="' + rowWeight + 'background:' + rowBg + ';">';
-      html += '<td style="padding:4px 8px;text-align:left;">' + row.name + '</td>';
-      html += '<td style="padding:4px 8px;text-align:center;">' + row.kind + '</td>';
+      html += '<td style="padding:4px 8px;text-align:left;">' + escapeHtml(row.name) + '</td>';
+      html += '<td style="padding:4px 8px;text-align:center;">' + escapeHtml(row.kind) + '</td>';
       html += '<td style="padding:4px 8px;text-align:center;">' + row.totalCount + '</td>';
       html += '<td style="padding:4px 8px;text-align:center;">' + row.totalCost.toFixed(2) + '</td>';
       html += '<td style="padding:4px 8px;text-align:center;">' + (row.isTotal ? '--' : row.unitPrice.toFixed(2)) + '</td>';
@@ -1526,7 +1536,7 @@ function renderValidationInputs() {
       html += '<div class="validation-file-row">';
       html += '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">';
       html += '<input type="checkbox" class="v-checked" data-idx="' + si + '"' + (vi.checked !== false ? ' checked' : '') + ' style="width:14px;height:14px;cursor:pointer;">';
-      html += '<span class="vf-name">' + importedFiles[0].name + '（' + kind + '）</span>';
+      html += '<span class="vf-name">' + escapeHtml(importedFiles[0].name) + '（' + escapeHtml(kind) + '）</span>';
       html += '</label>';
       html += '<div class="form-group"><label style="font-size:12px;">预期均价</label><input type="number" class="validation-input v-unit-price" data-idx="' + si + '" value="' + vi.unitPrice + '" placeholder="如：15" step="0.01" min="0"></div>';
       html += '<div class="form-group"><label style="font-size:12px;">预期点数</label><input type="number" class="validation-input v-points" data-idx="' + si + '" value="' + vi.points + '" placeholder="如：20" step="1" min="0"></div>';
@@ -1541,7 +1551,7 @@ function renderValidationInputs() {
       html += '<div class="validation-file-row">';
       html += '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">';
       html += '<input type="checkbox" class="v-checked" data-idx="' + i + '"' + (vi.checked !== false ? ' checked' : '') + ' style="width:14px;height:14px;cursor:pointer;">';
-      html += '<span class="vf-name">' + f.name + (kind ? '（' + kind + '）' : '') + '</span>';
+      html += '<span class="vf-name">' + escapeHtml(f.name) + (kind ? '（' + escapeHtml(kind) + '）' : '') + '</span>';
       html += '</label>';
       html += '<div class="form-group"><label style="font-size:12px;">预期均价</label><input type="number" class="validation-input v-unit-price" data-idx="' + i + '" value="' + vi.unitPrice + '" placeholder="如：15" step="0.01" min="0"></div>';
       html += '<div class="form-group"><label style="font-size:12px;">预期点数</label><input type="number" class="validation-input v-points" data-idx="' + i + '" value="' + vi.points + '" placeholder="如：20" step="1" min="0"></div>';

@@ -96,17 +96,34 @@ async function doQuery() {
     var data = await resp.json();
     if (data.ok) {
       resultEl.className = 'result success';
-      resultEl.innerHTML = '您的激活码：<code>' + data.code + '</code>'
-        + '<button class="copy-btn" onclick="copyCode(\'' + data.code + '\')">复制激活码</button>'
-        + '<p class="meta">'
-        + (data.plan === 'monthly' ? '月费' : '年费')
-        + ' · 有效期至 ' + new Date(data.expires_at).toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
-        + '</p>'
-        + '<p class="meta" style="margin-top:4px;">请复制激活码，打开 <a href="guoji.html" style="color:#2B6FA8;">国际表</a> 页面粘贴激活</p>';
+      // Build result with DOM API for security (data.code must not touch innerHTML)
+      resultEl.innerHTML = '';
+      resultEl.appendChild(document.createTextNode('您的激活码：'));
+      var codeEl = document.createElement('code');
+      codeEl.textContent = data.code;
+      resultEl.appendChild(codeEl);
+      var copyBtn = document.createElement('button');
+      copyBtn.className = 'copy-btn';
+      copyBtn.textContent = '复制激活码';
+      (function(c) { copyBtn.addEventListener('click', function() { copyCode(c); }); })(data.code);
+      resultEl.appendChild(copyBtn);
+      var meta1 = document.createElement('p');
+      meta1.className = 'meta';
+      meta1.textContent = (data.plan === 'monthly' ? '月费' : '年费')
+        + ' · 有效期至 ' + new Date(data.expires_at).toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+      resultEl.appendChild(meta1);
+      var meta2 = document.createElement('p');
+      meta2.className = 'meta';
+      meta2.style.marginTop = '4px';
+      meta2.innerHTML = '请复制激活码，打开 <a href="guoji.html" style="color:#2B6FA8;">国际表</a> 页面粘贴激活';
+      resultEl.appendChild(meta2);
     } else {
       resultEl.className = 'result error';
-      resultEl.innerHTML = (data.message || '未找到激活码')
-        + '<br><span style="font-size:12px;display:block;margin-top:4px;">可能原因：付款尚未处理（请等待 1-2 分钟）、输入的订单号有误、或订单未成功。如持续无法获取，请联系客服。</span>';
+      resultEl.textContent = (data.message || '未找到激活码');
+      var hint = document.createElement('span');
+      hint.style.cssText = 'font-size:12px;display:block;margin-top:4px;';
+      hint.textContent = '可能原因：付款尚未处理（请等待 1-2 分钟）、输入的订单号有误、或订单未成功。如持续无法获取，请联系客服。';
+      resultEl.appendChild(hint);
     }
   } catch(e) {
     resultEl.className = 'result error';
@@ -117,9 +134,9 @@ async function doQuery() {
 
 function copyCode(code) {
   navigator.clipboard.writeText(code).then(function(){
-    var btn = event.target;
-    btn.textContent = '已复制!';
-    setTimeout(function(){ btn.textContent = '复制激活码'; }, 1500);
+    var btn = document.querySelector('.copy-btn');
+    if (btn) { btn.textContent = '已复制!'; }
+    setTimeout(function(){ if (btn) btn.textContent = '复制激活码'; }, 1500);
   });
 }
 </script>

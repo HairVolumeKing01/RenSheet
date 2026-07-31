@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RenSheet — 国际表生成器</title>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/exceljs.min.js"></script>
 <script src="activation.js"></script>
 <style>
 :root {
@@ -631,6 +631,16 @@ var currentTheme = 'blue';
 var fileIdCounter = 0;
 var manualIdCounter = 0;
 
+// ==================== SECURITY ====================
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function switchUploadMode() {
   var radios = document.getElementsByName('uploadMode');
   for (var r = 0; r < radios.length; r++) {
@@ -825,13 +835,13 @@ function renderParseEntries() {
     var f = parsedFiles[i];
     html += '<div class="parse-entry" data-id="' + f.id + '">';
     html += '<div class="parse-entry-header">';
-    html += '<span class="parse-entry-name">' + f.name + '</span>';
+    html += '<span class="parse-entry-name">' + escapeHtml(f.name) + '</span>';
     html += '<button class="parse-entry-remove" data-rid="' + f.id + '" title="移除">&times;</button>';
     html += '</div>';
     // Preview stats (before form-row, when not yet parsed)
     if (!f.parsed && f.preview) {
       if (f.preview.error) {
-        html += '<div class="parse-entry-preview-stats error">解析提示：' + f.preview.error + '</div>';
+        html += '<div class="parse-entry-preview-stats error">解析提示：' + escapeHtml(f.preview.error) + '</div>';
       } else if (f.preview.cnCount > 0 || f.preview.roleCount > 0) {
         html += '<div class="parse-entry-preview-stats">识别到 ' + f.preview.cnCount + ' 个CN、' + f.preview.roleCount + ' 个角色、' + f.preview.recordCount + ' 个点数</div>';
       }
@@ -927,7 +937,7 @@ function buildParseResultsHtml(f) {
   if (cns.length > 0) {
     html += '<table class="parse-preview-table"><thead><tr><th>CN</th><th>点数</th><th>本体(g)</th></tr></thead><tbody>';
     for (var i = 0; i < cns.length; i++) {
-      html += '<tr><td>' + cns[i] + '</td><td>' + f.cnPoints[cns[i]] + '</td><td>' + (f.cnBodyWeight[cns[i]] || 0).toFixed(2) + '</td></tr>';
+      html += '<tr><td>' + escapeHtml(cns[i]) + '</td><td>' + f.cnPoints[cns[i]] + '</td><td>' + (f.cnBodyWeight[cns[i]] || 0).toFixed(2) + '</td></tr>';
     }
     html += '</tbody></table>';
   }
@@ -1497,7 +1507,7 @@ function renderPreview() {
   var errorBanner = '';
   if (computedResults.deletedCns && computedResults.deletedCns.length) {
     errorBanner += '<div style="background:#FFF3CD;border:1px solid #E6C631;border-radius:6px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:#856404;">';
-    errorBanner += '已自动移除 ' + computedResults.deletedCns.length + ' 条全零数据：' + computedResults.deletedCns.join('、');
+    errorBanner += '已自动移除 ' + computedResults.deletedCns.length + ' 条全零数据：' + escapeHtml(computedResults.deletedCns.join('、'));
     errorBanner += '</div>';
   }
   if (computedResults.hasValidationError) {
@@ -1506,7 +1516,7 @@ function renderPreview() {
     for (var ei = 0; ei < computedResults.validationErrors.length; ei++) {
       var ve = computedResults.validationErrors[ei];
       errorBanner += '<div style="font-size:13px;color:#9B2C2C;margin-bottom:2px;">';
-      errorBanner += '<strong>' + ve.cn + '</strong>：' + ve.errors.join('；') + ' &mdash; 请检查：单点克重设置是否正确，总包裹重量是否大于总本体重量';
+      errorBanner += '<strong>' + escapeHtml(ve.cn) + '</strong>：' + escapeHtml(ve.errors.join('；')) + ' &mdash; 请检查：单点克重设置是否正确，总包裹重量是否大于总本体重量';
       errorBanner += '</div>';
     }
     errorBanner += '</div>';
@@ -1514,7 +1524,7 @@ function renderPreview() {
 
   var html = errorBanner + '<table class="preview-table">';
   html += '<thead>';
-  html += '<tr><th colspan="5" style="background:' + themeColors.titleBg + ';color:' + themeColors.titleFg + ';font-size:15px;padding:12px;letter-spacing:2px;text-align:center">' + title + '</th></tr>';
+  html += '<tr><th colspan="5" style="background:' + themeColors.titleBg + ';color:' + themeColors.titleFg + ';font-size:15px;padding:12px;letter-spacing:2px;text-align:center">' + escapeHtml(title) + '</th></tr>';
   html += '<tr>';
   for (var h = 0; h < headers.length; h++) {
     html += '<th style="background:' + themeColors.headerBg + '">' + headers[h] + '</th>';
@@ -1536,7 +1546,7 @@ function renderPreview() {
     var errStyle = isErrorRow ? 'border-left:3px solid #E53E3E;' : '';
     var cellBg = isErrorRow ? '#FEF2F2' : bg;
     html += '<tr style="' + errStyle + '">';
-    html += '<td class="col-name" style="background:' + cellBg + '">' + row.cn + '</td>';
+    html += '<td class="col-name" style="background:' + cellBg + '">' + escapeHtml(row.cn) + '</td>';
     html += '<td style="background:' + cellBg + ';' + (row.bodyWeight <= 0 ? 'color:#E53E3E;font-weight:700' : '') + '">' + row.bodyWeight.toFixed(2) + '</td>';
     html += '<td style="background:' + cellBg + ';' + (row.boxAllocation < 0 ? 'color:#E53E3E;font-weight:700' : '') + '">' + row.boxAllocation.toFixed(2) + '</td>';
     html += '<td style="background:' + cellBg + '">' + row.totalWeight.toFixed(2) + '</td>';

@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RenSheet — 二调退补表</title>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/exceljs.min.js"></script>
 <style>
 :root {
   --blue-900: #0D2137;
@@ -1185,12 +1185,12 @@ function handleFile(file, isOriginal, tagEl, dz) {
         var previewTagHtml = '';
         if (preview) {
           if (preview.error) {
-            previewTagHtml = '<div class="file-preview-stats error">' + preview.error + '</div>';
+            previewTagHtml = '<div class="file-preview-stats error">' + escapeHtml(preview.error) + '</div>';
           } else {
             previewTagHtml = '<div class="file-preview-stats">解析到 ' + preview.cnCount + ' 个CN、' + preview.roleCount + ' 个角色、' + preview.recordCount + ' 个点数</div>';
           }
         }
-        tagEl.innerHTML = '<div class="file-preview-item"><span class="file-tag">' + file.name + ' <span class="remove-file" onclick="removeFile(true)">&times;</span></span>' + previewTagHtml + '</div>';
+        tagEl.innerHTML = '<div class="file-preview-item"><span class="file-tag">' + escapeHtml(file.name) + ' <span class="remove-file" onclick="removeFile(true)">&times;</span></span>' + previewTagHtml + '</div>';
         dz.style.borderColor = '#9AE6B4';
         saveDraft();
       } else {
@@ -1200,12 +1200,12 @@ function handleFile(file, isOriginal, tagEl, dz) {
         var previewTagHtml = '';
         if (preview) {
           if (preview.error) {
-            previewTagHtml = '<div class="file-preview-stats error">' + preview.error + '</div>';
+            previewTagHtml = '<div class="file-preview-stats error">' + escapeHtml(preview.error) + '</div>';
           } else {
             previewTagHtml = '<div class="file-preview-stats">解析到 ' + preview.cnCount + ' 个CN、' + preview.roleCount + ' 个角色、' + preview.recordCount + ' 个点数</div>';
           }
         }
-        tagEl.innerHTML = '<div class="file-preview-item"><span class="file-tag">' + file.name + ' <span class="remove-file" onclick="removeFile(false)">&times;</span></span>' + previewTagHtml + '</div>';
+        tagEl.innerHTML = '<div class="file-preview-item"><span class="file-tag">' + escapeHtml(file.name) + ' <span class="remove-file" onclick="removeFile(false)">&times;</span></span>' + previewTagHtml + '</div>';
         dz.style.borderColor = '#9AE6B4';
         saveDraft();
       }
@@ -2995,7 +2995,7 @@ function buildNewPriceSheet() {
   // Build summary table — only character row + new price row
   var html = '<table class="summary-table"><thead><tr>';
   for (var j = 0; j < characters.length; j++) {
-    html += '<th>' + characters[j] + '</th>';
+    html += '<th>' + escapeHtml(characters[j]) + '</th>';
   }
   html += '</tr></thead><tbody>';
 
@@ -3037,7 +3037,7 @@ function buildDataPreview() {
   // First column is row label column
   html += '<th></th>';
   for (var h = 0; h < headers.length; h++) {
-    html += '<th>' + String(headers[h]).trim() + '</th>';
+    html += '<th>' + escapeHtml(String(headers[h]).trim()) + '</th>';
   }
   html += '</tr></thead><tbody>';
 
@@ -3063,7 +3063,7 @@ function buildDataPreview() {
     html += '<tr>';
     html += '<td></td>';
     for (var dc2 = 1; dc2 <= headers.length; dc2++) {
-      html += '<td>' + (String(row[dc2] || '').trim() || '') + '</td>';
+      html += '<td>' + escapeHtml(String(row[dc2] || '').trim() || '') + '</td>';
     }
     html += '</tr>';
   }
@@ -3292,10 +3292,10 @@ function buildFinalTableHtml(tableData, title, themeColors) {
   var html = '<table class="preview-table" style="border-collapse:collapse;width:100%;margin-bottom:20px">';
   var colspan = tableData.headers.length;
   html += '<thead>';
-  html += '<tr><th colspan="' + colspan + '" style="background:' + themeColors.titleBg + ';color:' + themeColors.titleFg + ';font-size:15px;padding:12px;letter-spacing:2px;text-align:center;border-radius:0">' + title + '</th></tr>';
+  html += '<tr><th colspan="' + colspan + '" style="background:' + themeColors.titleBg + ';color:' + themeColors.titleFg + ';font-size:15px;padding:12px;letter-spacing:2px;text-align:center;border-radius:0">' + escapeHtml(title) + '</th></tr>';
   html += '<tr>';
   for (var h = 0; h < tableData.headers.length; h++) {
-    html += '<th style="background:' + themeColors.headerBg + '">' + tableData.headers[h] + '</th>';
+    html += '<th style="background:' + themeColors.headerBg + '">' + escapeHtml(tableData.headers[h]) + '</th>';
   }
   html += '</tr></thead><tbody>';
 
@@ -3322,7 +3322,7 @@ function buildFinalTableHtml(tableData, title, themeColors) {
           cellClass += ' zero';
         }
       } else if (c <= row.length - 2) cellClass = 'col-cost';
-      html += '<td class="' + cellClass + '" style="' + cellStyle + '">' + row[c] + '</td>';
+      html += '<td class="' + cellClass + '" style="' + cellStyle + '">' + escapeHtml(row[c]) + '</td>';
     }
     html += '</tr>';
   }
@@ -3580,11 +3580,11 @@ function restoreDraft() {
 
   // Show original file name tag (workbook not restorable)
   if (saved.origFileName) {
-    tagOriginal.innerHTML = '<div class="file-preview-item"><span class="file-tag">' + saved.origFileName + ' <span class="remove-file" onclick="removeFile(true)">&times;</span></span><div class="file-preview-stats" style="color:#E53E3E">需重新上传文件</div></div>';
+    tagOriginal.innerHTML = '<div class="file-preview-item"><span class="file-tag">' + escapeHtml(saved.origFileName) + ' <span class="remove-file" onclick="removeFile(true)">&times;</span></span><div class="file-preview-stats" style="color:#E53E3E">需重新上传文件</div></div>';
     dzOriginal.style.borderColor = '#FBBF24';
   }
   if (saved.actualFileName) {
-    tagActual.innerHTML = '<div class="file-preview-item"><span class="file-tag">' + saved.actualFileName + ' <span class="remove-file" onclick="removeFile(false)">&times;</span></span><div class="file-preview-stats" style="color:#E53E3E">需重新上传文件</div></div>';
+    tagActual.innerHTML = '<div class="file-preview-item"><span class="file-tag">' + escapeHtml(saved.actualFileName) + ' <span class="remove-file" onclick="removeFile(false)">&times;</span></span><div class="file-preview-stats" style="color:#E53E3E">需重新上传文件</div></div>';
     dzActual.style.borderColor = '#FBBF24';
   }
 
