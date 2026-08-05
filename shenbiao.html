@@ -259,6 +259,9 @@ body {
 .deposit-input { width:210px; }
 .deposit-guide { width:100%; font-size:12px; color:var(--gray-700); }
 .deposit-guide.error { color:#C53030; font-weight:600; }
+.btn-sm { padding:6px 14px; font-size:12px; }
+.fee-mode-panel { display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap; margin-top:10px; padding:10px 14px; background:var(--white); border:1px solid var(--blue-100); border-radius:var(--radius); }
+.fee-mode-panel .deposit-mode-check { font-size:12.5px; }
 
 /* Buttons */
 .btn {
@@ -542,6 +545,20 @@ body {
       <input type="text" class="input-text deposit-input" id="depositValue" placeholder="如：20 或 30%" disabled>
       <div class="deposit-guide" id="depositGuide">固定金额直接填写数字；按比例计算必须输入 %，例如 30%</div>
     </div>
+    <div class="deposit-mode-row">
+      <label class="deposit-mode-check" for="feeMode">
+        <input type="checkbox" id="feeMode"> 添加其他费用
+      </label>
+      <input type="text" class="input-text deposit-input" id="feeValue" placeholder="如：50" disabled>
+      <button class="btn btn-secondary btn-sm" id="feeConfirm" disabled>确认</button>
+      <div class="deposit-guide" id="feeGuide">填写其他费用总额(元)，点击确认后选择均摊模式</div>
+      <div class="fee-mode-panel" id="feeModePanel" style="display:none;">
+        <label class="deposit-mode-check"><input type="radio" name="feeModeRadio" value="points"> 点数均摊模式</label>
+        <label class="deposit-mode-check"><input type="radio" name="feeModeRadio" value="people"> 人数均摊模式</label>
+        <label class="deposit-mode-check"><input type="radio" name="feeModeRadio" value="kidney"> 本体肾额比例均摊模式</label>
+        <div class="deposit-guide" id="feeRadioGuide" style="width:100%;text-align:center;"></div>
+      </div>
+    </div>
     <div class="btn-row" style="justify-content:center;">
       <button class="btn btn-primary" id="processBtn">开始处理</button>
       <button class="btn btn-export" id="exportBtn" disabled>导出肾表</button>
@@ -593,6 +610,9 @@ let validationEnabled = false;
 let fileValidationInputs = {};  // {fileIndex: {unitPrice, points}}
 let validationResults = null;   // stored separately from processedData
 let depositModeEnabled = false;
+let feeModeEnabled = false;      // 复选框勾选状态
+let feeConfirmed = false;        // 金额已点确认
+let feeModeSelected = null;      // 'points'|'people'|'kidney'
 
 // ==================== SECURITY ====================
 function escapeHtml(value) {
@@ -645,6 +665,12 @@ const validateBtn = document.getElementById('validateBtn');
 const depositModeInput = document.getElementById('depositMode');
 const depositValueInput = document.getElementById('depositValue');
 const depositGuide = document.getElementById('depositGuide');
+const feeModeInput = document.getElementById('feeMode');
+const feeValueInput = document.getElementById('feeValue');
+const feeConfirmBtn = document.getElementById('feeConfirm');
+const feeGuide = document.getElementById('feeGuide');
+const feeModePanel = document.getElementById('feeModePanel');
+const feeRadioGuide = document.getElementById('feeRadioGuide');
 
 // ==================== TOAST ====================
 let toastTimer;
@@ -1077,12 +1103,78 @@ function parseDepositConfig(showError) {
   return error ? false : config;
 }
 
-function calculateDeposit(totalCost, config) {
-  var totalCents = Math.round(totalCost * 100);
+// totalCents 为整数分, 避免元→分二次舍入误差
+function calculateDeposit(totalCents, config) {
   var depositCents = config.type === 'percent'
     ? Math.round(totalCents * config.value / 100)
     : Math.round(config.value * 100);
   return {depositCents:depositCents, tailCents:totalCents - depositCents, totalCents:totalCents};
+}
+
+// ==================== EXTRA FEE (其他费用) ====================
+function getFeeAmountCents() {
+  var raw = feeValueInput.value.trim();
+  if (!/^\d+(?:\.\d+)?$/.test(raw)) return 0;
+  var cents = Math.round(parseFloat(raw) * 100);
+  return cents > 0 ? cents : 0;
+}
+
+function feeModeLabel(mode) {
+  return mode === 'points' ? '点数均摊' : mode === 'people' ? '人数均摊' : '本体肾额比例均摊';
+}
+
+function buildFeeContext(data) {
+  var totalPoints = 0, totalKidneyCents = 0;
+  for (var i = 0; i < data.persons.length; i++) {
+    var pm = data.personMap[data.persons[i]];
+    totalPoints += pm.totalCount;
+    totalKidneyCents += Math.round(pm.totalCost * 100);
+  }
+  return {totalPoints: totalPoints, totalKidneyCents: totalKidneyCents, personCount: data.persons.length};
+}
+
+// 单人其他费用(整数分), 统一进一法到分, 不做尾差兜底
+function calculateFee(pm, feeConfig, ctx) {
+  var totalCents = feeConfig.totalCents;
+  if (feeConfig.mode === 'points') {
+    return ctx.totalPoints > 0 ? Math.ceil(totalCents * pm.totalCount / ctx.totalPoints) : 0;
+  }
+  if (feeConfig.mode === 'people') {
+    return ctx.personCount > 0 ? Math.ceil(totalCents / ctx.personCount) : 0;
+  }
+  var myCents = Math.round(pm.totalCost * 100);
+  return ctx.totalKidneyCents > 0 ? Math.ceil(totalCents * myCents / ctx.totalKidneyCents) : 0;
+}
+
+// 定尾基数 = 本体肾 + 其他费用(如有), 整数分
+function getTailBaseCents(pm, data) {
+  var base = Math.round(pm.totalCost * 100);
+  if (data.feeConfig) {
+    var ctx = data.feeContext || (data.feeContext = buildFeeContext(data));
+    base += calculateFee(pm, data.feeConfig, ctx);
+  }
+  return base;
+}
+
+function validateFeeForData(data, showError) {
+  if (!feeModeEnabled || !feeConfirmed || !feeModeSelected) return null;
+  var totalCents = getFeeAmountCents();
+  if (totalCents <= 0) {
+    var msg = '请填写有效的其他费用金额';
+    if (showError) showToast(msg, true);
+    return false;
+  }
+  if (feeModeSelected === 'kidney') {
+    var ctx = buildFeeContext(data);
+    if (ctx.totalKidneyCents <= 0) {
+      var msg2 = '本体肾额合计为 0，无法按本体肾额比例均摊，请选择其他模式';
+      feeGuide.classList.add('error');
+      feeGuide.textContent = msg2;
+      if (showError) showToast(msg2, true);
+      return false;
+    }
+  }
+  return {totalCents: totalCents, mode: feeModeSelected};
 }
 
 function validateDepositForData(data, showError) {
@@ -1091,7 +1183,7 @@ function validateDepositForData(data, showError) {
   if (config.type === 'fixed') {
     for (var i = 0; i < data.persons.length; i++) {
       var person = data.persons[i];
-      if (Math.round(data.personMap[person].totalCost * 100) < Math.round(config.value * 100)) {
+      if (getTailBaseCents(data.personMap[person], data) < Math.round(config.value * 100)) {
         var msg = '「' + person + '」的总肾低于固定定金 ' + config.value.toFixed(2) + ' 元，请降低定金';
         depositGuide.classList.add('error');
         depositGuide.textContent = msg;
@@ -1107,7 +1199,7 @@ function getDepositSummary(data) {
   var summary = {depositCents:0, tailCents:0, totalCents:0, pass:true};
   if (!data.depositConfig) return summary;
   data.persons.forEach(function(person) {
-    var split = calculateDeposit(data.personMap[person].totalCost, data.depositConfig);
+    var split = calculateDeposit(getTailBaseCents(data.personMap[person], data), data.depositConfig);
     summary.depositCents += split.depositCents;
     summary.tailCents += split.tailCents;
     summary.totalCents += split.totalCents;
@@ -1138,7 +1230,15 @@ function getSortedKinds(personMap) {
 
 function buildCategorizedTable(data) {
   var allKinds = getSortedKinds(data.personMap);
-  var headers = ['cn'].concat(allKinds).concat(data.depositConfig ? ['点数', '定金', '尾款', '总肾'] : ['点数', '肾']);
+  data.feeContext = data.feeConfig ? buildFeeContext(data) : null;
+  var headers = ['cn'].concat(allKinds).concat(['点数']);
+  if (data.feeConfig) {
+    headers = headers.concat(data.depositConfig
+      ? ['本体肾', '其他费用', '定金', '尾款', '总肾']
+      : ['本体肾', '其他费用', '总肾']);
+  } else {
+    headers = headers.concat(data.depositConfig ? ['定金', '尾款', '总肾'] : ['肾']);
+  }
   var rows = [];
 
   for (var i = 0; i < data.persons.length; i++) {
@@ -1172,19 +1272,34 @@ function buildCategorizedTable(data) {
     }
 
     row.push(pm.totalCount);
+    var bodyCents = Math.round(pm.totalCost * 100);                     // 本体肾(分)
+    var feeCents = data.feeConfig ? calculateFee(pm, data.feeConfig, data.feeContext) : 0;  // 其他费用(分)
+    var totalCents = bodyCents + feeCents;                              // 总肾(分)
+    if (data.feeConfig) {
+      row.push(bodyCents / 100);
+      row.push(feeCents / 100);
+    }
     if (data.depositConfig) {
-      var split = calculateDeposit(pm.totalCost, data.depositConfig);
+      var split = calculateDeposit(totalCents, data.depositConfig);     // 定尾基数 = 总肾
       row.push(split.depositCents / 100);
       row.push(split.tailCents / 100);
     }
-    row.push(Number(pm.totalCost.toFixed(2)));
+    row.push(totalCents / 100);
     rows.push(row);
   }
   return {headers: headers, rows: rows};
 }
 
 function buildListTable(data) {
-  var headers = data.depositConfig ? ['cn', '明细', '点数', '定金', '尾款', '总肾'] : ['cn', '明细', '点数', '肾'];
+  data.feeContext = data.feeConfig ? buildFeeContext(data) : null;
+  var headers = ['cn', '明细', '点数'];
+  if (data.feeConfig) {
+    headers = headers.concat(data.depositConfig
+      ? ['本体肾', '其他费用', '定金', '尾款', '总肾']
+      : ['本体肾', '其他费用', '总肾']);
+  } else {
+    headers = headers.concat(data.depositConfig ? ['定金', '尾款', '总肾'] : ['肾']);
+  }
   var rows = [];
   var allKinds = getSortedKinds(data.personMap);
 
@@ -1219,12 +1334,19 @@ function buildListTable(data) {
       detailStr = breaks.join('\n');
     }
     var row = [person, detailStr, pm.totalCount];
+    var bodyCents = Math.round(pm.totalCost * 100);
+    var feeCents = data.feeConfig ? calculateFee(pm, data.feeConfig, data.feeContext) : 0;
+    var totalCents = bodyCents + feeCents;
+    if (data.feeConfig) {
+      row.push(bodyCents / 100);
+      row.push(feeCents / 100);
+    }
     if (data.depositConfig) {
-      var split = calculateDeposit(pm.totalCost, data.depositConfig);
+      var split = calculateDeposit(totalCents, data.depositConfig);
       row.push(split.depositCents / 100);
       row.push(split.tailCents / 100);
     }
-    row.push(Number(pm.totalCost.toFixed(2)));
+    row.push(totalCents / 100);
     rows.push(row);
   }
   return {headers: headers, rows: rows};
@@ -1387,6 +1509,9 @@ processBtn.addEventListener('click', function() {
   var depositConfig = validateDepositForData(result, true);
   if (depositConfig === false) return;
   result.depositConfig = depositConfig;
+  var feeConfig = validateFeeForData(result, true);
+  if (feeConfig === false) return;
+  result.feeConfig = feeConfig;
   processedData = result;
   processedData.title = fileNameInput.value.trim() || '肾表';
   processedData.theme = currentTheme;
@@ -1404,6 +1529,9 @@ exportBtn.addEventListener('click', function() {
   var depositConfig = validateDepositForData(processedData, true);
   if (depositConfig === false) return;
   processedData.depositConfig = depositConfig;
+  var feeConfig = validateFeeForData(processedData, true);
+  if (feeConfig === false) return;
+  processedData.feeConfig = feeConfig;
   var formats = getSelectedFormats();
   if (!formats.length) { showToast('请先选择肾表样式', true); return; }
   var title = fileNameInput.value.trim() || '肾表';
@@ -1444,7 +1572,7 @@ exportBtn.addEventListener('click', function() {
         var cell = ws.getCell(r + 3, c + 1);
         var headerName = tableData.headers[c];
         var isPointColumn = headerName === '点数';
-        var isMoneyColumn = headerName === '肾' || headerName === '定金' || headerName === '尾款' || headerName === '总肾';
+        var isMoneyColumn = headerName === '肾' || headerName === '本体肾' || headerName === '其他费用' || headerName === '定金' || headerName === '尾款' || headerName === '总肾';
         if (isPointColumn || isMoneyColumn) {
           cell.value = Number(row[c]);
           cell.numFmt = isPointColumn ? '0' : '0.00';
@@ -1739,6 +1867,67 @@ depositValueInput.addEventListener('input', function() {
   saveDraft();
 });
 
+// ==================== EXTRA FEE (其他费用) ====================
+feeModeInput.addEventListener('change', function() {
+  feeModeEnabled = this.checked;
+  feeValueInput.disabled = !feeModeEnabled;
+  feeConfirmBtn.disabled = !feeModeEnabled;
+  if (!feeModeEnabled) {
+    // 取消勾选 → 全部重置
+    feeConfirmed = false;
+    feeModeSelected = null;
+    feeModePanel.style.display = 'none';
+    feeValueInput.value = '';
+    feeRadioGuide.textContent = '';
+    feeGuide.classList.remove('error');
+    feeGuide.textContent = '填写其他费用总额(元)，点击确认后选择均摊模式';
+    var radios = document.querySelectorAll('input[name="feeModeRadio"]');
+    for (var fr = 0; fr < radios.length; fr++) radios[fr].checked = false;
+    if (processedData) {
+      processedData.feeConfig = null;
+      renderPreview();
+      exportBtn.disabled = false;
+    }
+  } else if (feeConfirmed) {
+    // 重新勾选且此前已确认 → 恢复面板
+    feeValueInput.disabled = true;
+    feeConfirmBtn.disabled = true;
+    feeModePanel.style.display = 'block';
+  }
+  saveDraft();
+});
+
+feeConfirmBtn.addEventListener('click', function() {
+  if (!feeModeEnabled) return;
+  var cents = getFeeAmountCents();
+  if (cents <= 0) {
+    feeGuide.classList.add('error');
+    feeGuide.textContent = '请输入有效的金额(大于 0 的数字，如 50)';
+    return;
+  }
+  feeConfirmed = true;
+  feeValueInput.disabled = true;
+  feeConfirmBtn.disabled = true;
+  feeGuide.classList.remove('error');
+  feeGuide.textContent = '金额已确认：' + (cents / 100).toFixed(2) + ' 元，请选择均摊模式';
+  feeModePanel.style.display = 'block';
+  saveDraft();
+});
+
+feeModePanel.addEventListener('change', function(e) {
+  if (e.target.name !== 'feeModeRadio') return;
+  feeModeSelected = e.target.value;
+  feeRadioGuide.textContent = feeModeLabel(feeModeSelected) + '：单人其他费用按所选模式分摊，进一法保留两位小数';
+  if (processedData) {
+    var cfg = validateFeeForData(processedData, true);
+    if (cfg === false) return;
+    processedData.feeConfig = cfg;
+    renderPreview();
+    exportBtn.disabled = false;
+  }
+  saveDraft();
+});
+
 // ==================== FORMAT CHANGE ====================
 document.getElementById('formatGroup').addEventListener('change', function(e) {
   if (e.target.type !== 'checkbox') return;
@@ -1764,6 +1953,10 @@ function buildDraftObject() {
     fileName: fileNameInput.value,
     depositModeEnabled: depositModeEnabled,
     depositValue: depositValueInput.value,
+    feeModeEnabled: feeModeEnabled,
+    feeValue: feeValueInput.value,
+    feeConfirmed: feeConfirmed,
+    feeModeSelected: feeModeSelected,
     validationEnabled: validationEnabled,
     fileValidationInputs: fileValidationInputs,
     hasProcessedData: processedData !== null,
@@ -1815,6 +2008,28 @@ function restoreDraft() {
   depositValueInput.disabled = !depositModeEnabled;
   depositValueInput.value = saved.depositValue || '';
   if (depositModeEnabled) parseDepositConfig(false);
+
+  // Restore extra fee mode
+  feeModeEnabled = saved.feeModeEnabled || false;
+  feeConfirmed = saved.feeConfirmed || false;
+  feeModeSelected = saved.feeModeSelected || null;
+  feeModeInput.checked = feeModeEnabled;
+  feeValueInput.value = saved.feeValue || '';
+  feeValueInput.disabled = !feeModeEnabled;
+  feeConfirmBtn.disabled = !feeModeEnabled;
+  if (feeConfirmed) {
+    feeValueInput.disabled = true;
+    feeConfirmBtn.disabled = true;
+    feeGuide.textContent = '金额已确认：' + (getFeeAmountCents() / 100).toFixed(2) + ' 元，请选择均摊模式';
+    feeModePanel.style.display = 'block';
+  }
+  if (feeModeSelected) {
+    var feeRadios = document.querySelectorAll('input[name="feeModeRadio"]');
+    for (var fr2 = 0; fr2 < feeRadios.length; fr2++) {
+      feeRadios[fr2].checked = feeRadios[fr2].value === feeModeSelected;
+    }
+    feeRadioGuide.textContent = feeModeLabel(feeModeSelected) + '：单人其他费用按所选模式分摊，进一法保留两位小数';
+  }
 
   // Restore validation
   validationEnabled = saved.validationEnabled || false;
@@ -1885,6 +2100,17 @@ function showRestoreBanner(saved) {
     depositValueInput.disabled = true;
     depositGuide.classList.remove('error');
     depositGuide.textContent = '固定金额直接填写数字；按比例计算必须输入 %，例如 30%';
+    feeModeEnabled = false;
+    feeConfirmed = false;
+    feeModeSelected = null;
+    feeModeInput.checked = false;
+    feeValueInput.value = '';
+    feeValueInput.disabled = true;
+    feeConfirmBtn.disabled = true;
+    feeModePanel.style.display = 'none';
+    feeRadioGuide.textContent = '';
+    feeGuide.classList.remove('error');
+    feeGuide.textContent = '填写其他费用总额(元)，点击确认后选择均摊模式';
     validationEnabled = false;
     fileValidationInputs = {};
     document.getElementById('valNo').checked = true;
