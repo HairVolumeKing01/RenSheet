@@ -357,7 +357,9 @@
       act.expires_at = result.expires_at;
       act.last_verified_at = now;
       setActivation(act);
-    } else if (result.error === 'expired') {
+    } else if (result.error === 'expired' || result.error === 'revoked' || result.error === 'invalid_code') {
+      // Revoked codes must stop working immediately — clearing local state
+      // drops the user back to trial/activation flow on next use
       clearActivation();
     }
     updateBadge();
@@ -373,8 +375,24 @@
     if (act) {
       var now = new Date();
       if (new Date(act.expires_at) > now) {
-        // Also do silent re-verify in background
-        silentReVerify();
+        // Re-verify with the server when the check interval elapsed, so a
+        // revoked/expired code stops working promptly. Network failures must
+        // not lock out a legitimately activated user.
+        var lastVerified = act.last_verified_at ? new Date(act.last_verified_at) : null;
+        if (!lastVerified || now - lastVerified >= VERIFY_INTERVAL_MS) {
+          var verified = await verifyCode(act.code);
+          if (verified.ok) {
+            act.expires_at = verified.expires_at;
+            act.last_verified_at = new Date().toISOString();
+            setActivation(act);
+            return true;
+          }
+          if (verified.error === 'network') return true;
+          clearActivation();
+          updateBadge();
+          showModal();
+          return false;
+        }
         return true;
       }
       // Expired

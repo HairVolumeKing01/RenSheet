@@ -29,18 +29,112 @@ async function sha256(text) {
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// PEM string → ArrayBuffer (strips -----BEGIN/END----- and decodes base64)
-function pemToArrayBuffer(pem) {
-  const b64 = pem.replace(/-----[A-Z ]+-----/g, '').replace(/\s/g, '');
-  return base64ToArrayBuffer(b64);
+// MD5 (pure JS — WebCrypto has no MD5; required for Afdian API signing).
+// Signing input is ASCII (token/params/ts/user_id), so utf-8 handling is trivial.
+function md5(input) {
+  let s = unescape(encodeURIComponent(input));
+  const n = s.length;
+  const state = [1732584193, -271733879, -1732584194, 271733878];
+  let i;
+  for (i = 64; i <= s.length; i += 64) {
+    md5cycle(state, md5block(s.substring(i - 64, i)));
+  }
+  s = s.substring(i - 64);
+  const tail = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  for (i = 0; i < s.length; i++) tail[i >> 2] |= s.charCodeAt(i) << ((i % 4) << 3);
+  tail[i >> 2] |= 0x80 << ((i % 4) << 3);
+  if (i > 55) {
+    md5cycle(state, tail);
+    for (i = 0; i < 16; i++) tail[i] = 0;
+  }
+  tail[14] = n * 8;
+  md5cycle(state, tail);
+  let hex = '';
+  for (i = 0; i < 4; i++) {
+    hex += ((state[i] >>> 0) & 0xff).toString(16).padStart(2, '0')
+      + (((state[i] >>> 8) & 0xff)).toString(16).padStart(2, '0')
+      + (((state[i] >>> 16) & 0xff)).toString(16).padStart(2, '0')
+      + (((state[i] >>> 24) & 0xff)).toString(16).padStart(2, '0');
+  }
+  return hex;
 }
 
-// Base64 string → ArrayBuffer
-function base64ToArrayBuffer(b64) {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
+function md5cycle(state, k) {
+  let a = state[0], b = state[1], c = state[2], d = state[3];
+  const S = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+             5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
+             4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
+             6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21];
+  const T = [];
+  for (let t = 1; t <= 64; t++) {
+    T[t - 1] = Math.floor(Math.abs(Math.sin(t)) * 4294967296);
+  }
+  for (let i = 0; i < 64; i++) {
+    let f, g;
+    if (i < 16) { f = (b & c) | (~b & d); g = i; }
+    else if (i < 32) { f = (d & b) | (~d & c); g = (5 * i + 1) % 16; }
+    else if (i < 48) { f = b ^ c ^ d; g = (3 * i + 5) % 16; }
+    else { f = c ^ (b | ~d); g = (7 * i) % 16; }
+    const tmp = d;
+    d = c;
+    c = b;
+    b = (b + md5Rotl((a + f + T[i] + k[g]) | 0, S[i])) | 0;
+    a = tmp;
+  }
+  state[0] = (state[0] + a) | 0;
+  state[1] = (state[1] + b) | 0;
+  state[2] = (state[2] + c) | 0;
+  state[3] = (state[3] + d) | 0;
+}
+
+function md5Rotl(x, n) {
+  return (x << n) | (x >>> (32 - n));
+}
+
+function md5block(s) {
+  const k = [];
+  for (let i = 0; i < 16; i++) {
+    k[i] = s.charCodeAt(i * 4) | (s.charCodeAt(i * 4 + 1) << 8) | (s.charCodeAt(i * 4 + 2) << 16) | (s.charCodeAt(i * 4 + 3) << 24);
+  }
+  return k;
+}
+
+// 反查爱发电订单 (开放 API): 真实存在 → {status, totalAmount, month}; 查无 → false; API 故障 → null
+async function queryAfdianOrder(outTradeNo, env) {
+  const ts = Math.floor(Date.now() / 1000);
+  const params = JSON.stringify({ page: 1, out_trade_no: outTradeNo });
+  const sign = md5(env.AFDIAN_TOKEN + 'params' + params + 'ts' + ts + 'user_id' + env.AFDIAN_USER_ID);
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 10000);
+  let resp;
+  try {
+    resp = await fetch('https://ifdian.net/api/open/query-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: env.AFDIAN_USER_ID, params, ts, sign }),
+      signal: ac.signal
+    });
+  } catch (e) {
+    console.error('Afdian API fetch error:', e.message);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+  let data;
+  try { data = await resp.json(); } catch (e) { return null; }
+  if (data.ec !== 200) {
+    console.error('Afdian API ec != 200:', data.ec, data.em);
+    return null;
+  }
+  const list = (data.data && data.data.list) || [];
+  const item = list.find(i => (i.order || i).out_trade_no === outTradeNo);
+  if (!item) return false;
+  const o = item.order || item;
+  return {
+    status: parseInt(o.status) || 0,
+    totalAmount: parseFloat(o.total_amount) || 0,
+    month: Math.max(1, parseInt(o.month) || 1)
+  };
 }
 
 function randomChars(len) {
@@ -193,6 +287,7 @@ export default {
       if (path === '/api/consume-trial' && request.method === 'POST') {
         const { tool, fp_hash } = await request.json();
         if (!tool || !fp_hash) return json({ ok: false, error: 'missing_params' }, 400);
+        if (!['guoji'].includes(tool)) return json({ ok: false, error: 'invalid_tool' }, 400);
 
         await env.DB.prepare(
           'UPDATE trial_usage SET remaining = MAX(0, remaining - 1) WHERE fp_hash = ? AND tool = ? AND remaining > 0'
@@ -208,6 +303,10 @@ export default {
       if (path === '/api/get-code' && request.method === 'GET') {
         const orderId = url.searchParams.get('order');
         if (!orderId) return json({ ok: false, error: 'missing_order' }, 400);
+        // Rate-limit per IP — order number is the only credential for code lookup
+        if (!checkRateLimit(getClientIP(request))) {
+          return json({ ok: false, error: 'rate_limited', message: '请求过于频繁，请稍后再试' }, 429);
+        }
 
         const row = await env.DB.prepare(
           'SELECT code, plan, expires_at, delivered_at FROM activation_codes WHERE delivered_to = ? ORDER BY delivered_at DESC LIMIT 1'
@@ -225,60 +324,50 @@ export default {
           return json({ ec: 400, em: 'invalid payload' });
         }
 
-        // Afdian webhook format: { ec:200, em:"ok", data:{ type:"order", order:{...}, sign:"..." } }
-        const order = body.data.order;
-        const outTradeNo = (order.out_trade_no || '').toString();
-        const userId = (order.user_id || '').toString();
-        const planId = (order.plan_id || '').toString();
-        const month = parseInt(order.month) || 1;
-        const totalAmount = parseFloat(order.total_amount) || 0;
-        const remark = (order.remark || '').toString().toLowerCase();
-        const status = parseInt(order.status) || 0;
+        // The webhook payload itself is NOT trustworthy (Afdian has no verifiable
+        // webhook signature). It only triggers a lookup — the order is verified
+        // against the Afdian open API using the real API token.
+        const outTradeNo = (body.data.order.out_trade_no || '').toString();
+        if (!outTradeNo) {
+          return json({ ec: 400, em: 'missing out_trade_no' });
+        }
+
+        if (!env.AFDIAN_USER_ID || !env.AFDIAN_TOKEN) {
+          console.error('AFDIAN_USER_ID/AFDIAN_TOKEN not configured — webhook rejected');
+          return json({ ec: 500, em: 'afdian api credentials not configured' });
+        }
+
+        const verified = await queryAfdianOrder(outTradeNo, env);
+        if (verified === null) {
+          // API unreachable — reject so Afdian retries; codes are never lost
+          return json({ ec: 500, em: 'afdian api unavailable' });
+        }
+        if (verified === false) {
+          // Order does not exist in Afdian → forged webhook
+          return json({ ec: 400, em: 'order verification failed' });
+        }
 
         // Only process successful payments (status=2)
-        if (status !== 2) {
+        if (verified.status !== 2) {
           return json({ ec: 200, em: 'skipped, status not 2' });
         }
 
-        // Verify RSA signature if AFDIAN_PUBLIC_KEY is set
-        const signBase64 = (body.data.sign || '').toString();
-        if (env.AFDIAN_PUBLIC_KEY && signBase64) {
-          try {
-            const signStr = outTradeNo + userId + planId + order.total_amount;
-            const key = await crypto.subtle.importKey(
-              'spki',
-              pemToArrayBuffer(env.AFDIAN_PUBLIC_KEY),
-              { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-              false,
-              ['verify']
-            );
-            const sigBytes = base64ToArrayBuffer(signBase64);
-            const dataBytes = new TextEncoder().encode(signStr);
-            const valid = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, sigBytes, dataBytes);
-            if (!valid) {
-              return json({ ec: 400, em: 'signature verification failed' });
-            }
-          } catch (e) {
-            console.error('Signature verification error:', e.message);
-            // If key is misconfigured, still process to avoid data loss
-          }
+        // Plan from API-verified amount & months: >=¥25 yearly, else monthly × N.
+        // Month count comes from the API response, not the (spoofable) webhook.
+        let plan = 'monthly';
+        let durationDays = verified.month * 30;
+        if (verified.totalAmount >= 25) {
+          plan = 'yearly';
+          durationDays = 365;
         }
 
-        // Determine plan + duration from month count and remark
-        let plan = 'monthly';
-        let durationDays = month * 30;
-        if (remark.includes('年费') || remark.includes('yearly') || remark.includes('年度')) {
-          plan = 'yearly';
-          durationDays = 365;
-        } else if (remark.includes('月费') || remark.includes('monthly') || remark.includes('月度')) {
-          plan = 'monthly';
-          durationDays = month * 30;
-        } else if (month >= 12) {
-          plan = 'yearly';
-          durationDays = 365;
-        } else if (totalAmount >= 25) {
-          plan = 'yearly';
-          durationDays = 365;
+        // Idempotency: this order already delivered → return success without
+        // consuming another code (Afdian retries webhooks; replays must be safe).
+        const existing = await env.DB.prepare(
+          "SELECT code FROM activation_codes WHERE delivered_to = ? LIMIT 1"
+        ).bind(outTradeNo).first();
+        if (existing) {
+          return json({ ec: 200, em: '' });
         }
 
         // Find any unused code — expiry gets set at delivery time
@@ -293,10 +382,19 @@ export default {
         const now = new Date();
         const expiresAt = new Date(now.getTime() + durationDays * 86400000).toISOString();
 
-        // Assign code + override plan & expiry based on actual purchase
-        await env.DB.prepare(
-          "UPDATE activation_codes SET status = 'delivered', plan = ?, expires_at = ?, delivered_to = ?, delivered_at = ? WHERE code = ?"
-        ).bind(plan, expiresAt, outTradeNo, now.toISOString(), codeRow.code).run();
+        // Assign code + override plan & expiry based on actual purchase.
+        // delivered_to UNIQUE index backstops concurrent duplicate deliveries.
+        try {
+          await env.DB.prepare(
+            "UPDATE activation_codes SET status = 'delivered', plan = ?, expires_at = ?, delivered_to = ?, delivered_at = ? WHERE code = ?"
+          ).bind(plan, expiresAt, outTradeNo, now.toISOString(), codeRow.code).run();
+        } catch (e) {
+          // UNIQUE violation → another delivery of this order won the race; idempotent success
+          if (String(e.message || e).includes('UNIQUE')) {
+            return json({ ec: 200, em: '' });
+          }
+          throw e;
+        }
 
         // Afdian REQUIRES this exact response format — anything else is treated as failure
         return json({ ec: 200, em: '' });
@@ -445,7 +543,8 @@ export default {
 
     } catch (e) {
       console.error('Worker error:', e);
-      return json({ ok: false, error: 'server_error', message: e.message }, 500);
+      // Never echo internal error details to clients
+      return json({ ok: false, error: 'server_error' }, 500);
     }
   }
 };

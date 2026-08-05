@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS activation_codes (
 
 CREATE INDEX IF NOT EXISTS idx_codes_code ON activation_codes(code);
 CREATE INDEX IF NOT EXISTS idx_codes_status ON activation_codes(status);
+-- 订单号幂等: 同一订单只能交付一枚码 (webhook 重试/重放安全)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_codes_delivered_to ON activation_codes(delivered_to);
 
 -- 试用追踪表
 CREATE TABLE IF NOT EXISTS trial_usage (
