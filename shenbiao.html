@@ -834,6 +834,7 @@ function tryParsePreview(wb) {
     var totalCnSet = {}; var totalRole = 0; var totalRec = 0; var kinds = [];
     for (var si = 0; si < wb.SheetNames.length; si++) {
       var ws = wb.Sheets[wb.SheetNames[si]];
+      assertA1Present(ws, wb.SheetNames[si]);
       var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
       var kind = String((data[0] || [])[0] || '').trim();
       if (!kind) throw new Error('格式错误：sheet「' + wb.SheetNames[si] + '」A1单元格（品类名）为空');
@@ -870,8 +871,17 @@ function tryParsePreview(wb) {
   }
 }
 // ==================== PARSE INPUT SHEETS ====================
+// A1为空(第1行整行为空)时 sheet_to_json 会跳过空行导致数据错位, 用!ref真实行号兜底
+function assertA1Present(ws, sheetName) {
+  var range = XLSX.utils.decode_range((ws && ws['!ref']) || 'A1:A1');
+  if (range.s.r > 0) {
+    throw new Error('格式错误：' + (sheetName ? 'sheet「' + sheetName + '」' : '') + 'A1单元格（品类名）为空');
+  }
+}
+
 function getSheetKind(wb) {
   var ws = wb.Sheets[wb.SheetNames[0]];
+  assertA1Present(ws);
   var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
   if (!data.length || !data[0].length) throw new Error('格式错误：A1单元格（品类名）为空');
   var kind = String(data[0][0] || '').trim();
@@ -937,6 +947,7 @@ function parseSheet(wb) {
   if (uploadMode === 'multiFile') {
     if (wb.SheetNames.length > 1) throw new Error('格式错误：分表上传模式不支持多 sheet 文件（当前文件含' + wb.SheetNames.length + '个sheet），请切换为"多 sheet 单文件"模式或拆分文件');
     var ws = wb.Sheets[wb.SheetNames[0]];
+    assertA1Present(ws);
     var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
     return parseSheetData(data);
   }
@@ -944,6 +955,7 @@ function parseSheet(wb) {
   var seenKinds = {};
   for (var si = 0; si < wb.SheetNames.length; si++) {
     var ws = wb.Sheets[wb.SheetNames[si]];
+    assertA1Present(ws, wb.SheetNames[si]);
     var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
     var a1 = String((data[0] || [])[0] || '').trim();
     if (a1) {

@@ -1177,6 +1177,16 @@ function resetStep2State() {
   isBalanced = false;
   kindName = '';
   newPrices = {};
+  // 清空 STEP2+ 视图残留 DOM（替换/移除文件后旧角色列表不应残留）
+  var r2Els = ['heatOrderPanel', 'balancerWrap', 'balanceDisplay', 'autoBalanceResult', 'summaryKind', 'summaryTable', 'dataPreview'];
+  for (var ri = 0; ri < r2Els.length; ri++) {
+    var r2 = document.getElementById(r2Els[ri]);
+    if (r2) r2.innerHTML = '';
+  }
+  document.getElementById('btnSwitchAuto').disabled = true;
+  document.getElementById('btnRestoreAuto').disabled = true;
+  document.getElementById('btnNext2').disabled = true;
+  document.getElementById('btnNext3').disabled = true;
 }
 
 function setupDropZone(dz, fileInput, tagEl, isOriginal) {
@@ -1327,8 +1337,17 @@ function tryParsePreview(wb) {
   }
 }
 // ==================== PARSE FUNCTIONS (reused from shenbiao) ====================
+// A1为空(第1行整行为空)时 sheet_to_json 会跳过空行导致数据错位, 用!ref真实行号兜底
+function assertA1Present(ws, sheetName) {
+  var range = XLSX.utils.decode_range((ws && ws['!ref']) || 'A1:A1');
+  if (range.s.r > 0) {
+    throw new Error('格式错误：' + (sheetName ? 'sheet「' + sheetName + '」' : '') + 'A1单元格（品类名）为空');
+  }
+}
+
 function getSheetKind(wb) {
   var ws = wb.Sheets[wb.SheetNames[0]];
+  assertA1Present(ws);
   var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
   if (!data.length || !data[0].length) throw new Error('格式错误：A1单元格（品类名）为空');
   var kind = String(data[0][0] || '').trim();
@@ -1400,12 +1419,14 @@ function parseSheetData(data) {
 
 function parseSheet(wb) {
   var ws = wb.Sheets[wb.SheetNames[0]];
+  assertA1Present(ws);
   var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
   return parseSheetData(data);
 }
 
 function parseSheetWithPrices(wb, priceMap) {
   var ws = wb.Sheets[wb.SheetNames[0]];
+  assertA1Present(ws);
   var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
   var kind = String(data[0][0] || '').trim();
   var headers = validateHeaderAndPrices(data).headers;
@@ -1426,6 +1447,7 @@ function parseSheetWithPrices(wb, priceMap) {
 
 function extractPointsPerChar(wb) {
   var ws = wb.Sheets[wb.SheetNames[0]];
+  assertA1Present(ws);
   var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
   var headers = validateHeaderAndPrices(data).headers;
   var points = {};

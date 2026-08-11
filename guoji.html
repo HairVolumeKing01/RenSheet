@@ -988,6 +988,7 @@ function tryParsePreview(wb) {
     var totalCnSet = {}; var totalRole = 0; var totalRec = 0; var kinds = [];
     for (var si = 0; si < wb.SheetNames.length; si++) {
       var ws = wb.Sheets[wb.SheetNames[si]];
+      assertA1Present(ws, wb.SheetNames[si]);
       var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
       var kind = String((data[0] || [])[0] || '').trim();
       if (!kind) throw new Error('格式错误：sheet「' + wb.SheetNames[si] + '」A1单元格（品类名）为空');
@@ -1024,8 +1025,17 @@ function tryParsePreview(wb) {
   }
 }
 // ==================== PARSE INPUT SHEETS ====================
+// A1为空(第1行整行为空)时 sheet_to_json 会跳过空行导致数据错位, 用!ref真实行号兜底
+function assertA1Present(ws, sheetName) {
+  var range = XLSX.utils.decode_range((ws && ws['!ref']) || 'A1:A1');
+  if (range.s.r > 0) {
+    throw new Error('格式错误：' + (sheetName ? 'sheet「' + sheetName + '」' : '') + 'A1单元格（品类名）为空');
+  }
+}
+
 function getSheetKind(wb) {
   var ws = wb.Sheets[wb.SheetNames[0]];
+  assertA1Present(ws);
   var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
   if (!data.length || !data[0].length) throw new Error('格式错误：A1单元格（品类名）为空');
   var kind = String(data[0][0] || '').trim();
@@ -1090,12 +1100,14 @@ function parseSheetData(data) {
 function parseSheet(wb, sheetIndex) {
   if (sheetIndex !== undefined) {
     var ws = wb.Sheets[wb.SheetNames[sheetIndex]];
+    assertA1Present(ws, wb.SheetNames[sheetIndex]);
     var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
     return parseSheetData(data);
   }
   if (uploadMode === 'multiFile') {
     if (wb.SheetNames.length > 1) throw new Error('格式错误：分表上传模式不支持多 sheet 文件（当前文件含' + wb.SheetNames.length + '个sheet），请切换为"多 sheet 单文件"模式或拆分文件');
     var ws = wb.Sheets[wb.SheetNames[0]];
+    assertA1Present(ws);
     var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
     return parseSheetData(data);
   }
@@ -1103,6 +1115,7 @@ function parseSheet(wb, sheetIndex) {
   var sheetErrors = [];
   for (var si = 0; si < wb.SheetNames.length; si++) {
     var ws2 = wb.Sheets[wb.SheetNames[si]];
+    assertA1Present(ws2, wb.SheetNames[si]);
     var data2 = XLSX.utils.sheet_to_json(ws2, {header:1, defval:''});
     try {
       var purchases = parseSheetData(data2);
@@ -1281,12 +1294,13 @@ function handleCnBodyUpload(files) {
       var wb = XLSX.read(e.target.result, {type:'array'});
       var ws = wb.Sheets[wb.SheetNames[0]];
       var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-      if (data.length < 2) {
+      if (!data.length) {
         showToast('CN-本体表数据为空', true);
         return;
       }
       // 第一行可能是表头（如 cn/重量），也可能是数据本身（模板无表头行）。
       // A1 或 B1 命中表头关键词时从第 2 行读，否则从第 1 行读，避免漏掉首条数据。
+      // 单行文件若无表头即为单条真实数据，必须导入；若仅有表头则导入 0 条并提示。
       var startRow = 0;
       var hdrA = String((data[0] || [])[0] || '').trim().toLowerCase();
       var hdrB = String((data[0] || [])[1] || '').trim().toLowerCase();
@@ -1316,6 +1330,10 @@ function handleCnBodyUpload(files) {
       exportBtn.disabled = true;
       renderManualEntries();
       saveDraft();
+      if (added === 0) {
+        showToast('未从文件中解析到CN数据（可能仅含表头行）', true);
+        return;
+      }
       var msg = '已导入 ' + added + ' 条CN-本体数据';
       if (skipped) msg += '（跳过 ' + skipped + ' 条空CN）';
       showToast(msg);
