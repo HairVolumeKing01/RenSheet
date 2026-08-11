@@ -730,6 +730,11 @@ function handleFiles(files) {
             return;
           }
           var preview = tryParsePreview(wb);
+          if (preview && preview.error) {
+            errors.push('文件「' + file.name + '」' + preview.error);
+            pending--; if (!pending) finish();
+            return;
+          }
           if (uploadMode === 'multiSheet') {
             importedFiles = [{name: file.name, workbook: wb, preview: preview}];
           } else {
@@ -830,12 +835,22 @@ function tryParsePreview(wb) {
     for (var si = 0; si < wb.SheetNames.length; si++) {
       var ws = wb.Sheets[wb.SheetNames[si]];
       var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-      if (!data.length || !data[0].length) continue;
-      var kind = String(data[0][0] || '').trim();
-      if (!kind) continue;
+      var kind = String((data[0] || [])[0] || '').trim();
+      if (!kind) throw new Error('格式错误：sheet「' + wb.SheetNames[si] + '」A1单元格（品类名）为空');
       kinds.push(kind);
       var rawHeaders = (data[1] || []).slice(1);
-      var headers = rawHeaders.filter(function(h) { return h !== ''; });
+      var headers = [];
+      for (var rh = 0; rh < rawHeaders.length; rh++) {
+        var hdr = String(rawHeaders[rh] || '').trim();
+        if (!hdr) throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名为空，请检查表头是否缺少角色名或存在合并单元格');
+        headers.push(hdr);
+      }
+      var rawPriceRow = data[2] || [];
+      for (var pc = 1; pc <= rawHeaders.length; pc++) {
+        var pv = String(rawPriceRow[pc] == null ? '' : rawPriceRow[pc]).trim();
+        if (pv === '') throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价为空，请输入纯数字');
+        if (!/^\d+(\.\d+)?$/.test(pv)) throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价"' + pv + '"无法解析，请输入纯数字（不能包含中文或特殊符号）');
+      }
       totalRole += headers.length;
       for (var r = 3; r < data.length; r++) {
         var row = data[r];
@@ -875,20 +890,28 @@ function parseSheetData(data) {
     if (String(data[0][c] || '').trim()) throw new Error('格式错误：第一行仅A1可填写品类名，B1及其他单元格请留空（当前' + colToLetter(c) + '1单元格有值）');
   }
   var rawHeaders = data[1].slice(1);
-  var headers = rawHeaders.filter(function(h) { return h !== ''; });
+  var headers = [];
   var seen = {};
   var seenAtCol = {};
   for (var rh = 0; rh < rawHeaders.length; rh++) {
     var hdr = String(rawHeaders[rh] || '').trim();
-    if (!hdr) continue;
+    if (!hdr) throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名为空，请检查表头是否缺少角色名或存在合并单元格');
     if (seen[hdr]) {
       var firstCol = seenAtCol[hdr];
       throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名"' + hdr + '"重复（首次出现于第' + colToLetter(firstCol) + '列）');
     }
     seen[hdr] = true;
     seenAtCol[hdr] = rh + 1;
+    headers.push(hdr);
   }
-  var prices = data[2].slice(1, 1 + headers.length);
+  var rawPriceRow = data[2] || [];
+  var prices = [];
+  for (var pc = 1; pc <= rawHeaders.length; pc++) {
+    var pv = String(rawPriceRow[pc] == null ? '' : rawPriceRow[pc]).trim();
+    if (pv === '') throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价为空，请输入纯数字');
+    if (!/^\d+(\.\d+)?$/.test(pv)) throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价"' + pv + '"无法解析，请输入纯数字（不能包含中文或特殊符号）');
+    prices.push(parseFloat(pv));
+  }
   var purchases = [];
   for (var r = 3; r < data.length; r++) {
     var row = data[r];
@@ -929,6 +952,7 @@ function parseSheet(wb) {
     }
   }
   var all = [];
+  var sheetErrors = [];
   for (var si = 0; si < wb.SheetNames.length; si++) {
     var ws2 = wb.Sheets[wb.SheetNames[si]];
     var data2 = XLSX.utils.sheet_to_json(ws2, {header:1, defval:''});
@@ -937,8 +961,10 @@ function parseSheet(wb) {
       all = all.concat(purchases);
     } catch(e) {
       if (wb.SheetNames.length === 1) throw e;
+      sheetErrors.push('sheet「' + wb.SheetNames[si] + '」' + e.message);
     }
   }
+  if (sheetErrors.length) throw new Error(sheetErrors.join('\n'));
   if (!all.length) throw new Error('所有sheet均无有效数据');
   return all;
 }
@@ -991,7 +1017,7 @@ function processAllFiles() {
               totalCount: sp.length,
               totalCost: sTotalCost
             });
-          } catch(e) {}
+          } catch(e) { throw e; }
         }
       } else {
         var sTotalCount = purchases.length;
@@ -1196,6 +1222,8 @@ function validateDepositForData(data, showError) {
 }
 
 function getDepositSummary(data) {
+  // Real check: a fixed deposit must not exceed any person's total kidney,
+  // which would produce a negative tail (恒等式「定金+尾款=总肾」永远成立，不能作为校验)。
   var summary = {depositCents:0, tailCents:0, totalCents:0, pass:true};
   if (!data.depositConfig) return summary;
   data.persons.forEach(function(person) {
@@ -1203,8 +1231,8 @@ function getDepositSummary(data) {
     summary.depositCents += split.depositCents;
     summary.tailCents += split.tailCents;
     summary.totalCents += split.totalCents;
+    if (split.tailCents < 0) summary.pass = false;
   });
-  summary.pass = summary.depositCents + summary.tailCents === summary.totalCents;
   return summary;
 }
 
@@ -1751,9 +1779,13 @@ validateBtn.addEventListener('click', function() {
 
   var allSelected = selectedIndices.length === sheetStats.length;
   var results = [];
+  var missingExpectedSheets = [];
 
   if (allSelected) {
-    // All selected → combined total validation
+    // All selected → combined total validation.
+    // Sheets without an expected unit-price/points pair are excluded from BOTH
+    // sides of the comparison (previously their actual totals still counted,
+    // producing a misleading mismatch).
     var allTotalCount = 0;
     var allTotalCost = 0;
     var allExpectedCost = 0;
@@ -1765,12 +1797,14 @@ validateBtn.addEventListener('click', function() {
       var v = fileValidationInputs[si] || {};
       var up = parseFloat(v.unitPrice) || 0;
       var pt = parseInt(v.points) || 0;
-      allTotalCount += ss.totalCount;
-      allTotalCost += ss.totalCost;
       if (up > 0 && pt > 0) {
+        allTotalCount += ss.totalCount;
+        allTotalCost += ss.totalCost;
         allExpectedCost += up * pt;
         totalAvgPrice = up;  // last one wins for display
         totalPoints += pt;
+      } else {
+        missingExpectedSheets.push(ss.name);
       }
     }
     if (allExpectedCost > 0) {
@@ -1826,7 +1860,10 @@ validateBtn.addEventListener('click', function() {
   for (var r = 0; r < results.length; r++) {
     if (!results[r].pass) { allPass = false; break; }
   }
-  showToast('校验完成：' + (allPass ? '全部通过' : '存在异常，请查看预览区底部'), !allPass);
+  var missingMsg = missingExpectedSheets.length
+    ? '；未填预期值的排表未计入：' + missingExpectedSheets.join('、')
+    : '';
+  showToast('校验完成：' + (allPass ? '全部通过' : '存在异常，请查看预览区底部') + missingMsg, !allPass || missingExpectedSheets.length > 0);
 });
 
 // ==================== DEPOSIT / TAIL MODE ====================
@@ -1885,6 +1922,14 @@ feeModeInput.addEventListener('change', function() {
     for (var fr = 0; fr < radios.length; fr++) radios[fr].checked = false;
     if (processedData) {
       processedData.feeConfig = null;
+      // 费用取消后总肾变小，旧固定定金可能超过部分人的总肾（负尾款），必须重新确认
+      if (processedData.depositConfig && processedData.depositConfig.type === 'fixed' &&
+          validateDepositForData(processedData, false) === false) {
+        processedData.depositConfig = null;
+        depositGuide.classList.add('error');
+        depositGuide.textContent = '费用已变更，请重新确认定金';
+        showToast('费用已变更，旧定金已失效，请重新确认定金', true);
+      }
       renderPreview();
       exportBtn.disabled = false;
     }
@@ -1911,17 +1956,33 @@ feeConfirmBtn.addEventListener('click', function() {
   feeGuide.classList.remove('error');
   feeGuide.textContent = '金额已确认：' + (cents / 100).toFixed(2) + ' 元，请选择均摊模式';
   feeModePanel.style.display = 'block';
+  // 费用金额变化后总肾变化，固定定金同样需要重新校验
+  if (processedData && processedData.depositConfig && processedData.depositConfig.type === 'fixed' &&
+      validateDepositForData(processedData, false) === false) {
+    processedData.depositConfig = null;
+    depositGuide.classList.add('error');
+    depositGuide.textContent = '费用已变更，请重新确认定金';
+    showToast('费用已变更，旧定金已失效，请重新确认定金', true);
+  }
   saveDraft();
 });
 
 feeModePanel.addEventListener('change', function(e) {
   if (e.target.name !== 'feeModeRadio') return;
   feeModeSelected = e.target.value;
-  feeRadioGuide.textContent = feeModeLabel(feeModeSelected) + '：单人其他费用按所选模式分摊，进一法保留两位小数';
+  feeRadioGuide.textContent = feeModeLabel(feeModeSelected) + '：单人其他费用按所选模式分摊，分摊后合计可能比总额多出几毛，按进一法宁可多收也不少收';
   if (processedData) {
     var cfg = validateFeeForData(processedData, true);
     if (cfg === false) return;
     processedData.feeConfig = cfg;
+    // 均摊模式改变后单人总肾变化，固定定金需要重新校验
+    if (processedData.depositConfig && processedData.depositConfig.type === 'fixed' &&
+        validateDepositForData(processedData, false) === false) {
+      processedData.depositConfig = null;
+      depositGuide.classList.add('error');
+      depositGuide.textContent = '费用已变更，请重新确认定金';
+      showToast('费用已变更，旧定金已失效，请重新确认定金', true);
+    }
     renderPreview();
     exportBtn.disabled = false;
   }
@@ -2028,7 +2089,7 @@ function restoreDraft() {
     for (var fr2 = 0; fr2 < feeRadios.length; fr2++) {
       feeRadios[fr2].checked = feeRadios[fr2].value === feeModeSelected;
     }
-    feeRadioGuide.textContent = feeModeLabel(feeModeSelected) + '：单人其他费用按所选模式分摊，进一法保留两位小数';
+    feeRadioGuide.textContent = feeModeLabel(feeModeSelected) + '：单人其他费用按所选模式分摊，分摊后合计可能比总额多出几毛，按进一法宁可多收也不少收';
   }
 
   // Restore validation

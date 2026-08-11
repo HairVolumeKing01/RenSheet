@@ -418,6 +418,14 @@
       return true;
     }
 
+    // Network failure must not burn trial quota — a dropped connection is not
+    // a "trial exhausted" answer. The local counter (markTrialUsed) still caps
+    // usage offline, so this cannot become an unlimited bypass.
+    if (!result.ok && result.error === 'network') {
+      updateBadge();
+      return true;
+    }
+
     // Trial used up
     setUsage(toolName, 2); // Sync local
     updateBadge();

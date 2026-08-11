@@ -706,8 +706,15 @@ function updateRate() {
     rateDisplay.textContent = '-- 元/克';
   }
 }
-shippingFeeEl.addEventListener('input', function() { updateRate(); saveDraft(); });
-packageWeightEl.addEventListener('input', function() { updateRate(); saveDraft(); });
+// Any parameter change after processing must invalidate the cached result,
+// otherwise the export button would ship stale numbers.
+function invalidateResults() {
+  computedResults = null;
+  exportBtn.disabled = true;
+}
+
+shippingFeeEl.addEventListener('input', function() { updateRate(); invalidateResults(); saveDraft(); });
+packageWeightEl.addEventListener('input', function() { updateRate(); invalidateResults(); saveDraft(); });
 
 // ==================== FILE HANDLING ====================
 dropZone.addEventListener('click', function() {
@@ -758,7 +765,6 @@ function handleFiles(files) {
             return;
           }
           if (uploadMode === 'multiSheet') {
-            parsedFiles = [];
             for (var si = 0; si < wb.SheetNames.length; si++) {
               var ws = wb.Sheets[wb.SheetNames[si]];
               var sd = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
@@ -880,7 +886,7 @@ function renderParseEntries() {
     kindInputs[ki].addEventListener('input', function() {
       var eid = parseInt(this.dataset.eid);
       var entry = findEntry(eid);
-      if (entry) { entry.kind = this.value.trim(); entry.parsed = false; }
+      if (entry) { entry.kind = this.value.trim(); entry.parsed = false; invalidateResults(); }
     });
   }
   var gramInputs = parseEntriesEl.querySelectorAll('.entry-gram');
@@ -888,7 +894,7 @@ function renderParseEntries() {
     gramInputs[gi].addEventListener('input', function() {
       var eid = parseInt(this.dataset.eid);
       var entry = findEntry(eid);
-      if (entry) { entry.gramWeight = parseFloat(this.value) || 0; entry.parsed = false; }
+      if (entry) { entry.gramWeight = parseFloat(this.value) || 0; entry.parsed = false; invalidateResults(); }
     });
   }
   var verifyInputs = parseEntriesEl.querySelectorAll('.entry-verify');
@@ -896,7 +902,7 @@ function renderParseEntries() {
     verifyInputs[vi].addEventListener('input', function() {
       var eid = parseInt(this.dataset.eid);
       var entry = findEntry(eid);
-      if (entry) { entry.verifyPoints = parseInt(this.value) || 0; entry.parsed = false; }
+      if (entry) { entry.verifyPoints = parseInt(this.value) || 0; entry.parsed = false; invalidateResults(); }
     });
   }
 
@@ -983,12 +989,22 @@ function tryParsePreview(wb) {
     for (var si = 0; si < wb.SheetNames.length; si++) {
       var ws = wb.Sheets[wb.SheetNames[si]];
       var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-      if (!data.length || !data[0].length) continue;
-      var kind = String(data[0][0] || '').trim();
-      if (!kind) continue;
+      var kind = String((data[0] || [])[0] || '').trim();
+      if (!kind) throw new Error('格式错误：sheet「' + wb.SheetNames[si] + '」A1单元格（品类名）为空');
       kinds.push(kind);
       var rawHeaders = (data[1] || []).slice(1);
-      var headers = rawHeaders.filter(function(h) { return h !== ''; });
+      var headers = [];
+      for (var rh = 0; rh < rawHeaders.length; rh++) {
+        var hdr = String(rawHeaders[rh] || '').trim();
+        if (!hdr) throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名为空，请检查表头是否缺少角色名或存在合并单元格');
+        headers.push(hdr);
+      }
+      var rawPriceRow = data[2] || [];
+      for (var pc = 1; pc <= rawHeaders.length; pc++) {
+        var pv = String(rawPriceRow[pc] == null ? '' : rawPriceRow[pc]).trim();
+        if (pv === '') throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价为空，请输入纯数字');
+        if (!/^\d+(\.\d+)?$/.test(pv)) throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价"' + pv + '"无法解析，请输入纯数字（不能包含中文或特殊符号）');
+      }
       totalRole += headers.length;
       for (var r = 3; r < data.length; r++) {
         var row = data[r];
@@ -1028,20 +1044,28 @@ function parseSheetData(data) {
     if (String(data[0][c] || '').trim()) throw new Error('格式错误：第一行仅A1可填写品类名，B1及其他单元格请留空（当前' + colToLetter(c) + '1单元格有值）');
   }
   var rawHeaders = data[1].slice(1);
-  var headers = rawHeaders.filter(function(h) { return h !== ''; });
+  var headers = [];
   var seen = {};
   var seenAtCol = {};
   for (var rh = 0; rh < rawHeaders.length; rh++) {
     var hdr = String(rawHeaders[rh] || '').trim();
-    if (!hdr) continue;
+    if (!hdr) throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名为空，请检查表头是否缺少角色名或存在合并单元格');
     if (seen[hdr]) {
       var firstCol = seenAtCol[hdr];
       throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名"' + hdr + '"重复（首次出现于第' + colToLetter(firstCol) + '列）');
     }
     seen[hdr] = true;
     seenAtCol[hdr] = rh + 1;
+    headers.push(hdr);
   }
-  var prices = data[2].slice(1, 1 + headers.length);
+  var rawPriceRow = data[2] || [];
+  var prices = [];
+  for (var pc = 1; pc <= rawHeaders.length; pc++) {
+    var pv = String(rawPriceRow[pc] == null ? '' : rawPriceRow[pc]).trim();
+    if (pv === '') throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价为空，请输入纯数字');
+    if (!/^\d+(\.\d+)?$/.test(pv)) throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价"' + pv + '"无法解析，请输入纯数字（不能包含中文或特殊符号）');
+    prices.push(parseFloat(pv));
+  }
   var purchases = [];
   for (var r = 3; r < data.length; r++) {
     var row = data[r];
@@ -1076,6 +1100,7 @@ function parseSheet(wb, sheetIndex) {
     return parseSheetData(data);
   }
   var all = [];
+  var sheetErrors = [];
   for (var si = 0; si < wb.SheetNames.length; si++) {
     var ws2 = wb.Sheets[wb.SheetNames[si]];
     var data2 = XLSX.utils.sheet_to_json(ws2, {header:1, defval:''});
@@ -1084,8 +1109,10 @@ function parseSheet(wb, sheetIndex) {
       all = all.concat(purchases);
     } catch(e) {
       if (wb.SheetNames.length === 1) throw e;
+      sheetErrors.push('sheet「' + wb.SheetNames[si] + '」' + e.message);
     }
   }
+  if (sheetErrors.length) throw new Error(sheetErrors.join('\n'));
   if (!all.length) throw new Error('所有sheet均无有效数据');
   return all;
 }
@@ -1206,7 +1233,7 @@ function renderManualEntries() {
     cnInputs[ci].addEventListener('input', function() {
       var mid = parseInt(this.dataset.mid);
       var mentry = findManualEntry(mid);
-      if (mentry) { mentry.cn = this.value.trim(); }
+      if (mentry) { mentry.cn = this.value.trim(); invalidateResults(); }
     });
   }
   var gramInputs = manualEntriesEl.querySelectorAll('.manual-grams');
@@ -1214,7 +1241,7 @@ function renderManualEntries() {
     gramInputs[gi].addEventListener('input', function() {
       var mid = parseInt(this.dataset.mid);
       var mentry = findManualEntry(mid);
-      if (mentry) { mentry.grams = parseFloat(this.value) || 0; }
+      if (mentry) { mentry.grams = parseFloat(this.value) || 0; invalidateResults(); }
     });
   }
   var removeBtns = manualEntriesEl.querySelectorAll('.remove-manual');
@@ -1258,9 +1285,17 @@ function handleCnBodyUpload(files) {
         showToast('CN-本体表数据为空', true);
         return;
       }
+      // 第一行可能是表头（如 cn/重量），也可能是数据本身（模板无表头行）。
+      // A1 或 B1 命中表头关键词时从第 2 行读，否则从第 1 行读，避免漏掉首条数据。
+      var startRow = 0;
+      var hdrA = String((data[0] || [])[0] || '').trim().toLowerCase();
+      var hdrB = String((data[0] || [])[1] || '').trim().toLowerCase();
+      if (/^(cn|姓名|名字|称重|重量)$/.test(hdrA) || /^(重量|克重|克|grams?)$/.test(hdrB)) {
+        startRow = 1;
+      }
       var added = 0;
       var skipped = 0;
-      for (var r = 1; r < data.length; r++) {
+      for (var r = startRow; r < data.length; r++) {
         var row = data[r];
         if (!row || !row.length) continue;
         var cn = String(row[0] || '').trim();

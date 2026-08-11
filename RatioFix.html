@@ -1151,6 +1151,34 @@ function validateStep(step) {
 }
 
 // ==================== FILE HANDLING ====================
+// Files were replaced/removed — every STEP 2+ variable derived from the old
+// tables is stale. Clearing characters forces goToStep(2) into buildBalancer(),
+// which rebuilds all of them from the current files.
+function resetStep2State() {
+  characters = [];
+  pointsPerChar = {};
+  originalPointsPerChar = {};
+  originalPrices = {};
+  adjustments = {};
+  actualRow3Prices = {};
+  rawHeatAdjustments = {};
+  heatAdjustments = {};
+  baseAdjustments = {};
+  originalCharacterSet = {};
+  missingOriginalCharacters = [];
+  heatOrderConfirmed = false;
+  autoBalanceSnapshot = null;
+  autoBalanceVariant = 0;
+  autoBalanceAvailable = 0;
+  autoBalanceQuantumCents = 1;
+  autoBalanceFallbackType = null;
+  activeAutoPolicy = null;
+  activeAutoQuantumCents = 1;
+  isBalanced = false;
+  kindName = '';
+  newPrices = {};
+}
+
 function setupDropZone(dz, fileInput, tagEl, isOriginal) {
   dz.addEventListener('click', function() { fileInput.click(); });
   dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('drag-over'); });
@@ -1225,6 +1253,8 @@ function handleFile(file, isOriginal, tagEl, dz) {
           showToast('两表品类名不一致：原表「' + k1 + '」vs 实际表「' + k2 + '」', true);
         }
       }
+      // A file was (re)loaded — drop any STEP 2+ state built from the old tables
+      resetStep2State();
       showToast('已导入 ' + file.name);
     } catch(ex) {
       showToast('文件「' + file.name + '」' + ex.message, true);
@@ -1242,14 +1272,14 @@ function removeFile(isOriginal) {
     document.getElementById('avgPriceOrig').value = '';
     tagOriginal.innerHTML = '';
     dzOriginal.style.borderColor = '';
-    saveDraft();
   } else {
     actualFile = null;
     refreshOriginalAverage();
     tagActual.innerHTML = '';
     dzActual.style.borderColor = '';
-    saveDraft();
   }
+  resetStep2State();
+  saveDraft();
 }
 
 function colToLetter(col) {
@@ -1309,6 +1339,34 @@ function getSheetKind(wb) {
   return kind;
 }
 
+function validateHeaderAndPrices(data) {
+  if (data.length < 4) throw new Error('数据行不足（表内仅' + data.length + '行，至少需要4行——第1行品类名、第2行角色、第3行单价、第4+行数据）');
+  var rawHeaders = data[1].slice(1);
+  var headers = [];
+  var seen = {};
+  var seenAtCol = {};
+  for (var rh = 0; rh < rawHeaders.length; rh++) {
+    var hdr = String(rawHeaders[rh] || '').trim();
+    if (!hdr) throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名为空，请检查表头是否缺少角色名或存在合并单元格');
+    if (seen[hdr]) {
+      var firstCol = seenAtCol[hdr];
+      throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名"' + hdr + '"重复（首次出现于第' + colToLetter(firstCol) + '列）');
+    }
+    seen[hdr] = true;
+    seenAtCol[hdr] = rh + 1;
+    headers.push(hdr);
+  }
+  var rawPriceRow = data[2] || [];
+  var prices = [];
+  for (var pc = 1; pc <= rawHeaders.length; pc++) {
+    var pv = String(rawPriceRow[pc] == null ? '' : rawPriceRow[pc]).trim();
+    if (pv === '') throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价为空，请输入纯数字');
+    if (!/^\d+(\.\d+)?$/.test(pv)) throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价"' + pv + '"无法解析，请输入纯数字（不能包含中文或特殊符号）');
+    prices.push(parseFloat(pv));
+  }
+  return { headers: headers, prices: prices };
+}
+
 function parseSheetData(data) {
   if (data.length < 4) throw new Error('数据行不足（表内仅' + data.length + '行，至少需要4行——第1行品类名、第2行角色、第3行单价、第4+行数据）');
   var kind = String(data[0][0] || '').trim();
@@ -1316,21 +1374,9 @@ function parseSheetData(data) {
   for (var c = 1; c < data[0].length; c++) {
     if (String(data[0][c] || '').trim()) throw new Error('格式错误：第一行仅A1可填写品类名，B1及其他单元格请留空（当前' + colToLetter(c) + '1单元格有值）');
   }
-  var rawHeaders = data[1].slice(1);
-  var headers = rawHeaders.filter(function(h) { return h !== ''; });
-  var seen = {};
-  var seenAtCol = {};
-  for (var rh = 0; rh < rawHeaders.length; rh++) {
-    var hdr = String(rawHeaders[rh] || '').trim();
-    if (!hdr) continue;
-    if (seen[hdr]) {
-      var firstCol = seenAtCol[hdr];
-      throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名"' + hdr + '"重复（首次出现于第' + colToLetter(firstCol) + '列）');
-    }
-    seen[hdr] = true;
-    seenAtCol[hdr] = rh + 1;
-  }
-  var prices = data[2].slice(1, 1 + headers.length);
+  var vhp = validateHeaderAndPrices(data);
+  var headers = vhp.headers;
+  var prices = vhp.prices;
   var purchases = [];
   for (var r = 3; r < data.length; r++) {
     var row = data[r];
@@ -1361,9 +1407,8 @@ function parseSheet(wb) {
 function parseSheetWithPrices(wb, priceMap) {
   var ws = wb.Sheets[wb.SheetNames[0]];
   var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-  if (data.length < 4) throw new Error('格式错误：数据行不足（表内仅' + data.length + '行，至少需要4行——第1行品类名、第2行角色、第3行单价、第4+行数据）');
   var kind = String(data[0][0] || '').trim();
-  var headers = data[1].slice(1).filter(function(h) { return h !== ''; });
+  var headers = validateHeaderAndPrices(data).headers;
   var purchases = [];
   for (var r = 3; r < data.length; r++) {
     var row = data[r];
@@ -1382,7 +1427,7 @@ function parseSheetWithPrices(wb, priceMap) {
 function extractPointsPerChar(wb) {
   var ws = wb.Sheets[wb.SheetNames[0]];
   var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-  var headers = data[1].slice(1).filter(function(h) { return h !== ''; });
+  var headers = validateHeaderAndPrices(data).headers;
   var points = {};
   for (var c = 1; c <= headers.length; c++) {
     var count = 0;
@@ -1397,12 +1442,10 @@ function extractPointsPerChar(wb) {
 function extractPrices(wb) {
   var ws = wb.Sheets[wb.SheetNames[0]];
   var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-  var headers = data[1].slice(1).filter(function(h) { return h !== ''; });
+  var vhp = validateHeaderAndPrices(data);
   var prices = {};
-  for (var c = 1; c <= headers.length; c++) {
-    var key = String(headers[c - 1] || '').trim();
-    var raw = String(data[2][c] || '').trim();
-    if (raw !== '') prices[key] = parseFloat(raw) || 0;
+  for (var c = 1; c <= vhp.headers.length; c++) {
+    prices[vhp.headers[c - 1]] = vhp.prices[c - 1];
   }
   return prices;
 }
@@ -2070,7 +2113,10 @@ function getHeatGapFallbackRolePlans() {
   var coldest = characters[characters.length - 1];
   var coldestIncrease = (pointsPerChar[coldest] || 0) - (originalPointsPerChar[coldest] || 0);
   if (coldestIncrease > 3) selected[coldest] = true;
+  // 断层 plan 限流：gap 按热度差从大到小已排序，取前 4 个最具代表性的断层即可，
+  // 避免 n 个断层产生 n 个 plan、每个 plan 全量重跑求解器（30 角色时可达 ~29 个）。
   for (var g = 0; g < gaps.length; g++) {
+    if (plans.length >= 4) break;
     var boundary = gaps[g].index;
     if (baseSum < 0) {
       for (var hot = 0; hot <= boundary; hot++) selected[characters[hot]] = true;
@@ -2273,6 +2319,25 @@ function getRelaxPenalty(ch, deltaCents) {
   return 2.5;
 }
 
+function gcdInt(a, b) {
+  a = Math.abs(a); b = Math.abs(b);
+  while (b) { var t = b; b = a % b; a = t; }
+  return a;
+}
+
+function modInverse(a, m) {
+  // 扩展欧几里得求模逆，要求 a 与 m 互质（调用处已除以 gcd 保证）
+  var m0 = m, x0 = 0, x1 = 1;
+  if (m === 1) return 0;
+  a = ((a % m) + m) % m;
+  while (a > 1) {
+    var q = Math.floor(a / m);
+    var t = m; m = a % m; a = t;
+    t = x0; x0 = x1 - q * x0; x1 = t;
+  }
+  return x1 < 0 ? x1 + m0 : x1;
+}
+
 function solveExactMultiRoleAtPolicy(preferred, variantIndex, policy, quantumCents) {
   activeAutoPolicy = policy;
   activeAutoQuantumCents = quantumCents;
@@ -2332,7 +2397,7 @@ function solveExactMultiRoleAtPolicy(preferred, variantIndex, policy, quantumCen
     // 仍偏好少改角色，但该优先级低于避免单角色大幅偏移。
     var modifiedPenalty = balanceMode === 'spread' ? 500 : (balanceMode === 'conservative' ? 8000 : 5000);
     cost += modifiedFromBase * modifiedPenalty;
-    candidates.push({
+    var entry = {
       values:values,
       changed:changed,
       cost:cost,
@@ -2341,45 +2406,73 @@ function solveExactMultiRoleAtPolicy(preferred, variantIndex, policy, quantumCen
       fallbackType:policy.fallbackType || null,
       priorityScore:getPriorityNewRoleScore(values),
       modeScore:getModeScore(values)
-    });
-    candidates.sort(compareCandidates);
+    };
+    // 二分插入保持有序（数组已有序，命中率高时全量 sort 是主要开销）
+    var low = 0, high = candidates.length;
+    while (low < high) {
+      var mid = (low + high) >> 1;
+      if (compareCandidates(entry, candidates[mid]) < 0) high = mid; else low = mid + 1;
+    }
+    candidates.splice(low, 0, entry);
     if (candidates.length > 100) candidates.length = 100;
   }
 
   function scanPairFinish(base) {
     var target = -getWeightedSum(base);
     if (target === 0) storeCandidate(base);
+    // stepI === stepJ === activeAutoQuantumCents（getRolePriceQuantum 返回全局量子）
+    var q = activeAutoQuantumCents;
     for (var i = 0; i < active.length; i++) {
       var ci = active[i];
       var pi = pointsPerChar[ci];
-      var stepI = getRolePriceQuantum(ci);
       var boundsI = getRoleAdjustmentBounds(ci);
-      var minXi = Math.ceil((boundsI.min - base[ci]) / stepI);
-      var maxXi = Math.floor((boundsI.max - base[ci]) / stepI);
+      var minXi = Math.ceil((boundsI.min - base[ci]) / q);
+      var maxXi = Math.floor((boundsI.max - base[ci]) / q);
       for (var j = i; j < active.length; j++) {
         var cj = active[j];
         var pj = pointsPerChar[cj];
-        var stepJ = getRolePriceQuantum(cj);
         var boundsJ = getRoleAdjustmentBounds(cj);
-        for (var xi = minXi; xi <= maxXi; xi++) {
-          var remaining = target - pi * xi * stepI;
-          var values;
-          if (i === j) {
-            if (remaining !== 0) continue;
-            values = Object.assign({}, base);
-            values[ci] += xi * stepI;
-            storeCandidate(values);
-            continue;
+        if (i === j) {
+          // 单角色吸收：pi*q*xi = target，只有一个候选
+          var denomI = pi * q;
+          if (denomI !== 0 && target % denomI === 0) {
+            var xiSolo = target / denomI;
+            if (xiSolo >= minXi && xiSolo <= maxXi) {
+              var vSolo = Object.assign({}, base);
+              vSolo[ci] += xiSolo * q;
+              storeCandidate(vSolo);
+            }
           }
-          var denominator = pj * stepJ;
-          if (remaining % denominator !== 0) continue;
-          var xj = remaining / denominator;
-          var minXj = Math.ceil((boundsJ.min - base[cj]) / stepJ);
-          var maxXj = Math.floor((boundsJ.max - base[cj]) / stepJ);
-          if (xj < minXj || xj > maxXj) continue;
-          values = Object.assign({}, base);
-          values[ci] += xi * stepI;
-          values[cj] += xj * stepJ;
+          continue;
+        }
+        // 双角色闭合：pi*q*xi + pj*q*xj = target
+        // 整除周期跳步：满足 pi*xi ≡ target/q (mod pj) 的 xi 是等差数列
+        //（步长 B = pj/g），无需遍历整个价格范围逐一试余数。
+        var g = gcdInt(pi, pj);
+        if (target % (q * g) !== 0) continue;
+        var B = pj / g;
+        var A = pi / g;
+        var T = target / (q * g);
+        var xiStart = ((T * modInverse(A, B)) % B + B) % B;
+        var minXj = Math.ceil((boundsJ.min - base[cj]) / q);
+        var maxXj = Math.floor((boundsJ.max - base[cj]) / q);
+        // xj 随 xi 单调递减，xj 边界可解析反推出 xi 的额外范围，
+        // 与 [minXi, maxXi] 合并后，每对角色只剩少量候选，无需循环内再判边界。
+        var invPi = pi * q;
+        var xiLB = Math.ceil(target / invPi - (maxXj * pj) / pi);
+        var xiUB = Math.floor(target / invPi - (minXj * pj) / pi);
+        var lo = Math.max(minXi, xiLB);
+        var hi = Math.min(maxXi, xiUB);
+        if (lo > hi) continue;
+        var firstK = Math.ceil((lo - xiStart) / B);
+        var lastK = Math.floor((hi - xiStart) / B);
+        for (var k = firstK; k <= lastK; k++) {
+          var xi = xiStart + k * B;
+          // 构造保证整除且边界已并入范围，round 仅消除浮点噪声
+          var xj = Math.round((target - pi * xi * q) / (pj * q));
+          var values = Object.assign({}, base);
+          values[ci] += xi * q;
+          values[cj] += xj * q;
           storeCandidate(values);
         }
       }
@@ -2551,28 +2644,39 @@ function solveExactMultiRoleAtPolicy(preferred, variantIndex, policy, quantumCen
 function collectGapFallbackCandidates(preferred, profile, maxPriceMultiplier) {
   var combinedCandidates = [];
   var rolePlans = getHeatGapFallbackRolePlans();
+  // 兜底阶段只跑最细精度（1 分）：细精度解集包含粗精度可表达的一切解，
+  // 粗档位在"只求任意解"的兜底里没有信息增量，却把求解时间乘以 3。
   var quantumPriority = getConfiguredQuantumPriority();
-  for (var qi = 0; qi < quantumPriority.length && combinedCandidates.length < 20; qi++) {
-    var quantumCents = quantumPriority[qi];
-    for (var pi = 0; pi < rolePlans.length && combinedCandidates.length < 20; pi++) {
-      var policy = createGapFallbackPolicy(profile, rolePlans[pi], maxPriceMultiplier);
-      var solved = solveExactMultiRoleAtPolicy(preferred, 0, policy, quantumCents);
-      if (!solved) continue;
-      for (var rc = 0; rc < solved.rawCandidates.length && combinedCandidates.length < 20; rc++) {
-        var candidate = solved.rawCandidates[rc];
-        if (combinedCandidates.some(function(existing) { return existing.key === candidate.key; })) continue;
-        if (!combinedCandidates.length) {
-          candidate.relaxationLevel = 4;
-          combinedCandidates.push(candidate);
-          continue;
-        }
-        if (!candidateRaisesPriorityNewRoles(candidate.values, combinedCandidates[0].values)) continue;
-        if (!combinedCandidates.every(function(existing) {
-          return isEffectiveSwitchPair(candidate.values, existing.values, quantumCents);
-        })) continue;
+  var quantumCents = quantumPriority[quantumPriority.length - 1];
+  // gcd 预检：plan 角色点数的最大公约数不整除目标残差 → 该 plan 必然无解，
+  // 直接跳过整次全范围扫描（无解场景占兜底的大多数，这是最大的时间节省点）。
+  var targetCents = Math.round(-characters.reduce(function(s, ch) {
+    return s + (pointsPerChar[ch] || 0) * (preferred[ch] || 0) * 100;
+  }, 0));
+  for (var pi = 0; pi < rolePlans.length && combinedCandidates.length < 20; pi++) {
+    var planGcd = 0;
+    var planRoles = rolePlans[pi];
+    for (var gp = 0; gp < planRoles.length; gp++) {
+      planGcd = gcdInt(planGcd, pointsPerChar[planRoles[gp]] || 0);
+    }
+    if (planGcd > 0 && targetCents % planGcd !== 0) continue;
+    var policy = createGapFallbackPolicy(profile, rolePlans[pi], maxPriceMultiplier);
+    var solved = solveExactMultiRoleAtPolicy(preferred, 0, policy, quantumCents);
+    if (!solved) continue;
+    for (var rc = 0; rc < solved.rawCandidates.length && combinedCandidates.length < 20; rc++) {
+      var candidate = solved.rawCandidates[rc];
+      if (combinedCandidates.some(function(existing) { return existing.key === candidate.key; })) continue;
+      if (!combinedCandidates.length) {
         candidate.relaxationLevel = 4;
         combinedCandidates.push(candidate);
+        continue;
       }
+      if (!candidateRaisesPriorityNewRoles(candidate.values, combinedCandidates[0].values)) continue;
+      if (!combinedCandidates.every(function(existing) {
+        return isEffectiveSwitchPair(candidate.values, existing.values, quantumCents);
+      })) continue;
+      candidate.relaxationLevel = 4;
+      combinedCandidates.push(candidate);
     }
   }
   combinedCandidates.sort(compareCandidates);
@@ -2703,7 +2807,9 @@ function solveLightPairBalance(variantIndex, profile) {
 
 function solveLightBalance(preferred, variantIndex, profile) {
   var candidates = [];
-  var quantumPriority = [100, 10, 1];
+  // 轻约束只跑最细精度（1 分）：细精度解集包含粗精度一切解，粗档位无信息增量，
+  // 而 light 模式的价格范围是默认模式的 ~3 倍，3 档全跑是 24+ 角色卡顿的主因。
+  var quantumPriority = [1];
   for (var qi = 0; qi < quantumPriority.length && candidates.length < 40; qi++) {
     var solved = solveExactMultiRoleAtPolicy(preferred, 0, createAutoPolicy(profile, 3), quantumPriority[qi]);
     if (!solved) continue;
@@ -2835,6 +2941,8 @@ function solveExactMultiRole(preferred, variantIndex, profile) {
   };
 }
 
+var autoBalanceBusy = false;
+
 function autoBalance(useNextVariant) {
   if (!characters.length) {
     showToast('请先上传并解析两张排表', true);
@@ -2844,7 +2952,51 @@ function autoBalance(useNextVariant) {
     showToast('请先调整并确认全部角色的调价热度排序', true);
     return;
   }
+  // 防重入：求解是同步阻塞的（大表可达数十秒）。先禁用按钮并渲染"配平中"，
+  // 再延后一拍执行求解——求解期间按钮不可点，后续点击不会进入事件队列，
+  // 杜绝"重复点击排队多个完整求解"导致的成倍冻结。
+  if (autoBalanceBusy) return;
+  autoBalanceBusy = true;
+  var autoBtn = document.getElementById('btnAutoBalance');
+  if (autoBtn) { autoBtn.disabled = true; autoBtn.textContent = '配平中...'; }
+  setTimeout(function() {
+    try {
+      doAutoBalance(useNextVariant);
+    } finally {
+      autoBalanceBusy = false;
+      var btn = document.getElementById('btnAutoBalance');
+      if (btn) { btn.disabled = false; btn.textContent = '自动配平'; }
+    }
+  }, 0);
+}
 
+function buildNoSolutionDiagnosis() {
+  // 无解时给用户可行动的诊断：残差是多少、可调整角色在约束内能吸收多少、缺口在哪。
+  if (characters.length === 1) {
+    return '仅一个角色时唯一平衡方案是全零调价（系统禁止输出全零方案），请手动填写 0 或检查排表数据';
+  }
+  var residualCents = computeSumProduct();
+  var target = Math.round(-residualCents);
+  if (target === 0) return null;
+  var absorb = 0;
+  characters.forEach(function(ch) {
+    var pts = pointsPerChar[ch] || 0;
+    if (!pts) return;
+    var bounds = getRoleAdjustmentBounds(ch);
+    var base = Math.round((baseAdjustments[ch] || 0) * 100);
+    if (target > 0 && bounds.max > base) absorb += pts * (bounds.max - base);
+    if (target < 0 && bounds.min < base) absorb += pts * (base - bounds.min);
+  });
+  var shortageCents = Math.abs(target) - absorb;
+  if (shortageCents > 0) {
+    return '当前残差 ' + (Math.abs(target) / 100).toFixed(2) + ' 元，可调整角色在幅度限制内最多能吸收 '
+      + (absorb / 100).toFixed(2) + ' 元，缺口 ' + (shortageCents / 100).toFixed(2)
+      + ' 元（约束过紧，请放宽排序/模式或手动调整）';
+  }
+  return '当前残差 ' + (Math.abs(target) / 100).toFixed(2) + ' 元（搜索在约束内未找到组合）';
+}
+
+function doAutoBalance(useNextVariant) {
   applyBalanceRuleConfig(getBalanceRuleConfig());
   if (!useNextVariant) autoBalanceVariant = 0;
   var profile = getPointChangeProfile();
@@ -2857,10 +3009,13 @@ function autoBalance(useNextVariant) {
     var noSolutionText = balanceMode === 'light'
       ? '轻约束调平未找到精确配平方案。当前表格保留的是此前或手动调价，并非轻约束自动结果。'
       : (balanceMode === 'default'
-        ? '热度断层兜底及4倍极限范围内仍无精确配平方案。系统不会通过破坏热度顺序强行归零。'
-        : '用户设置的' + balanceMaxPriceMultiplier + '倍原均价上限范围内仍无精确配平方案。系统不会通过破坏热度顺序强行归零。');
+        ? '在系统约束（热度排序/幅度限制/角色锁定）与全部兜底层级内未找到精确配平方案。系统不会通过破坏热度顺序强行归零。'
+        : '用户设置的' + balanceMaxPriceMultiplier + '倍原均价上限范围内未找到精确配平方案。系统不会通过破坏热度顺序强行归零。');
+    var diag = buildNoSolutionDiagnosis();
+    if (diag) noSolutionText += '。' + diag;
+    noSolutionText += '可尝试：切换均摊模式、重新调整热度排序、或手动微调调价后重试';
     document.getElementById('autoBalanceResult').textContent = noSolutionText;
-    showToast(balanceMode === 'light' ? '轻约束调平仍无精确配平方案' : (balanceMode === 'default' ? '4倍极限范围内仍无精确配平方案' : balanceMaxPriceMultiplier + '倍原均价上限范围内仍无精确配平方案'), true);
+    showToast(balanceMode === 'light' ? '轻约束调平未找到方案' : (balanceMode === 'default' ? '约束内未找到精确配平方案' : balanceMaxPriceMultiplier + '倍原均价上限内未找到方案'), true);
     return;
   }
 
@@ -2968,21 +3123,27 @@ function onAdjChange(input) {
 }
 
 function computeSumProduct() {
+  // 用原始调价值计算真账残差（不再逐项四舍五入）。
+  // 返回整数分：累计后一次 round，仅消除浮点噪声，不损失调价精度。
   var sumCents = 0;
   for (var i = 0; i < characters.length; i++) {
     var ch = characters[i];
-    sumCents += (pointsPerChar[ch] || 0) * Math.round((adjustments[ch] || 0) * 100);
+    sumCents += (pointsPerChar[ch] || 0) * (adjustments[ch] || 0) * 100;
   }
-  return sumCents / 100;
+  return Math.round(sumCents);
 }
 
 function updateBalanceDisplay() {
-  var sum = computeSumProduct();
-  isBalanced = Math.round(sum * 100) === 0;
+  var sumCents = computeSumProduct();
+  var TOL_CENTS = 1; // 允许 1 分钱残差（均价/单价输入精度所致）
+  isBalanced = Math.abs(sumCents) <= TOL_CENTS;
+  var sum = sumCents / 100;
   var display = document.getElementById('balanceDisplay');
   var cls = isBalanced ? 'balanced' : 'unbalanced';
   var icon = isBalanced ? '&#10003;' : '&#10007;';
-  var text = isBalanced ? '已平衡' : '未平衡，目标值 0.00';
+  var text = isBalanced
+    ? (sumCents === 0 ? '已平衡' : '已平衡（残差 ' + sum.toFixed(2) + ' 元，允许范围内）')
+    : '未平衡，目标值 0.00';
   display.innerHTML = '<div class="balance-status ' + cls + '">' +
     '<span>' + icon + '</span> &Sigma;(点数&times;调价) = ' + sum.toFixed(2) + ' <span>' + text + '</span>' +
     '</div>';

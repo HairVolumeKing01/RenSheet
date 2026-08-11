@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://api.rensheet.top;">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RenSheet Admin</title>
 <style>
@@ -157,6 +158,12 @@ th { color:var(--blue-700); font-weight:600; background:var(--blue-50); }
 var API = 'https://api.rensheet.top';
 var token = sessionStorage.getItem('renshet_admin_token') || '';
 
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function onPlanChange() {
   var plan = document.getElementById('gen-plan').value;
   document.getElementById('custom-expiry-group').style.display = plan === 'custom' ? '' : 'none';
@@ -172,8 +179,20 @@ function showToast(msg, isErr) {
 async function api(path, body, method) {
   var opts = { method: method || (body ? 'POST' : 'GET'), headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token } };
   if (body) opts.body = JSON.stringify(body);
-  var resp = await fetch(API + path, opts);
-  return resp.json();
+  var resp;
+  try {
+    resp = await fetch(API + path, opts);
+  } catch (e) {
+    return { ok: false, error: 'network', message: '网络连接失败，请检查网络后重试' };
+  }
+  if (!resp.ok) {
+    try { return await resp.json(); } catch (e) {
+      return { ok: false, message: '服务器响应异常（HTTP ' + resp.status + '）' };
+    }
+  }
+  try { return await resp.json(); } catch (e) {
+    return { ok: false, message: '服务器返回了无法解析的内容' };
+  }
 }
 
 function doAuth() {
@@ -181,9 +200,9 @@ function doAuth() {
   if (!pw) return showToast('请输入密码', true);
   token = pw;
   sessionStorage.setItem('renshet_admin_token', token);
-  // Quick test
-  api('/api/codes?status=active').then(function(r){
-    if (r.ok !== undefined) {
+  // Quick test — only a true ok:true grants access
+  api('/api/codes?page=1&per_page=10').then(function(r){
+    if (r && r.ok === true) {
       document.getElementById('auth-card').style.display = 'none';
       document.getElementById('main-ui').style.display = 'block';
       showToast('验证通过');
@@ -195,6 +214,8 @@ function doAuth() {
     }
   });
 }
+
+var lastGeneratedCodes = [];
 
 async function doGenerate() {
   var plan = document.getElementById('gen-plan').value;
@@ -210,10 +231,13 @@ async function doGenerate() {
   var r = await api('/api/generate', body);
   if (r.ok) {
     var planLabel = plan === 'monthly' ? '月费' : plan === 'yearly' ? '年费' : '自定义';
+    lastGeneratedCodes = r.codes;
     var box = document.getElementById('gen-result');
     box.style.display = 'block';
-    box.innerHTML = '生成 ' + r.count + ' 个 ' + planLabel + ' 码：<br><br><code>' + r.codes.join('<br>') + '</code>'
-      + '<br><br><button class="btn btn-secondary btn-sm" onclick="copyAll(\'' + r.codes.join('\\n') + '\')">复制全部</button>';
+    box.innerHTML = '生成 ' + r.count + ' 个 ' + escapeHtml(planLabel) + ' 码：<br><br><code>' + r.codes.map(escapeHtml).join('<br>') + '</code>'
+      + '<br><br><button class="btn btn-secondary btn-sm" id="copy-all-btn">复制全部</button>';
+    var copyAllBtn = document.getElementById('copy-all-btn');
+    if (copyAllBtn) copyAllBtn.addEventListener('click', function() { copyAll(lastGeneratedCodes.join('\n')); });
     showToast('已生成 ' + r.count + ' 个激活码');
     doList();
   } else {
@@ -236,16 +260,28 @@ async function doList(page) {
   (r.codes || []).forEach(function(c){
     var planLabel = c.plan === 'monthly' ? '月费' : c.plan === 'yearly' ? '年费' : c.plan;
     var tr = document.createElement('tr');
-    tr.innerHTML = '<td style="font-family:monospace;font-size:11px;">' + c.code + '</td>'
-      + '<td>' + planLabel + '</td>'
-      + '<td><span class="status-badge s-' + c.status + '">' + c.status + '</span></td>'
-      + '<td>' + (c.expires_at ? new Date(c.expires_at).toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '-') + '</td>'
-      + '<td>' + (c.delivered_to || '-') + '</td>'
-      + '<td>' + (c.activated_at ? new Date(c.activated_at).toLocaleString('zh-CN') : '-') + '</td>'
-      + '<td><button class="btn btn-secondary btn-sm" onclick="copyCode(\'' + c.code + '\')">复制</button> '
-      + '<button class="btn btn-danger btn-sm" onclick="doRevokeCode(\'' + c.code + '\')">吊销</button></td>';
+    tr.innerHTML = '<td style="font-family:monospace;font-size:11px;">' + escapeHtml(c.code) + '</td>'
+      + '<td>' + escapeHtml(planLabel) + '</td>'
+      + '<td><span class="status-badge s-' + escapeHtml(c.status) + '">' + escapeHtml(c.status) + '</span></td>'
+      + '<td>' + (c.expires_at ? escapeHtml(new Date(c.expires_at).toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })) : '-') + '</td>'
+      + '<td>' + escapeHtml(c.delivered_to || '-') + '</td>'
+      + '<td>' + (c.activated_at ? escapeHtml(new Date(c.activated_at).toLocaleString('zh-CN')) : '-') + '</td>'
+      + '<td><button class="btn btn-secondary btn-sm" data-action="copy" data-code="' + escapeHtml(c.code) + '">复制</button> '
+      + '<button class="btn btn-danger btn-sm" data-action="revoke" data-code="' + escapeHtml(c.code) + '">吊销</button></td>';
     tbody.appendChild(tr);
   });
+  // Event delegation for row buttons — avoids inline onclick with injected data
+  if (!tbody._boundActions) {
+    tbody._boundActions = true;
+    tbody.addEventListener('click', function(e) {
+      var btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      var action = btn.getAttribute('data-action');
+      var code = btn.getAttribute('data-code');
+      if (action === 'copy') copyCode(code);
+      else if (action === 'revoke') doRevokeCode(code);
+    });
+  }
   renderPagination(r);
 }
 
@@ -268,11 +304,11 @@ async function doDeliver() {
   var r = await api('/api/deliver', { code: code, user: user, plan: plan, month: month });
   var el = document.getElementById('deliver-result');
   if (r.ok) {
-    el.innerHTML = '<span style="color:#276749;">已分发至订单 ' + user + '，有效期至 ' + new Date(r.expires_at).toLocaleString('zh-CN', { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }) + '</span>';
+    el.innerHTML = '<span style="color:#276749;">已分发至订单 ' + escapeHtml(user) + '，有效期至 ' + escapeHtml(new Date(r.expires_at).toLocaleString('zh-CN', { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" })) + '</span>';
     showToast('分发成功');
     doList();
   } else {
-    el.innerHTML = '<span style="color:#C53030;">' + (r.message || '分发失败') + '</span>';
+    el.innerHTML = '<span style="color:#C53030;">' + escapeHtml(r.message || '分发失败') + '</span>';
   }
 }
 
@@ -308,10 +344,10 @@ async function doRenew() {
   var r = await api('/api/renew', { code: code, plan: plan });
   var el = document.getElementById('renew-result');
   if (r.ok) {
-    el.innerHTML = '<span style="color:#276749;">续期成功！新过期时间: ' + new Date(r.expires_at).toLocaleString('zh-CN') + '</span>';
+    el.innerHTML = '<span style="color:#276749;">续期成功！新过期时间: ' + escapeHtml(new Date(r.expires_at).toLocaleString('zh-CN')) + '</span>';
     doList();
   } else {
-    el.innerHTML = '<span style="color:#C53030;">' + (r.message || '续期失败') + '</span>';
+    el.innerHTML = '<span style="color:#C53030;">' + escapeHtml(r.message || '续期失败') + '</span>';
   }
 }
 
@@ -350,18 +386,18 @@ async function doRevoke() {
   var r = await api('/api/revoke', { code: code });
   var el = document.getElementById('renew-result');
   if (r.ok) {
-    el.innerHTML = '<span style="color:#C53030;">已吊销: ' + code + '</span>';
+    el.innerHTML = '<span style="color:#C53030;">已吊销: ' + escapeHtml(code) + '</span>';
     showToast('已吊销');
     doList();
   } else {
-    el.innerHTML = '<span style="color:#C53030;">' + (r.message || '吊销失败') + '</span>';
+    el.innerHTML = '<span style="color:#C53030;">' + escapeHtml(r.message || '吊销失败') + '</span>';
   }
 }
 
 // Auto-auth if token exists
 if (token) {
-  api('/api/codes?limit=1').then(function(r){
-    if (r.ok !== undefined) {
+  api('/api/codes?page=1&per_page=10').then(function(r){
+    if (r && r.ok === true) {
       document.getElementById('auth-card').style.display = 'none';
       document.getElementById('main-ui').style.display = 'block';
       doList();
