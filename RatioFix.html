@@ -637,44 +637,18 @@ body {
           <div class="balance-rule-field">
             <label for="balanceMode">调平方式</label>
             <select id="balanceMode" onchange="onBalanceRuleChange()">
-              <option value="default">默认（系统原规则）</option>
-              <option value="spread">均摊（多角色推荐）</option>
-              <option value="conservative">保守（少改角色）</option>
-              <option value="light">轻约束调平</option>
-            </select>
-          </div>
-          <div class="balance-rule-field">
-            <label for="maxPriceMultiplierInput">热门角色最大单价</label>
-            <select id="maxPriceMultiplierInput" onchange="onBalanceRuleChange()">
-              <option value="1">1倍原均价</option>
-              <option value="2">2倍原均价</option>
-              <option value="3" selected>3倍原均价</option>
-              <option value="4">4倍原均价</option>
-              <option value="5">5倍原均价</option>
-              <option value="6">6倍原均价</option>
-              <option value="7">7倍原均价</option>
-              <option value="8">8倍原均价</option>
-              <option value="9">9倍原均价</option>
-              <option value="10">10倍原均价</option>
-            </select>
-          </div>
-          <div class="balance-rule-field">
-            <label for="balancePrecision">调价精度</label>
-            <select id="balancePrecision" onchange="onBalanceRuleChange()">
-              <option value="default">默认（展示3种精度）</option>
-              <option value="100">整数</option>
-              <option value="10">0.1</option>
-              <option value="1">0.01</option>
+              <option value="default">准则配平（推荐）</option>
+              <option value="light">轻约束调平（兜底）</option>
             </select>
           </div>
         </div>
-        <div class="balance-rule-hint" id="balanceRuleHint">默认模式沿用系统原规则，并锁定后续规则选项。</div>
+        <div class="balance-rule-hint" id="balanceRuleHint">准则配平按热度准则自动分配差额；换调价切换精度档位（整数元 → 0.1 → 0.01）。轻约束调平仅保证热度排序与新单价非负，无解时使用。</div>
       </div>
       <div class="auto-balance-panel">
         <button type="button" class="btn-auto-balance" id="btnAutoBalance" onclick="autoBalance()">自动配平</button>
         <button type="button" class="btn-auto-restore" id="btnSwitchAuto" onclick="cycleAutoBalance()" disabled>换调价</button>
         <button type="button" class="btn-auto-restore" id="btnRestoreAuto" onclick="restoreAutoBalance()" disabled>恢复自动结果</button>
-        <div class="auto-balance-result" id="autoBalanceResult"></div>
+        <div class="auto-balance-result" id="autoBalanceResult">准则流水线 v3 已加载（2026-08-14）。确认热度排序后点击自动配平。</div>
       </div>
       <div class="balancer-wrap" id="balancerWrap"></div>
       <div id="balanceDisplay" style="margin-top:8px;"></div>
@@ -783,6 +757,10 @@ var autoBalanceQuantumCents = 1;
 var autoBalanceFallbackType = null;
 var activeAutoPolicy = null;
 var activeAutoQuantumCents = 1;
+var activeQuantumCents = 1;      // 准则流水线当前精度档（100/10/1 分）
+var activeMaxPriceMultiplier = 3;  // 缺配热门新单价上限倍数（自动扩容起点 3 倍原均价）
+var autoBalanceCandidates = null;  // 多方案缓存：[{values, level, quantumCents, baselineMap}]
+var autoBalanceCoreResult = null;  // 最近一次准则配平结果（含 candidates + cls）
 var balanceMode = 'default';
 var balanceRange = 0.10;
 var balanceMaxPriceMultiplier = 3;
@@ -1178,6 +1156,8 @@ function resetStep2State() {
   autoBalanceAvailable = 0;
   autoBalanceQuantumCents = 1;
   autoBalanceFallbackType = null;
+  autoBalanceCandidates = null;
+  autoBalanceCoreResult = null;
   activeAutoPolicy = null;
   activeAutoQuantumCents = 1;
   isBalanced = false;
@@ -1581,6 +1561,8 @@ function buildBalancer() {
   autoBalanceAvailable = 0;
   autoBalanceQuantumCents = 1;
   autoBalanceFallbackType = null;
+  autoBalanceCandidates = null;
+  autoBalanceCoreResult = null;
 
   for (var i = 0; i < characters.length; i++) {
     var ch = characters[i];
@@ -1748,76 +1730,35 @@ function clampNumber(value, min, max, fallback) {
 
 function getBalanceRuleConfig() {
   var modeEl = document.getElementById('balanceMode');
-  var multiplierEl = document.getElementById('maxPriceMultiplierInput');
-  var precisionEl = document.getElementById('balancePrecision');
   var mode = modeEl ? modeEl.value : balanceMode;
-  if (mode === 'default') {
-    return {
-      mode: 'default',
-      range: 0.10,
-      maxPriceMultiplier: 3,
-      precision: 'default'
-    };
-  }
   if (mode === 'light') {
-    return {
-      mode: 'light',
-      range: 1,
-      maxPriceMultiplier: 10,
-      precision: 'default'
-    };
+    return {mode: 'light', range: 1, maxPriceMultiplier: 10, precision: 'default'};
   }
-  return {
-    mode: mode,
-    range: mode === 'spread' ? 1 : 0.10,
-    maxPriceMultiplier: clampNumber(multiplierEl ? multiplierEl.value : balanceMaxPriceMultiplier, 1, 10, 3),
-    precision: precisionEl ? precisionEl.value : balancePrecision
-  };
+  // 均摊/保守模式已删除（准则流水线接管其语义），旧草稿值归一为准则配平
+  return {mode: 'default', range: 0.10, maxPriceMultiplier: 3, precision: 'default'};
 }
 
 function applyBalanceRuleConfig(config) {
   balanceMode = config.mode || 'default';
-  balanceRange = clampNumber(config.range, 0.01, 1, 0.10);
-  balanceMaxPriceMultiplier = clampNumber(config.maxPriceMultiplier, 1, 10, 3);
-  balancePrecision = config.precision || 'default';
-  if (balanceMode === 'default') {
-    balanceRange = 0.10;
-    balanceMaxPriceMultiplier = 3;
-    balancePrecision = 'default';
-  } else if (balanceMode === 'light') {
-    balanceRange = 1;
-    balanceMaxPriceMultiplier = 10;
-    balancePrecision = 'default';
-  }
+  if (balanceMode !== 'default' && balanceMode !== 'light') balanceMode = 'default';
+  balanceRange = balanceMode === 'light' ? 1 : 0.10;
+  balanceMaxPriceMultiplier = balanceMode === 'light' ? 10 : 3;
+  balancePrecision = 'default';
   var modeEl = document.getElementById('balanceMode');
-  var multiplierEl = document.getElementById('maxPriceMultiplierInput');
-  var precisionEl = document.getElementById('balancePrecision');
   if (modeEl) modeEl.value = balanceMode;
-  if (multiplierEl) {
-    multiplierEl.value = balanceMaxPriceMultiplier;
-    multiplierEl.disabled = balanceMode === 'default' || balanceMode === 'light';
-  }
-  if (precisionEl) {
-    precisionEl.value = balancePrecision;
-    precisionEl.disabled = balanceMode === 'default' || balanceMode === 'light';
-  }
   var hint = document.getElementById('balanceRuleHint');
   if (hint) {
-    if (balanceMode === 'default') {
-      hint.textContent = '默认模式沿用系统原规则，并锁定后续规则选项。';
-    } else if (balanceMode === 'spread') {
-      hint.textContent = '均摊模式允许更多角色小幅参与，适合角色较多的排表；热门角色最大单价按原排表均价倍数限制。';
-    } else if (balanceMode === 'light') {
-      hint.textContent = '轻约束调平保持确认的调价热度排序与新单价非负，不套用原价幅度、点数方向和热门角色业务限制。';
-    } else {
-      hint.textContent = '保守模式仅自动修改点数变化角色；点数未变化角色保留原调价，热门角色最大单价按原排表均价倍数限制。';
-    }
+    hint.textContent = balanceMode === 'light'
+      ? '轻约束调平仅保证热度排序与新单价非负，不套用准则与幅度限制，无解时使用。'
+      : '准则配平按热度准则自动分配差额；换调价切换精度档位（整数元 → 0.1 → 0.01）。';
   }
 }
 
 function onBalanceRuleChange() {
   applyBalanceRuleConfig(getBalanceRuleConfig());
   autoBalanceSnapshot = null;
+  autoBalanceCandidates = null;
+  autoBalanceCoreResult = null;
   autoBalanceVariant = 0;
   autoBalanceAvailable = 0;
   autoBalanceQuantumCents = 1;
@@ -1873,6 +1814,641 @@ function candidateKeepsConfirmedHeatOrder(values) {
     if (values[characters[i]] < values[characters[i + 1]]) return false;
   }
   return true;
+}
+
+// ==================== CORE-RULE PIPELINE (2026-08-14) ====================
+// 核心准则流水线：
+//   加价优先：新增排第一 → 真热门缺配(越热越缺涨越多) → 普通热门缺配(按缺配比例) → 零调价缺配 → 冷门缺配(少量)
+//   减价优先：冷门爆配(越爆越冷降越多) → 冷门缺配(少量) → 零调价爆配 → 普通热门爆配(少量) → 真热门爆配(不动) → 点数不变 → 新增排第一(最后)
+//   真热门判定：原调价>0 角色相邻差超过中位数×2 且 >2 元 → 断层靠前角色为真热门
+//   新增排第一基准：锚角色原调价 + max(3元, 锚×30%)，多个按 2 元梯度递增
+
+var CORE_RULES = {
+  trueHotGapFloorCents: 200,   // 断层最小差：2 元
+  trueHotMultiple: 2,          // 差异 >= 中位数 × 2 才算断层
+  newLeaderGapMinCents: 300,   // 新增角色与锚角色最小间距 3 元
+  newLeaderGapRatio: 0.30,     // 间距 = max(3元, 锚调价×30%)
+  newLeaderStepCents: 200,     // 多个新增角色梯度 2 元
+  smallCapRatio: 0.10,         // "少量"动幅 = 原单价×10%
+  normalCapRatio: 0.40,        // 常规幅度上限 = 原单价×40%
+  finalCapRatio: 0.50,         // 最终放宽层上限 = 原单价×50%
+  tailLimitCents: 200,         // 尾差闭合阈值：主分配后剩余 |Σ| 超过此值不尝试精确闭合
+  quantumPriority: [100, 10, 1],  // 多方案精度档位：整数元 → 0.1元 → 0.01元
+  maxExpandMultiplier: 10      // 缺配热门新单价上限自动扩容的天花板（倍原均价）
+};
+
+function computeWeightedSumCents(values) {
+  var sum = 0;
+  for (var i = 0; i < characters.length; i++) {
+    sum += (pointsPerChar[characters[i]] || 0) * values[characters[i]];
+  }
+  return sum;
+}
+
+function getShortfallRatio(ch) {
+  var orig = Math.max(1, originalPointsPerChar[ch] || 0);
+  var actual = pointsPerChar[ch] || 0;
+  return Math.max(0, (orig - actual) / orig);
+}
+
+function getSurplusRatio(ch) {
+  var orig = Math.max(1, originalPointsPerChar[ch] || 0);
+  var actual = pointsPerChar[ch] || 0;
+  return Math.max(0, (actual - orig) / orig);
+}
+
+function classifyRoles() {
+  // 给每个角色贴标签：身份 + 点数状态 + 同锚点组
+  var labels = {};
+  var pointState = {};
+  var anchorGroups = {};
+  var leading = {};
+  getPriorityNewRoles().forEach(function(ch) { leading[ch] = true; });
+  for (var i = 0; i < characters.length; i++) {
+    var ch = characters[i];
+    var orig = originalPointsPerChar[ch] || 0;
+    var actual = pointsPerChar[ch] || 0;
+    pointState[ch] = actual > orig ? 'surplus' : (actual < orig ? 'short' : 'same');
+    if (leading[ch]) { labels[ch] = 'newLeader'; continue; }
+    if (!originalCharacterSet[ch]) { labels[ch] = 'missing'; continue; }
+    var heat = Math.round((rawHeatAdjustments[ch] || 0) * 100);
+    if (heat > 0) labels[ch] = 'plainHot';   // 真热门下一步补标
+    else if (heat === 0) labels[ch] = 'zero';
+    else labels[ch] = 'cold';
+  }
+  // 真热门判定：原调价>0 角色按热度顺序取相邻差，
+  // 中位数做基准；某个差 >= 基准×2 且 >2 元 → 该差靠前角色是真热门。
+  var posRoles = characters.filter(function(ch) { return labels[ch] === 'plainHot'; });
+  var diffs = [];
+  for (var d = 0; d < posRoles.length - 1; d++) {
+    diffs.push(Math.round((rawHeatAdjustments[posRoles[d]] || 0) * 100) - Math.round((rawHeatAdjustments[posRoles[d + 1]] || 0) * 100));
+  }
+  if (diffs.length) {
+    var sorted = diffs.slice().sort(function(a, b) { return a - b; });
+    var median = sorted[Math.floor((sorted.length - 1) / 2)];  // 下中位数：断层是少数派，不把基准拉高
+    if (median > 0) {
+      for (var g = 0; g < diffs.length; g++) {
+        if (diffs[g] >= median * CORE_RULES.trueHotMultiple && diffs[g] > CORE_RULES.trueHotGapFloorCents) {
+          labels[posRoles[g]] = 'trueHot';
+        }
+      }
+    }
+  }
+  // 同锚点组：原排角色、原调价完全相同（分）、相邻点数变化差 ≤ 2 → 连续段同组
+  var byHeat = {};
+  characters.forEach(function(ch) {
+    if (!originalCharacterSet[ch]) return;
+    var heat = Math.round((rawHeatAdjustments[ch] || 0) * 100);
+    if (byHeat[heat] === undefined) byHeat[heat] = [];
+    byHeat[heat].push(ch);
+  });
+  var gid = 1;
+  Object.keys(byHeat).forEach(function(k) {
+    var roles = byHeat[k];
+    function flushGroup(g) {
+      if (g.length >= 2) {
+        for (var i = 0; i < g.length; i++) anchorGroups[g[i]] = gid;
+        gid++;
+      }
+    }
+    var group = [roles[0]];
+    for (var i = 1; i < roles.length; i++) {
+      var prev = roles[i - 1];
+      var dPrev = Math.abs((pointsPerChar[prev] || 0) - (originalPointsPerChar[prev] || 0));
+      var dCur = Math.abs((pointsPerChar[roles[i]] || 0) - (originalPointsPerChar[roles[i]] || 0));
+      if (Math.abs(dPrev - dCur) <= 2) group.push(roles[i]);
+      else { flushGroup(group); group = [roles[i]]; }
+    }
+    flushGroup(group);
+  });
+  return {labels: labels, pointState: pointState, anchorGroups: anchorGroups};
+}
+
+function alignToQuantum(cents) {
+  // 把分值对齐到当前精度档网格（round 到步长倍数）
+  var q = activeQuantumCents;
+  return Math.round(cents / q) * q;
+}
+
+function getNewLeaderBaseline() {
+  // 新增排第一角色的高起点调价（分），按当前精度档对齐
+  var baseline = {};
+  var leaders = getPriorityNewRoles();
+  if (!leaders.length) return baseline;
+  if (leaders.length >= characters.length) {
+    // 全表都是新增角色：从 3 元起步，排越前越高
+    for (var i = 0; i < leaders.length; i++) {
+      baseline[leaders[i]] = alignToQuantum(CORE_RULES.newLeaderGapMinCents + (leaders.length - 1 - i) * CORE_RULES.newLeaderStepCents);
+    }
+    return baseline;
+  }
+  var anchor = characters[leaders.length];
+  var anchorBase = Math.round((baseAdjustments[anchor] || 0) * 100);
+  var gap = Math.max(CORE_RULES.newLeaderGapMinCents, Math.round(Math.abs(anchorBase) * CORE_RULES.newLeaderGapRatio));
+  for (var i = 0; i < leaders.length; i++) {
+    // leaders[0] 排最前，距离锚最近的是 leaders[leaders.length-1]
+    var stepsAbove = leaders.length - 1 - i;
+    baseline[leaders[i]] = alignToQuantum(anchorBase + gap + stepsAbove * CORE_RULES.newLeaderStepCents);
+  }
+  return baseline;
+}
+
+function buildAddPriorityQueue(cls) {
+  // 加价队列：按准则从高到低排；组内 weight 决定谁多拿
+  var q = [];
+  var labels = cls.labels;
+  var state = cls.pointState;
+  var used = {};
+  function push(roles, weightFn) {
+    var group = [];
+    for (var i = 0; i < roles.length; i++) {
+      var ch = roles[i];
+      if (used[ch] || (pointsPerChar[ch] || 0) <= 0) continue;
+      var w = weightFn(ch);
+      if (w <= 0) continue;
+      used[ch] = true;
+      group.push({role: ch, weight: w});
+    }
+    if (group.length) q.push(group);
+  }
+  // 1 新增排第一：权重按热度梯度（排越前越大）× 点数
+  var leaders = getPriorityNewRoles();
+  var leaderIdx = {};
+  leaders.forEach(function(ch, i) { leaderIdx[ch] = i; });
+  push(leaders, function(ch) {
+    return (leaders.length - leaderIdx[ch]) * Math.max(1, pointsPerChar[ch] || 0);
+  });
+  // 2 真热门缺配：权重 = 原调价 × 缺配比例（越热越缺涨越多）
+  push(characters.filter(function(ch) { return labels[ch] === 'trueHot' && state[ch] === 'short'; }), function(ch) {
+    return Math.max(1, Math.round((rawHeatAdjustments[ch] || 0) * 100)) * getShortfallRatio(ch);
+  });
+  // 3 普通热门缺配：权重 = 缺配比例（平均分）
+  push(characters.filter(function(ch) { return labels[ch] === 'plainHot' && state[ch] === 'short'; }), function(ch) {
+    return getShortfallRatio(ch);
+  });
+  // 4 零调价缺配
+  push(characters.filter(function(ch) { return labels[ch] === 'zero' && state[ch] === 'short'; }), function(ch) {
+    return getShortfallRatio(ch);
+  });
+  // 5 冷门缺配：原调价降序（接近 0 的先），权重 = 缺配比例（少量由 cap 控制）
+  var coldShort = characters.filter(function(ch) { return labels[ch] === 'cold' && state[ch] === 'short'; })
+    .sort(function(a, b) { return Math.round((rawHeatAdjustments[b] || 0) * 100) - Math.round((rawHeatAdjustments[a] || 0) * 100); });
+  push(coldShort, function(ch) { return getShortfallRatio(ch); });
+  // 6 点数不变：不动（放宽层打开后才参与）
+  push(characters.filter(function(ch) { return state[ch] === 'same'; }), function(ch) { return 1; });
+  // 7 爆配角色：反方向（放宽层打开后才参与）
+  push(characters.filter(function(ch) { return state[ch] === 'surplus'; }), function(ch) { return 1; });
+  return q;
+}
+
+function buildReducePriorityQueue(cls) {
+  // 减价队列：加价队列的反面
+  var q = [];
+  var labels = cls.labels;
+  var state = cls.pointState;
+  var used = {};
+  function push(roles, weightFn) {
+    var group = [];
+    for (var i = 0; i < roles.length; i++) {
+      var ch = roles[i];
+      if (used[ch] || (pointsPerChar[ch] || 0) <= 0) continue;
+      var w = weightFn(ch);
+      if (w <= 0) continue;
+      used[ch] = true;
+      group.push({role: ch, weight: w});
+    }
+    if (group.length) q.push(group);
+  }
+  // 1 冷门爆配：权重 = |原调价| × 爆配比例（越爆越冷降越多）
+  push(characters.filter(function(ch) { return labels[ch] === 'cold' && state[ch] === 'surplus'; }), function(ch) {
+    return Math.max(1, Math.abs(Math.round((rawHeatAdjustments[ch] || 0) * 100))) * getSurplusRatio(ch);
+  });
+  // 2 冷门缺配：少量（cap 10%）
+  push(characters.filter(function(ch) { return labels[ch] === 'cold' && state[ch] === 'short'; }), function(ch) {
+    return Math.max(1, Math.abs(Math.round((rawHeatAdjustments[ch] || 0) * 100))) * getShortfallRatio(ch);
+  });
+  // 3 零调价爆配
+  push(characters.filter(function(ch) { return labels[ch] === 'zero' && state[ch] === 'surplus'; }), function(ch) {
+    return getSurplusRatio(ch);
+  });
+  // 4 普通热门爆配：少量（cap 10%）
+  push(characters.filter(function(ch) { return labels[ch] === 'plainHot' && state[ch] === 'surplus'; }), function(ch) {
+    return getSurplusRatio(ch);
+  });
+  // 5 真热门爆配：不动（cap=0 时自然跳过，放宽层打开后才参与）
+  push(characters.filter(function(ch) { return labels[ch] === 'trueHot' && state[ch] === 'surplus'; }), function(ch) { return 1; });
+  // 6 点数不变：不动（放宽层打开后才参与）
+  push(characters.filter(function(ch) { return state[ch] === 'same'; }), function(ch) { return 1; });
+  // 7 新增排第一：最后手段，cap 限到基准为止
+  push(getPriorityNewRoles(), function(ch) { return 1; });
+  // 8 缺配角色：反方向（放宽层打开后才参与）
+  push(characters.filter(function(ch) { return state[ch] === 'short'; }), function(ch) { return 1; });
+  return q;
+}
+
+function getRoleCapBounds(ch, level, cls, baselineMap, values, direction) {
+  // 返回该角色当前允许的调价区间 [min, max]（分）
+  var labels = cls.labels;
+  var state = cls.pointState;
+  var avgCents = Math.round(avgPriceActual * 100);
+  var base = Math.round((baseAdjustments[ch] || 0) * 100);
+  var origPriceCents = Math.max(0, Math.round((originalPrices[ch] || 0) * 100));
+  if (!origPriceCents) origPriceCents = Math.max(1, avgCents);
+  var capRatio = level >= 3 ? CORE_RULES.finalCapRatio : CORE_RULES.normalCapRatio;
+  var smallMove = Math.max(1, Math.floor(origPriceCents * CORE_RULES.smallCapRatio));
+  var bigMove = Math.max(1, Math.floor(origPriceCents * capRatio));
+  var globalMin = -avgCents;                 // 新单价 ≥ 0
+  var globalMax = Math.round(avgCents * (activeMaxPriceMultiplier - 1));  // 新单价 ≤ N×均价（无解时自动扩容）
+  var min = globalMin;
+  var max = globalMax;
+  var label = labels[ch];
+  var st = state[ch];
+
+  if (label === 'newLeader') {
+    // 有真实锚角色时守基准（大幅高于）；全表新增时基准只是相对梯度，可降
+    var hasAnchor = getPriorityNewRoles().length < characters.length;
+    min = Math.max(min, hasAnchor ? (baselineMap[ch] || 0) : globalMin);
+  } else if (label === 'trueHot') {
+    if (st === 'short') { min = Math.max(min, base); max = Math.min(max, base + bigMove); }
+    else if (st === 'surplus' && level >= 3) { min = base - smallMove; max = base; }  // 深放宽才允许真热门爆配小量下调
+    else { min = base; max = base; }  // 爆配/不变：最好保持原调价
+  } else if (label === 'plainHot') {
+    if (st === 'short') { min = Math.max(min, base); max = Math.min(max, base + bigMove); }
+    else if (st === 'surplus') { min = Math.max(min, base - bigMove); max = base; }  // 热门爆配：下调或不动，降幅给足
+    else { min = base; max = base; }
+  } else if (label === 'zero') {
+    if (st === 'short') { min = Math.max(min, base); max = Math.min(max, base + bigMove); }
+    else if (st === 'surplus') { min = Math.max(min, base - bigMove); max = base; }
+    else { min = base; max = base; }
+  } else if (label === 'cold') {
+    if (st === 'surplus') { min = Math.max(min, base - bigMove); max = base; }
+    else if (st === 'short') { min = Math.max(min, base - smallMove); max = Math.min(max, base + smallMove); }
+    else { min = base; max = base; }
+  } else {
+    // missing（非排头新增角色）：只受通用约束与排序约束
+  }
+
+  // L4 = 扩容层：缺配热门的新单价上限随 activeMaxPriceMultiplier 自动扩容，
+  // 点数不变角色只 ±原价10%，反方向角色（加价时的爆配/减价时的缺配）保持锁定
+  if (level === 4) {
+    min = globalMin;
+    max = globalMax;
+    if (label === 'newLeader' && getPriorityNewRoles().length < characters.length) min = Math.max(min, baselineMap[ch] || 0);  // 有锚时"大幅高于"基准不放宽
+    if (st === 'same') {
+      min = Math.max(globalMin, base - smallMove);
+      max = Math.min(globalMax, base + smallMove);
+    }
+    if (direction > 0 && st === 'surplus') { min = base; max = base; }  // 加价：爆配不动
+    if (direction < 0 && st === 'short') { min = base; max = base; }    // 减价：缺配不动
+    var idx4 = characters.indexOf(ch);
+    if (idx4 > 0) max = Math.min(max, values[characters[idx4 - 1]]);
+    if (idx4 < characters.length - 1) min = Math.max(min, values[characters[idx4 + 1]]);
+    if (min > max) min = max;
+    // 对齐精度档：min 向上取整、max 向下取整到步长倍数
+    min = Math.ceil(min / activeQuantumCents) * activeQuantumCents;
+    max = Math.floor(max / activeQuantumCents) * activeQuantumCents;
+    if (min > max) min = max;
+    return {min: min, max: max};
+  }
+  // L5 = 最终层：反方向也放开（队列顺序仍按准则），点数不变角色仍只 ±原价10%
+  if (level >= 5) {
+    min = globalMin;
+    max = globalMax;
+    if (label === 'newLeader' && getPriorityNewRoles().length < characters.length) min = Math.max(min, baselineMap[ch] || 0);  // 有锚时"大幅高于"基准不放宽
+    if (st === 'same') {
+      min = Math.max(globalMin, base - smallMove);
+      max = Math.min(globalMax, base + smallMove);
+    }
+    var idx5 = characters.indexOf(ch);
+    if (idx5 > 0) max = Math.min(max, values[characters[idx5 - 1]]);
+    if (idx5 < characters.length - 1) min = Math.max(min, values[characters[idx5 + 1]]);
+    if (min > max) min = max;
+    // 对齐精度档：min 向上取整、max 向下取整到步长倍数
+    min = Math.ceil(min / activeQuantumCents) * activeQuantumCents;
+    max = Math.floor(max / activeQuantumCents) * activeQuantumCents;
+    if (min > max) min = max;
+    return {min: min, max: max};
+  }
+  // 放宽层只作用于原排已有角色；新增角色（missing/newLeader）没有原价锚点，不套用
+  if (label !== 'missing' && label !== 'newLeader') {
+    if (level >= 1 && st === 'same') {
+      min = Math.max(min, base - smallMove);
+      max = Math.min(max, base + smallMove);
+    }
+    if (level >= 2) {
+      var reverse = Math.max(1, Math.floor(origPriceCents * 0.05));
+      if (st === 'short') min = Math.max(min, base - reverse);
+      if (st === 'surplus') max = Math.min(max, base + reverse);
+    }
+  }
+
+  // 排序约束：不高于前一位当前值、不低于后一位当前值
+  var idx = characters.indexOf(ch);
+  if (idx > 0) max = Math.min(max, values[characters[idx - 1]]);
+  if (idx < characters.length - 1) min = Math.max(min, values[characters[idx + 1]]);
+  if (min > max) min = max;
+  // 对齐精度档：min 向上取整、max 向下取整到步长倍数
+  min = Math.ceil(min / activeQuantumCents) * activeQuantumCents;
+  max = Math.floor(max / activeQuantumCents) * activeQuantumCents;
+  if (min > max) min = max;
+  return {min: min, max: max};
+}
+
+function distributeResidual(queue, direction, level, cls, baselineMap, values) {
+  // 逐级吸收残差直到 Σ(点数×调价)=0；direction: +1 加价 / -1 减价
+  // 多轮迭代：排序约束随邻居值变化，前一轮解锁的 cap 下一轮继续吸收
+  for (var round = 0; round < 6; round++) {
+    var progressed = false;
+    for (var g = 0; g < queue.length; g++) {
+      var cur = computeWeightedSumCents(values);
+      if (cur === 0) return {ok: true, values: values};
+      if (direction > 0 ? cur > 0 : cur < 0) return {ok: false, residual: cur, values: values};  // 残差方向反了
+      var remaining = Math.abs(cur);
+      var entries = [];
+      for (var i = 0; i < queue[g].length; i++) {
+        var role = queue[g][i].role;
+        var bounds = getRoleCapBounds(role, level, cls, baselineMap, values, direction);
+        var cap = direction > 0 ? Math.max(0, bounds.max - values[role]) : Math.max(0, values[role] - bounds.min);
+        // cap=0 的同锚点组成员也收进来：前位涨了它的排序上限会解锁，水位填充时实时重算
+        if (cap > 0 || cls.anchorGroups[role] !== undefined) entries.push({role: role, weight: queue[g][i].weight, cap: cap});
+      }
+      if (!entries.length) continue;
+      // toGive = 当前残差；每轮按动态 cap 比例吸收，cap 随排序解锁而变大
+      var toGive = remaining;
+      var pass = 0;
+      while (toGive > 0 && pass < 12) {
+        pass++;
+        // 每轮重算 cap：排序约束随邻居当前值变化（前位涨了，后位才能跟进）
+        for (var r = 0; r < entries.length; r++) {
+          var rb = getRoleCapBounds(entries[r].role, level, cls, baselineMap, values, direction);
+          entries[r].cap = direction > 0
+            ? Math.max(0, rb.max - values[entries[r].role])
+            : Math.max(0, values[entries[r].role] - rb.min);
+        }
+        // 打包分配单元：同锚点组角色共享一个单元，单元内水位填充保持调价接近
+        var units = [];
+        var unitIndex = {};
+        for (var r = 0; r < entries.length; r++) {
+          var agid = cls.anchorGroups[entries[r].role];
+          if (agid !== undefined) {
+            if (unitIndex[agid] === undefined) {
+              unitIndex[agid] = units.length;
+              units.push({gid: agid, members: [entries[r]], weight: 0, cap: 0});
+            }
+            units[unitIndex[agid]].members.push(entries[r]);
+          } else {
+            units.push({gid: null, members: [entries[r]], weight: entries[r].weight, cap: entries[r].cap});
+          }
+        }
+        units.forEach(function(u) {
+          if (u.gid === null) return;
+          u.cap = 0;
+          u.weight = 0;
+          u.members.forEach(function(m) { u.cap += m.cap; u.weight += m.weight; });
+        });
+        var baseTotal = units.reduce(function(s, u) { return s + u.weight * u.cap; }, 0);
+        if (baseTotal <= 0) break;
+        var any = false;
+        for (var e = 0; e < units.length && toGive > 0; e++) {
+          var u = units[e];
+          if (u.cap <= 0) continue;
+          // 单元预算（调价分），按 weight×cap 比例
+          var share = Math.min(u.cap, Math.floor(toGive * u.weight * u.cap / baseTotal));
+          share = Math.floor(share / activeQuantumCents) * activeQuantumCents;
+          if (share <= 0) continue;
+          // 单元内水位填充：每步 1 个步长，优先给调价最低（加价）/最高（减价）的成员
+          // cap 每步实时重算（前位涨了，后位的排序上限同步放开）
+          var rem = share;
+          while (rem >= activeQuantumCents) {
+            var best = null;
+            for (var m = 0; m < u.members.length; m++) {
+              var b2 = getRoleCapBounds(u.members[m].role, level, cls, baselineMap, values, direction);
+              var capNow = direction > 0
+                ? b2.max - values[u.members[m].role]
+                : values[u.members[m].role] - b2.min;
+              if (capNow < activeQuantumCents) continue;
+              if (best === null || (direction > 0
+                ? values[u.members[m].role] < values[u.members[best].role]
+                : values[u.members[m].role] > values[u.members[best].role])) best = m;
+            }
+            if (best === null) break;
+            var mem = u.members[best];
+            var pts = Math.max(1, pointsPerChar[mem.role] || 0);
+            if (activeQuantumCents * pts > toGive && toGive < activeQuantumCents * pts) break;  // 不够一步吸收
+            rem -= activeQuantumCents;
+            values[mem.role] += direction * activeQuantumCents;
+            toGive -= activeQuantumCents * pts;
+            any = true;
+          }
+        }
+        if (!any) break;
+      }
+      if (computeWeightedSumCents(values) !== cur) progressed = true;
+    }
+    if (!progressed) break;
+  }
+  var finalSum = computeWeightedSumCents(values);
+  if (finalSum === 0) return {ok: true, values: values};
+  return {ok: false, residual: finalSum, values: values};
+}
+
+function closeExactTail(values, residual, cls, baselineMap, level) {
+  // 精确尾差闭合：T = -residual（要吸收的 Σ 变化，分）。
+  // 在当前精度档网格上：单角色整除 → 双角色枚举 → 三角色枚举。
+  var q = activeQuantumCents;
+  var T = -residual;
+  if (T === 0) return true;
+  if (T % q !== 0) return false;  // 残差不在精度网格上：本档无解
+  var Tq = T / q;                 // 以"档"为单位
+  var T2 = Math.abs(Tq);
+  if (T2 > Math.ceil(CORE_RULES.tailLimitCents / q)) return false;
+  var pool = [];
+  characters.forEach(function(ch) {
+    var pts = pointsPerChar[ch] || 0;
+    if (pts <= 0) return;
+    var bounds = getRoleCapBounds(ch, level, cls, baselineMap, values, T > 0 ? 1 : -1);
+    var up = Math.floor((bounds.max - values[ch]) / q);
+    var down = Math.floor((values[ch] - bounds.min) / q);
+    if (up > 0 || down > 0) pool.push({ch: ch, pts: pts, up: up, down: down, isLeader: cls.labels[ch] === 'newLeader'});
+  });
+  // 尾差闭合也按准则队列排序：优先动队列靠前的角色，新增排第一永远放最后
+  var tailQueue = T > 0 ? buildAddPriorityQueue(cls) : buildReducePriorityQueue(cls);
+  var tailRank = {};
+  for (var gi = 0; gi < tailQueue.length; gi++) {
+    for (var gi2 = 0; gi2 < tailQueue[gi].length; gi2++) {
+      if (tailRank[tailQueue[gi][gi2].role] === undefined) tailRank[tailQueue[gi][gi2].role] = gi * 100 + gi2;
+    }
+  }
+  pool.sort(function(a, b) {
+    if (a.isLeader !== b.isLeader) return a.isLeader ? 1 : -1;
+    var ra = tailRank[a.ch] !== undefined ? tailRank[a.ch] : 9999;
+    var rb = tailRank[b.ch] !== undefined ? tailRank[b.ch] : 9999;
+    return ra - rb;
+  });
+  function tryApply(pairs) {
+    // pairs[i].x 单位：档（×q 才是分）
+    var total = 0;
+    for (var i = 0; i < pairs.length; i++) total += pairs[i].x * (pointsPerChar[pairs[i].ch] || 0);
+    if (total !== Tq) return false;
+    for (var i = 0; i < pairs.length; i++) {
+      var b = getRoleCapBounds(pairs[i].ch, level, cls, baselineMap, values, T > 0 ? 1 : -1);
+      var v = values[pairs[i].ch] + pairs[i].x * q;
+      if (v < b.min || v > b.max) return false;
+    }
+    for (var i = 0; i < pairs.length; i++) values[pairs[i].ch] += pairs[i].x * q;
+    return true;
+  }
+  // 同锚点组水位重排：吸收量在组内按"调价趋同"分配
+  function fillAnchorGroup(members, absorbCents, direction) {
+    var remaining = Math.abs(absorbCents);
+    var sign = absorbCents > 0 ? 1 : -1;
+    var work = members.map(function(m) { return {ch: m.ch, pts: m.pts}; });
+    while (remaining > 0) {
+      var best = null;
+      for (var m = 0; m < work.length; m++) {
+        var b = getRoleCapBounds(work[m].ch, level, cls, baselineMap, values, sign);
+        var capOk = sign > 0 ? values[work[m].ch] < b.max : values[work[m].ch] > b.min;
+        if (!capOk) continue;
+        if (best === null || (sign > 0
+          ? values[work[m].ch] < values[work[best].ch]
+          : values[work[m].ch] > values[work[best].ch])) best = m;
+      }
+      if (best === null) return false;
+      var step = activeQuantumCents;
+      var stepAbsorb = step * work[best].pts;
+      if (stepAbsorb > remaining && remaining < stepAbsorb) return false;  // 不能精确吸收
+      values[work[best].ch] += sign * step;
+      remaining -= stepAbsorb;
+    }
+    return remaining === 0;
+  }
+
+  // 1) 单角色整除
+  for (var i = 0; i < pool.length; i++) {
+    if (T2 % pool[i].pts !== 0) continue;
+    var x = Tq / pool[i].pts;
+    if (x !== 0 && x >= -pool[i].down && x <= pool[i].up) {
+      // 同锚点组（≥2步）：优先组内水位重排，保持调价接近
+      var agid2 = cls.anchorGroups[pool[i].ch];
+      if (agid2 !== undefined && Math.abs(x) >= 2) {
+        var groupMembers = pool.filter(function(p2) { return cls.anchorGroups[p2.ch] === agid2; });
+        if (groupMembers.length >= 2 && fillAnchorGroup(groupMembers, T, T > 0 ? 1 : -1)) return true;
+      }
+      if (tryApply([{ch: pool[i].ch, x: x}])) return true;
+    }
+  }
+  // 2) 双角色枚举
+  for (var i = 0; i < pool.length; i++) {
+    var pi = pool[i];
+    var span = Math.floor(T2 / pi.pts) + 2;
+    for (var xi = Math.max(-pi.down, -span); xi <= Math.min(pi.up, span); xi++) {
+      var r = Tq - xi * pi.pts;
+      for (var j = 0; j < pool.length; j++) {
+        if (j === i) continue;
+        var pj = pool[j];
+        if (r % pj.pts !== 0) continue;
+        var xj = r / pj.pts;
+        if (xj === 0 || xj < -pj.down || xj > pj.up) continue;
+        if (tryApply([{ch: pi.ch, x: xi}, {ch: pj.ch, x: xj}])) return true;
+      }
+    }
+  }
+  // 3) 三角色枚举
+  for (var i = 0; i < pool.length; i++) {
+    var pi3 = pool[i];
+    var span3 = Math.floor(T2 / pi3.pts) + 2;
+    for (var xi = Math.max(-pi3.down, -span3); xi <= Math.min(pi3.up, span3); xi++) {
+      var r2 = Tq - xi * pi3.pts;
+      if (r2 === 0) continue;
+      for (var j = 0; j < pool.length; j++) {
+        if (j === i) continue;
+        var pj3 = pool[j];
+        var spanJ = Math.floor(Math.abs(r2) / pj3.pts) + 2;
+        for (var xj = Math.max(-pj3.down, -spanJ); xj <= Math.min(pj3.up, spanJ); xj++) {
+          var r3 = r2 - xj * pj3.pts;
+          if (r3 === 0) continue;
+          for (var k = 0; k < pool.length; k++) {
+            if (k === i || k === j) continue;
+            var pk = pool[k];
+            if (r3 % pk.pts !== 0) continue;
+            var xk = r3 / pk.pts;
+            if (xk === 0 || xk < -pk.down || xk > pk.up) continue;
+            if (tryApply([{ch: pi3.ch, x: xi}, {ch: pj3.ch, x: xj}, {ch: pk.ch, x: xk}])) return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
+function enforceOrderAndExactZero(values, cls, baselineMap, level) {
+  // 多轮：拉平排序 → 小尾差精确闭合 → 大残差回流主分配，直到 Σ=0 或无进展
+  for (var pass = 0; pass < 4; pass++) {
+    var changed = false;
+    for (var i = characters.length - 2; i >= 0; i--) {
+      var ch = characters[i];
+      var nx = characters[i + 1];
+      if (values[ch] < values[nx]) { values[ch] = values[nx]; changed = true; }
+    }
+    var cur = computeWeightedSumCents(values);
+    if (cur === 0) return {ok: true, values: values};
+    if (Math.abs(cur) <= CORE_RULES.tailLimitCents && closeExactTail(values, cur, cls, baselineMap, level)) {
+      cur = computeWeightedSumCents(values);
+      if (cur === 0) return {ok: true, values: values};
+    }
+    if (!changed) {
+      if (Math.abs(cur) > CORE_RULES.tailLimitCents) {
+        // 排序已稳定但残差大：主分配再来一轮
+        var queue = cur < 0 ? buildAddPriorityQueue(cls) : buildReducePriorityQueue(cls);
+        var direction = cur < 0 ? 1 : -1;
+        var res = distributeResidual(queue, direction, level, cls, baselineMap, values);
+        if (res.ok) return {ok: true, values: values};
+      } else {
+        break;  // 小尾差也闭合不了 → 无进展
+      }
+    }
+  }
+  var finalSum = computeWeightedSumCents(values);
+  if (finalSum === 0) return {ok: true, values: values};
+  return {ok: false, residual: finalSum};
+}
+
+function tryBalanceAtLevel(level, cls, baselineMap, values) {
+  var cur = computeWeightedSumCents(values);
+  if (cur === 0) return {ok: true, values: values, level: level};
+  var queue = cur < 0 ? buildAddPriorityQueue(cls) : buildReducePriorityQueue(cls);
+  var direction = cur < 0 ? 1 : -1;
+  var res = distributeResidual(queue, direction, level, cls, baselineMap, values);
+  if (res.ok) {
+    var fin = enforceOrderAndExactZero(res.values, cls, baselineMap, level);
+    return fin.ok ? {ok: true, values: fin.values, level: level} : fin;
+  }
+  // 主分配剩小尾差：先拉平排序（可能改变残差），再精确闭合
+  if (Math.abs(res.residual) <= CORE_RULES.tailLimitCents) {
+    var fin2 = enforceOrderAndExactZero(res.values, cls, baselineMap, level);
+    if (fin2.ok) return {ok: true, values: fin2.values, level: level};
+    return fin2;
+  }
+  return res;
+}
+
+function buildDistributionReport(values, cls, baselineMap) {
+  // 谁承担了多少、为什么：直接渲染给用户看
+  var items = [];
+  characters.forEach(function(ch) {
+    var base = baselineMap[ch] !== undefined ? baselineMap[ch] : Math.round((baseAdjustments[ch] || 0) * 100);
+    var delta = values[ch] - base;
+    if (delta === 0) return;
+    var label = cls.labels[ch];
+    var st = cls.pointState[ch];
+    var reason = label === 'newLeader' ? '新增排第一' :
+      (label === 'trueHot' ? (st === 'short' ? '真热门缺配' : '真热门') :
+      (label === 'plainHot' ? (st === 'short' ? '普通热门缺配' : '普通热门') :
+      (label === 'zero' ? '原调价为0' : (label === 'cold' ? (st === 'surplus' ? '冷门爆配' : '冷门') : '新增角色'))));
+    items.push({role: ch, deltaCents: delta, reason: reason});
+  });
+  return items;
 }
 
 function getPriorityNewRoleScore(values) {
@@ -2987,6 +3563,119 @@ function solveExactMultiRole(preferred, variantIndex, profile) {
   };
 }
 
+function computeFinalAdjustments() {
+  // 核心准则流水线主入口：按精度档 100→10→1 分各求一个方案；
+  // 每档内缺配热门新单价上限从 3 倍原均价起，全部规则无解时自动扩容到 10 倍
+  var cls = classifyRoles();
+  var candidates = [];
+  var prevQuantum = activeQuantumCents;
+  var prevMultiplier = activeMaxPriceMultiplier;
+  for (var qi = 0; qi < CORE_RULES.quantumPriority.length; qi++) {
+    var quantum = CORE_RULES.quantumPriority[qi];
+    activeQuantumCents = quantum;
+    var baselineMap = getNewLeaderBaseline();
+    var baseValues = {};
+    characters.forEach(function(ch) {
+      baseValues[ch] = baselineMap[ch] !== undefined ? baselineMap[ch] : Math.round((baseAdjustments[ch] || 0) * 100);
+    });
+    // 原调价对齐到本档网格
+    characters.forEach(function(ch) { baseValues[ch] = alignToQuantum(baseValues[ch]); });
+    // 起始值单调化：用户确认的热度顺序是硬约束，倒挂处（如把调价0的角色排在-20元角色后）
+    // 先把前位拉平到后位，残差基于单调化后的值计算，避免后续 enforce 拉平时残差剧变
+    for (var mi = characters.length - 2; mi >= 0; mi--) {
+      if (baseValues[characters[mi]] < baseValues[characters[mi + 1]]) {
+        baseValues[characters[mi]] = baseValues[characters[mi + 1]];
+      }
+    }
+    var cur = computeWeightedSumCents(baseValues);
+    if (cur === 0) {
+      var allZero = characters.every(function(ch) { return baseValues[ch] === 0; });
+      if (!allZero) {
+        var fin = enforceOrderAndExactZero(baseValues, cls, baselineMap, 0);
+        if (fin.ok) candidates.push({values: fin.values, level: 0, quantumCents: quantum, baselineMap: baselineMap, maxPriceMultiplier: 3});
+      }
+    } else {
+      var solvedQi = false;
+      // L0-L3：标准准则层级（cap 与扩容无关，只跑 3 倍上限）
+      activeMaxPriceMultiplier = 3;
+      for (var level = 0; level <= 3 && !solvedQi; level++) {
+        var attempt0 = {};
+        characters.forEach(function(ch) { attempt0[ch] = baseValues[ch]; });
+        var res0 = tryBalanceAtLevel(level, cls, baselineMap, attempt0);
+        if (res0.ok) {
+          candidates.push({values: res0.values, level: level, quantumCents: quantum, baselineMap: baselineMap, maxPriceMultiplier: 3});
+          solvedQi = true;
+        }
+      }
+      // L4：扩容层（缺配热门上限自动扩容，反方向/点数不变角色保持锁定）
+      for (var mult = 3; mult <= CORE_RULES.maxExpandMultiplier && !solvedQi; mult++) {
+        activeMaxPriceMultiplier = mult;
+        var attempt4 = {};
+        characters.forEach(function(ch) { attempt4[ch] = baseValues[ch]; });
+        var res4 = tryBalanceAtLevel(4, cls, baselineMap, attempt4);
+        if (res4.ok) {
+          candidates.push({values: res4.values, level: 4, quantumCents: quantum, baselineMap: baselineMap, maxPriceMultiplier: mult});
+          solvedQi = true;
+        }
+      }
+      // L5：最终层（反方向也放开，顺序仍按准则）
+      for (var mult5 = 3; mult5 <= CORE_RULES.maxExpandMultiplier && !solvedQi; mult5++) {
+        activeMaxPriceMultiplier = mult5;
+        var attempt5 = {};
+        characters.forEach(function(ch) { attempt5[ch] = baseValues[ch]; });
+        var res5 = tryBalanceAtLevel(5, cls, baselineMap, attempt5);
+        if (res5.ok) {
+          candidates.push({values: res5.values, level: 5, quantumCents: quantum, baselineMap: baselineMap, maxPriceMultiplier: mult5});
+          solvedQi = true;
+        }
+      }
+    }
+  }
+  activeQuantumCents = prevQuantum;
+  activeMaxPriceMultiplier = prevMultiplier;
+  if (!candidates.length) return {ok: false, reason: 'exhausted'};
+  // 主方案排序：准则层级低的优先（越符合准则越靠前），同层级内精度从粗到细
+  candidates.sort(function(a, b) {
+    if (a.level !== b.level) return a.level - b.level;
+    return b.quantumCents - a.quantumCents;
+  });
+  return {ok: true, candidates: candidates, cls: cls};
+}
+
+function applyCoreRuleResult(result, useNextVariant, variantIndex) {
+  autoBalanceCandidates = result.candidates;
+  if (variantIndex === undefined) variantIndex = 0;
+  var selected = result.candidates[variantIndex];
+  autoBalanceVariant = variantIndex;
+  autoBalanceAvailable = result.candidates.length;
+  autoBalanceQuantumCents = selected.quantumCents;
+  autoBalanceFallbackType = null;
+  autoBalanceSnapshot = {};
+  characters.forEach(function(ch) {
+    adjustments[ch] = selected.values[ch] / 100;
+    autoBalanceSnapshot[ch] = adjustments[ch];
+  });
+  renderBalancer();
+  var report = buildDistributionReport(selected.values, result.cls, selected.baselineMap);
+  var levelText = ['标准准则', '已放开点数未变角色', '已允许小幅反方向', '已放宽至最终上限', '已扩容缺配热门上限', '已放开反方向（顺序仍按准则）'][selected.level] || '标准准则';
+  var quantumText = selected.quantumCents === 100 ? '整数元步长' : (selected.quantumCents === 10 ? '0.1元步长' : '0.01元步长');
+  var expandText = selected.maxPriceMultiplier > 3 ? '，新单价上限已自动扩容至 ' + selected.maxPriceMultiplier + ' 倍原均价' : '';
+  var text = '自动配平完成：' + levelText + '，' + quantumText + expandText + '。';
+  if (report.length) {
+    var totalAbs = report.reduce(function(s, item) { return s + Math.abs(item.deltaCents); }, 0);
+    var parts = report.map(function(item) {
+      return item.role + (item.deltaCents > 0 ? '+' : '') + (item.deltaCents / 100).toFixed(2) + '（' + item.reason + '）';
+    });
+    text += '本次调整合计 ' + (totalAbs / 100).toFixed(2) + ' 元：' + parts.join('，') + '。';
+  } else {
+    text += '原调价已满足平衡，无需调整。';
+  }
+  text += '当前方案 ' + (variantIndex + 1) + '/' + result.candidates.length + '，换调价切换精度档位。';
+  document.getElementById('autoBalanceResult').textContent = text;
+  saveDraft();
+  showToast(useNextVariant ? '已切换精度档位' : '自动配平完成');
+}
+
 var autoBalanceBusy = false;
 
 function autoBalance(useNextVariant) {
@@ -3045,6 +3734,20 @@ function buildNoSolutionDiagnosis() {
 function doAutoBalance(useNextVariant) {
   applyBalanceRuleConfig(getBalanceRuleConfig());
   if (!useNextVariant) autoBalanceVariant = 0;
+  if (balanceMode === 'light') { doAutoBalanceLegacy(useNextVariant); return; }
+  var coreResult = computeFinalAdjustments();
+  if (coreResult.ok) {
+    autoBalanceCoreResult = coreResult;
+    applyCoreRuleResult(coreResult, useNextVariant, 0);
+    return;
+  }
+  // 准则流水线无解：先给即时反馈，再走旧兜底链（可能耗时较长）
+  var resEl = document.getElementById('autoBalanceResult');
+  if (resEl) resEl.textContent = '准则配平在全部精度档与放宽层级内未找到精确解，正在尝试热度断层/极限兜底…';
+  doAutoBalanceLegacy(useNextVariant);  // 兜底链含最终无解诊断文案
+}
+
+function doAutoBalanceLegacy(useNextVariant) {
   var profile = getPointChangeProfile();
   var preferred = buildPreferredAutoAdjustments(profile);
   preferred = applyLeadingNewRoleBaseline(preferred);
@@ -3098,12 +3801,23 @@ function doAutoBalance(useNextVariant) {
 }
 
 function cycleAutoBalance() {
+  // 准则流水线多方案：直接切换缓存的精度档位，不重算
+  if (autoBalanceCoreResult && autoBalanceCoreResult.candidates && autoBalanceCoreResult.candidates.length > 1) {
+    autoBalanceVariant = (autoBalanceVariant + 1) % autoBalanceCoreResult.candidates.length;
+    applyCoreRuleResult(autoBalanceCoreResult, true, autoBalanceVariant);
+    return;
+  }
   if (!autoBalanceSnapshot || autoBalanceAvailable <= 1) return;
   autoBalanceVariant += 1;
   autoBalance(true);
 }
 
 function restoreAutoBalance() {
+  // 准则流水线：恢复主方案（最粗精度档）
+  if (autoBalanceCoreResult && autoBalanceCoreResult.candidates && autoBalanceCoreResult.candidates.length) {
+    applyCoreRuleResult(autoBalanceCoreResult, false, 0);
+    return;
+  }
   if (!autoBalanceSnapshot) return;
   characters.forEach(function(ch) { adjustments[ch] = autoBalanceSnapshot[ch]; });
   renderBalancer();
@@ -3786,7 +4500,7 @@ function restoreDraft() {
   if (saved.avgPriceActual) document.getElementById('avgPriceActual').value = saved.avgPriceActual;
   if (saved.totalPointsInput) document.getElementById('totalPoints').value = saved.totalPointsInput;
   applyBalanceRuleConfig({
-    mode: saved.balanceMode || 'default',
+    mode: (saved.balanceMode === 'spread' || saved.balanceMode === 'conservative') ? 'default' : (saved.balanceMode || 'default'),  // 旧草稿的已删模式归一
     range: saved.balanceRange || 0.10,
     maxPriceMultiplier: saved.balanceMaxPriceMultiplier || 3,
     precision: saved.balancePrecision || 'default'
