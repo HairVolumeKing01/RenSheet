@@ -288,6 +288,77 @@ body {
   letter-spacing: 1px;
 }
 
+/* Algorithm mode options */
+.mode-options-row {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.mode-option {
+  flex: 1 1 260px;
+  max-width: 340px;
+  border: 2px solid var(--gray-200);
+  border-radius: 10px;
+  padding: 16px 20px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--gray-400);
+  background: var(--gray-100);
+  transition: all 0.15s;
+}
+.mode-option:hover { border-color: var(--blue-300); }
+.mode-option.active {
+  background: var(--white);
+  border: 2px solid var(--blue-500);
+  color: var(--gray-800);
+  font-weight: 700;
+  box-shadow: 0 0 0 4px var(--blue-100);
+}
+.mode-option.chosen {
+  pointer-events: none;
+  cursor: default;
+}
+
+/* 未选算法时锁定后续步骤 */
+.post-mode-locked {
+  opacity: 0.45;
+  filter: grayscale(60%);
+  pointer-events: none;
+}
+.post-mode-lock-hint {
+  text-align: center;
+  background: var(--blue-50);
+  color: var(--blue-700);
+  border: 1px dashed var(--blue-300);
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+.mode-option .mode-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.mode-option .mode-desc {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--gray-400);
+}
+.mode-option.active .mode-desc { color: var(--gray-700); }
+.mode-note {
+  text-align: center;
+  font-size: 12px;
+  color: var(--gray-700);
+  font-weight: 500;
+  margin-top: 12px;
+}
+
 /* Buttons */
 .btn {
   padding: 10px 24px;
@@ -482,14 +553,18 @@ body {
       </div>
       <div class="inst-step">
         <div class="step-num">STEP 2</div>
-        <div class="step-text">填入总国际运费与总包裹重量，自动计算费率</div>
+        <div class="step-text">选择算法：全重分摊需先称好整团包裹总重量；净重分摊无需称包裹，两者金额结果一致</div>
       </div>
       <div class="inst-step">
         <div class="step-num">STEP 3</div>
-        <div class="step-text">选择上传模式，导入排表文件（分表模式最多50个，多sheet模式一个品类对应一个sheet上传1个文件即可），填写必要参数并逐个解析</div>
+        <div class="step-text">填入总国际运费（净重分摊无需填总包裹重量），自动计算费率</div>
       </div>
       <div class="inst-step">
         <div class="step-num">STEP 4</div>
+        <div class="step-text">选择上传模式，导入排表文件（分表模式最多50个，多sheet模式一个品类对应一个sheet上传1个文件即可），填写必要参数并逐个解析</div>
+      </div>
+      <div class="inst-step">
+        <div class="step-num">STEP 5</div>
         <div class="step-text">上传或手动编辑可按cn单独统计的谷子总重（没有可不填）
           <span class="step-links">
             <a href="sample/国际表单独称重示例.xlsx" class="step-link" download>下载排表模板</a>
@@ -497,25 +572,48 @@ body {
         </div>
       </div>
       <div class="inst-step">
-        <div class="step-num">STEP 5</div>
+        <div class="step-num">STEP 6</div>
         <div class="step-text">选择主题风格，编写title（也是文件名）</div>
       </div>
       <div class="inst-step">
-        <div class="step-num">STEP 6</div>
+        <div class="step-num">STEP 7</div>
         <div class="step-text">点击开始处理，预览并导出国际表</div>
       </div>
     </div>
   </div>
 
+  <!-- Algorithm Selection -->
+  <div class="card" id="step2Card">
+    <div class="card-title">STEP 2 — 选择算法</div>
+    <div class="mode-options-row">
+      <div class="mode-option" id="modeOptionFull" data-mode="full">
+        <div class="mode-name">全重分摊</div>
+        <div class="mode-desc">输入国际金额和总重，上传排表设置单点克重，输出箱摊、总重两列方便核对~</div>
+      </div>
+      <div class="mode-option" id="modeOptionNet" data-mode="net">
+        <div class="mode-name">净重分摊</div>
+        <div class="mode-desc">只需输入国际金额，上传排表设置单点克重，出表快人一步~</div>
+      </div>
+    </div>
+    <div class="mode-note">两种算法不同但是输出的金额完全相同，选择依据只是需不需要称包裹总重~</div>
+    <div class="btn-row" style="justify-content:center;">
+      <button class="btn btn-secondary btn-sm" id="resetModeBtn" style="display:none;">重新选择模式</button>
+    </div>
+  </div>
+
+  <div id="postModeWrap">
+    <div class="post-mode-lock-hint" id="postModeLockHint" style="display:block;">请先在 STEP 2 选择算法</div>
+    <div id="postModeCards" class="post-mode-locked" inert>
+
   <!-- Global Parameters -->
   <div class="card">
-    <div class="card-title">STEP 2 — 基础参数</div>
+    <div class="card-title">STEP 3 — 基础参数</div>
     <div class="form-row" style="justify-content:center;">
       <div class="form-group">
         <label>总国际运费（元）</label>
         <input type="number" class="input-text w140" id="shippingFee" placeholder="0.00" step="0.01" min="0">
       </div>
-      <div class="form-group">
+      <div class="form-group" id="packageWeightGroup">
         <label>总包裹重量（克）</label>
         <input type="number" class="input-text w140" id="packageWeight" placeholder="0.00" step="0.01" min="0">
       </div>
@@ -528,7 +626,7 @@ body {
 
   <!-- File Upload & Parse -->
   <div class="card">
-    <div class="card-title">STEP 3 — 导入排表</div>
+    <div class="card-title">STEP 4 — 导入排表</div>
     <a href="sample/导入文件格式示例.xlsx" class="step-link" download>下载格式示例</a>
     <div class="form-row" style="justify-content:center;gap:24px;margin-bottom:14px;flex-wrap:wrap;">
       <label class="radio-label" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
@@ -549,7 +647,7 @@ body {
 
   <!-- Non-sheet Entries -->
   <div class="card">
-    <div class="card-title">STEP 4 — 非排表区</div>
+    <div class="card-title">STEP 5 — 非排表区</div>
     <div style="margin-bottom:14px; padding:12px 16px; background:var(--blue-50); border-radius:var(--radius); display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap;">
       <span style="font-size:12px; color:var(--gray-700);">上传CN-本体表（可选）</span>
       <button class="btn btn-secondary btn-sm" id="cnBodyUploadBtn">选择文件</button>
@@ -568,7 +666,7 @@ body {
 
   <!-- Output Settings -->
   <div class="card">
-    <div class="card-title">STEP 5 — 输出设置</div>
+    <div class="card-title">STEP 6 — 输出设置</div>
     <div class="form-row" style="justify-content:center;">
       <div class="form-group">
         <label>文件名称</label>
@@ -608,13 +706,16 @@ body {
 
   <!-- Preview -->
   <div class="card" id="previewCard">
-    <div class="card-title">STEP 6 — 结果预览</div>
+    <div class="card-title">STEP 7 — 结果预览</div>
     <div class="empty-state" id="emptyState">
       <div class="empty-icon">&#x25A3;</div>
       <p>导入文件并点击开始处理后，结果将显示在此处</p>
     </div>
     <div class="preview-wrap" id="previewWrap" style="display:none"></div>
     <div class="preview-summary" id="previewSummary" style="display:none"></div>
+  </div>
+
+    </div>
   </div>
 
 </div>
@@ -625,9 +726,10 @@ body {
 // ==================== STATE ====================
 var MAX_FILES = 50;
 var uploadMode = 'multiSheet'; // 'multiSheet' | 'multiFile'
+var calcMode = '';            // ''=未选择 | 'full'=全重分摊(称包裹) | 'net'=净重分摊(免称包裹)
 var parsedFiles = [];         // [{id, name, kind, gramWeight, verifyPoints, workbook, parsed, purchases, cnPoints, cnBodyWeight, totalPoints, totalBodyWeight, cnCount}]
 var manualEntries = [];       // [{id, cn, grams}]
-var computedResults = null;   // {rows, totalBodyWeightAll, totalBoxAllocation, totalPackageWeight, rate}
+var computedResults = null;   // {mode, rows, totalBodyWeightAll, totalBoxAllocation, totalPackageWeight, rate}
 var currentTheme = 'blue';
 var fileIdCounter = 0;
 var manualIdCounter = 0;
@@ -684,6 +786,10 @@ var cnBodyUploadBtn = document.getElementById('cnBodyUploadBtn');
 var cnBodyFileInput = document.getElementById('cnBodyFileInput');
 var shippingFeeEl = document.getElementById('shippingFee');
 var packageWeightEl = document.getElementById('packageWeight');
+var packageWeightGroupEl = document.getElementById('packageWeightGroup');
+var postModeCardsEl = document.getElementById('postModeCards');
+var postModeLockHintEl = document.getElementById('postModeLockHint');
+var resetModeBtnEl = document.getElementById('resetModeBtn');
 var rateDisplay = document.getElementById('rateDisplay');
 
 // ==================== TOAST ====================
@@ -697,6 +803,10 @@ function showToast(msg, isError) {
 
 // ==================== RATE DISPLAY ====================
 function updateRate() {
+  if (calcMode === 'net') {
+    rateDisplay.textContent = '按本体净重分摊，无需称包裹';
+    return;
+  }
   var fee = parseFloat(shippingFeeEl.value) || 0;
   var weight = parseFloat(packageWeightEl.value) || 0;
   if (weight > 0 && fee >= 0) {
@@ -715,6 +825,63 @@ function invalidateResults() {
 
 shippingFeeEl.addEventListener('input', function() { updateRate(); invalidateResults(); saveDraft(); });
 packageWeightEl.addEventListener('input', function() { updateRate(); invalidateResults(); saveDraft(); });
+
+// ==================== ALGORITHM MODE ====================
+function setPostModeLocked(locked) {
+  postModeCardsEl.classList.toggle('post-mode-locked', locked);
+  postModeCardsEl.inert = locked;
+  postModeLockHintEl.style.display = locked ? 'block' : 'none';
+}
+
+function setCalcMode(mode) {
+  if (mode !== 'full' && mode !== 'net') return;
+  if (calcMode) return; // 已选定后不允许直接点卡切换，必须走「重新选择模式」
+  calcMode = mode;
+  document.getElementById('modeOptionFull').classList.toggle('active', mode === 'full');
+  document.getElementById('modeOptionNet').classList.toggle('active', mode === 'net');
+  document.querySelectorAll('.mode-option').forEach(function(o) { o.classList.add('chosen'); });
+  packageWeightGroupEl.style.display = mode === 'full' ? '' : 'none';
+  setPostModeLocked(false);
+  resetModeBtnEl.style.display = 'inline-block';
+  updateRate();
+  invalidateResults();
+  saveDraft();
+}
+
+function resetModeSelection() {
+  // 清除已上传排表、填写的参数与处理结果，回到未选择状态
+  calcMode = '';
+  parsedFiles = [];
+  renderParseEntries();
+  fileInput.value = '';
+  manualEntries = [];
+  renderManualEntries();
+  manualIdCounter = 1;
+  cnBodyFileInput.value = '';
+  computedResults = null;
+  exportBtn.disabled = true;
+  processBtn.disabled = true;
+  previewWrap.style.display = 'none';
+  previewSummary.style.display = 'none';
+  emptyState.style.display = 'block';
+  shippingFeeEl.value = '';
+  packageWeightEl.value = '';
+  updateRate();
+  document.querySelectorAll('.mode-option').forEach(function(o) {
+    o.classList.remove('active');
+    o.classList.remove('chosen');
+  });
+  packageWeightGroupEl.style.display = '';
+  resetModeBtnEl.style.display = 'none';
+  setPostModeLocked(true);
+  saveDraft();
+  document.getElementById('step2Card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showToast('已清除排表与参数，请重新选择算法');
+}
+
+document.getElementById('modeOptionFull').addEventListener('click', function() { setCalcMode('full'); });
+document.getElementById('modeOptionNet').addEventListener('click', function() { setCalcMode('net'); });
+resetModeBtnEl.addEventListener('click', resetModeSelection);
 
 // ==================== FILE HANDLING ====================
 dropZone.addEventListener('click', function() {
@@ -1461,8 +1628,11 @@ function processAll() {
     totalBodyWeightAll += masterBodyWeight[allCns[bi]];
   }
 
-  var boxAllocationTotal = packageWeight - totalBodyWeightAll;
-  var rate = packageWeight > 0 ? shippingFee / packageWeight : 0;
+  var isNet = calcMode === 'net';
+  var boxAllocationTotal = isNet ? 0 : packageWeight - totalBodyWeightAll;
+  var rate = isNet
+    ? (totalBodyWeightAll > 0 ? shippingFee / totalBodyWeightAll : 0)
+    : (packageWeight > 0 ? shippingFee / packageWeight : 0);
 
   // Per-CN computation
   allCns.sort(function(a, b) { return a.localeCompare(b, 'zh'); });
@@ -1470,7 +1640,7 @@ function processAll() {
   for (var ri = 0; ri < allCns.length; ri++) {
     var ccn = allCns[ri];
     var bw = masterBodyWeight[ccn];
-    var box = totalBodyWeightAll > 0 ? (bw / totalBodyWeightAll) * boxAllocationTotal : 0;
+    var box = !isNet && totalBodyWeightAll > 0 ? (bw / totalBodyWeightAll) * boxAllocationTotal : 0;
     var tw = bw + box;
     var fee = tw * rate;
     rows.push({
@@ -1502,7 +1672,7 @@ function processAll() {
     if (bw <= 0) {
       rowErrors.push('本体重量异常（' + bw.toFixed(2) + 'g）');
     }
-    if (box < 0) {
+    if (!isNet && box < 0) {
       rowErrors.push('箱摊为负（' + box.toFixed(2) + 'g），请增大总包裹重量使其不小于总本体重量');
     }
     if (rowErrors.length) {
@@ -1529,10 +1699,11 @@ function processAll() {
   }
 
   computedResults = {
+    mode: calcMode,
     rows: filteredRows,
     totalBodyWeightAll: totalBodyWeightAll,
     totalBoxAllocation: boxAllocationTotal,
-    totalPackageWeight: packageWeight,
+    totalPackageWeight: isNet ? 0 : packageWeight,
     rate: rate,
     validationErrors: validationErrors,
     deletedCns: deletedCns,
@@ -1560,7 +1731,7 @@ function validateBeforeProcess() {
   if (!hasParsed && !hasManualData()) {
     errors.push('请先解析排表或添加非排表CN');
   }
-  if (parseFloat(packageWeightEl.value) < 0) {
+  if (calcMode === 'full' && parseFloat(packageWeightEl.value) < 0) {
     errors.push('总包裹重量不能为负');
   }
   if (parseFloat(shippingFeeEl.value) < 0) {
@@ -1591,7 +1762,10 @@ function renderPreview() {
 
   var title = fileNameInput.value.trim() || '国际表';
   var themeColors = getThemeColors(currentTheme);
-  var headers = ['cn', '本体(g)', '箱摊(g)', '总重(g)', '国际(元)'];
+  var isNet = computedResults.mode === 'net';
+  var headers = isNet
+    ? ['cn', '本体(g)', '国际(元)']
+    : ['cn', '本体(g)', '箱摊(g)', '总重(g)', '国际(元)'];
 
   // Build validation error banner
   var errorBanner = '';
@@ -1606,7 +1780,8 @@ function renderPreview() {
     for (var ei = 0; ei < computedResults.validationErrors.length; ei++) {
       var ve = computedResults.validationErrors[ei];
       errorBanner += '<div style="font-size:13px;color:#9B2C2C;margin-bottom:2px;">';
-      errorBanner += '<strong>' + escapeHtml(ve.cn) + '</strong>：' + escapeHtml(ve.errors.join('；')) + ' &mdash; 请检查：单点克重设置是否正确，总包裹重量是否大于总本体重量';
+      var errHint = isNet ? '请检查：单点克重设置是否正确' : '请检查：单点克重设置是否正确，总包裹重量是否大于总本体重量';
+      errorBanner += '<strong>' + escapeHtml(ve.cn) + '</strong>：' + escapeHtml(ve.errors.join('；')) + ' &mdash; ' + errHint;
       errorBanner += '</div>';
     }
     errorBanner += '</div>';
@@ -1614,7 +1789,7 @@ function renderPreview() {
 
   var html = errorBanner + '<table class="preview-table">';
   html += '<thead>';
-  html += '<tr><th colspan="5" style="background:' + themeColors.titleBg + ';color:' + themeColors.titleFg + ';font-size:15px;padding:12px;letter-spacing:2px;text-align:center">' + escapeHtml(title) + '</th></tr>';
+  html += '<tr><th colspan="' + headers.length + '" style="background:' + themeColors.titleBg + ';color:' + themeColors.titleFg + ';font-size:15px;padding:12px;letter-spacing:2px;text-align:center">' + escapeHtml(title) + '</th></tr>';
   html += '<tr>';
   for (var h = 0; h < headers.length; h++) {
     html += '<th style="background:' + themeColors.headerBg + '">' + headers[h] + '</th>';
@@ -1638,8 +1813,10 @@ function renderPreview() {
     html += '<tr style="' + errStyle + '">';
     html += '<td class="col-name" style="background:' + cellBg + '">' + escapeHtml(row.cn) + '</td>';
     html += '<td style="background:' + cellBg + ';' + (row.bodyWeight <= 0 ? 'color:#E53E3E;font-weight:700' : '') + '">' + row.bodyWeight.toFixed(2) + '</td>';
-    html += '<td style="background:' + cellBg + ';' + (row.boxAllocation < 0 ? 'color:#E53E3E;font-weight:700' : '') + '">' + row.boxAllocation.toFixed(2) + '</td>';
-    html += '<td style="background:' + cellBg + '">' + row.totalWeight.toFixed(2) + '</td>';
+    if (!isNet) {
+      html += '<td style="background:' + cellBg + ';' + (row.boxAllocation < 0 ? 'color:#E53E3E;font-weight:700' : '') + '">' + row.boxAllocation.toFixed(2) + '</td>';
+      html += '<td style="background:' + cellBg + '">' + row.totalWeight.toFixed(2) + '</td>';
+    }
     html += '<td class="col-fee" style="background:' + cellBg + '">' + row.internationalFee.toFixed(2) + '</td>';
     html += '</tr>';
   }
@@ -1656,11 +1833,13 @@ function renderPreview() {
   }
   var sumHtml = '<span>总人数：<strong>' + computedResults.rows.length + '</strong></span>';
   sumHtml += '<span>总本体重量：<strong>' + computedResults.totalBodyWeightAll.toFixed(2) + ' g</strong></span>';
-  sumHtml += '<span>箱摊总重：<strong>' + computedResults.totalBoxAllocation.toFixed(2) + ' g</strong></span>';
-  sumHtml += '<span>总包裹重量：<strong>' + computedResults.totalPackageWeight.toFixed(2) + ' g</strong></span>';
+  if (!isNet) {
+    sumHtml += '<span>箱摊总重：<strong>' + computedResults.totalBoxAllocation.toFixed(2) + ' g</strong></span>';
+    sumHtml += '<span>总包裹重量：<strong>' + computedResults.totalPackageWeight.toFixed(2) + ' g</strong></span>';
+  }
   sumHtml += '<span>总国际运费：<strong>' + totalFee.toFixed(2) + ' 元</strong></span>';
   if (computedResults.rate > 0) {
-    sumHtml += '<span>费率：<strong>' + computedResults.rate.toFixed(4) + ' 元/克</strong></span>';
+    sumHtml += '<span>费率' + (isNet ? '（净重口径）' : '') + '：<strong>' + computedResults.rate.toFixed(4) + ' 元/克</strong></span>';
   }
   previewSummary.innerHTML = sumHtml;
   previewSummary.style.display = 'flex';
@@ -1674,8 +1853,11 @@ exportBtn.addEventListener('click', function() {
   }
   var title = fileNameInput.value.trim() || '国际表';
   var themeColors = getThemeColors(currentTheme);
-  var headers = ['cn', '本体(g)', '箱摊(g)', '总重(g)', '国际(元)'];
-  var colCount = 5;
+  var isNet = computedResults.mode === 'net';
+  var headers = isNet
+    ? ['cn', '本体(g)', '国际(元)']
+    : ['cn', '本体(g)', '箱摊(g)', '总重(g)', '国际(元)'];
+  var colCount = headers.length;
 
   var wb = new ExcelJS.Workbook();
   var safeSheet = title.substring(0, 31);
@@ -1709,13 +1891,19 @@ exportBtn.addEventListener('click', function() {
     var bg = r % 2 === 0 ? rowEvenColor : rowOddColor;
     var excelRow = ws.getRow(r + 3);
 
-    var cells = [
-      sanitizeCellValue(row.cn),
-      Number(row.bodyWeight.toFixed(2)),
-      Number(row.boxAllocation.toFixed(2)),
-      Number(row.totalWeight.toFixed(2)),
-      Number(row.internationalFee.toFixed(2))
-    ];
+    var cells = isNet
+      ? [
+          sanitizeCellValue(row.cn),
+          Number(row.bodyWeight.toFixed(2)),
+          Number(row.internationalFee.toFixed(2))
+        ]
+      : [
+          sanitizeCellValue(row.cn),
+          Number(row.bodyWeight.toFixed(2)),
+          Number(row.boxAllocation.toFixed(2)),
+          Number(row.totalWeight.toFixed(2)),
+          Number(row.internationalFee.toFixed(2))
+        ];
 
     for (var c = 0; c < colCount; c++) {
       var ecell = ws.getCell(r + 3, c + 1);
@@ -1736,9 +1924,11 @@ exportBtn.addEventListener('click', function() {
   // Column widths
   ws.getColumn(1).width = 12;
   ws.getColumn(2).width = 14;
-  ws.getColumn(3).width = 14;
-  ws.getColumn(4).width = 14;
-  ws.getColumn(5).width = 14;
+  if (!isNet) {
+    ws.getColumn(3).width = 14;
+    ws.getColumn(4).width = 14;
+  }
+  ws.getColumn(colCount).width = 14;
 
   wb.xlsx.writeBuffer().then(function(buffer) {
     var blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
@@ -1779,6 +1969,7 @@ function buildDraftObject() {
     }),
     manualEntries: manualEntries,
     currentTheme: currentTheme,
+    calcMode: calcMode,
     fileName: fileNameInput.value,
     shippingFee: shippingFeeEl.value,
     packageWeight: packageWeightEl.value,
@@ -1816,6 +2007,19 @@ function restoreDraft() {
 
   // Restore file name
   if (saved.fileName) fileNameInput.value = saved.fileName;
+
+  // Restore algorithm mode
+  if (saved.calcMode === 'net' || saved.calcMode === 'full') calcMode = saved.calcMode;
+  document.getElementById('modeOptionFull').classList.toggle('active', calcMode === 'full');
+  document.getElementById('modeOptionNet').classList.toggle('active', calcMode === 'net');
+  packageWeightGroupEl.style.display = calcMode === 'full' ? '' : 'none';
+  if (calcMode) {
+    document.querySelectorAll('.mode-option').forEach(function(o) { o.classList.add('chosen'); });
+    setPostModeLocked(false);
+    resetModeBtnEl.style.display = 'inline-block';
+  } else {
+    setPostModeLocked(true);
+  }
 
   // Restore basic params
   if (saved.shippingFee) shippingFeeEl.value = saved.shippingFee;
@@ -1884,6 +2088,11 @@ function showRestoreBanner(saved) {
     shippingFeeEl.value = '';
     packageWeightEl.value = '';
     updateRate();
+    calcMode = '';
+    document.querySelectorAll('.mode-option').forEach(function(o) { o.classList.remove('active'); o.classList.remove('chosen'); });
+    packageWeightGroupEl.style.display = '';
+    resetModeBtnEl.style.display = 'none';
+    setPostModeLocked(true);
     currentTheme = 'blue';
     document.querySelectorAll('.color-swatch').forEach(function(s) { s.classList.remove('active'); });
     var blueSwatch = document.querySelector('.color-swatch[data-theme="blue"]');
@@ -1904,6 +2113,7 @@ function showRestoreBanner(saved) {
 processBtn.disabled = true;
 exportBtn.disabled = true;
 restoreDraft();
+if (!calcMode) postModeCardsEl.inert = true;
 </script>
 
 </body>
