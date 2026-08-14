@@ -944,11 +944,22 @@ function buildPointMismatchReport(wb, expectedTotal, parsedTotal) {
   }
 
   var rawHeaders = (data[1] || []).slice(1);
-  var headers = rawHeaders.filter(function(h) { return h !== ''; });
-  var parsedColumnCount = headers.length;
+  var rawPriceRow = data[2] || [];
   var seenHeaders = {};
   var firstHeaderCell = {};
   var firstHeaderCol = {};
+  var validCols = {};  // 有角色名的列（与 validateHeaderAndPrices 规则一致）
+  var parsedColumnCount = 0;
+  var maxCol = Math.max(rawHeaders.length, rawPriceRow.length - 1);
+  for (var pr = 3; pr < data.length; pr++) {
+    if ((data[pr] || []).length - 1 > maxCol) maxCol = (data[pr] || []).length - 1;
+  }
+  for (var ci = 1; ci <= maxCol; ci++) {
+    if (String(rawHeaders[ci - 1] == null ? '' : rawHeaders[ci - 1]).trim()) {
+      validCols[ci] = true;
+      parsedColumnCount++;
+    }
+  }
 
   if (parsedColumnCount === 0) {
     addPointIssueWithRawText(issues, formatUserCell(sheetName, 'B2'), '空', '缺少角色列', '第2行从B列起没有识别到角色名，系统无法统计拆配表点数。');
@@ -961,24 +972,7 @@ function buildPointMismatchReport(wb, expectedTotal, parsedTotal) {
       addPointIssue(issues, cellAddress, rawHeaders[h], '角色名为空白字符', '第2行角色名不能只填写空格，请填写角色名或清空该列。');
       continue;
     }
-    if (!headerText) {
-      var hasLaterHeader = rawHeaders.slice(h + 1).some(function(v) { return String(v || '').trim(); });
-      if (hasLaterHeader) {
-        addPointIssue(issues, cellAddress, rawHeaders[h], '角色表头中断', '角色列中间不能空列；空表头会导致后续列和数据区解析范围异常。');
-      }
-      for (var er = 3; er < data.length; er++) {
-        var emptyHeaderValue = (data[er] || [])[h + 1];
-        if (!isFilledCell(emptyHeaderValue)) continue;
-        addPointIssue(
-          issues,
-          formatUserCell(sheetName, colToLetter(h + 1) + (er + 1)),
-          emptyHeaderValue,
-          '数据列缺少角色名',
-          '该单元格所在列第2行没有角色名，系统无法判断它属于哪个角色，因此不会按有效点数处理；请在 ' + colToLetter(h + 1) + '2 填写角色名或移动该列数据。'
-        );
-      }
-      continue;
-    }
+    if (!headerText) continue;  // 空表头列：其单价/数据问题统一在下方扫描
     if (seenHeaders[headerText]) {
       var duplicateFilled = countFilledCellsInColumn(data, h + 1);
       var firstFilled = countFilledCellsInColumn(data, firstHeaderCol[headerText]);
@@ -990,18 +984,30 @@ function buildPointMismatchReport(wb, expectedTotal, parsedTotal) {
     }
   }
 
+  // 非角色列（第2行为空）：有单价或数据都会导致该列无法解析
   var skippedCount = 0;
-  for (var r = 3; r < data.length; r++) {
-    var row = data[r] || [];
-    for (var c = parsedColumnCount + 1; c < row.length; c++) {
-      if (!isFilledCell(row[c])) continue;
+  for (var nc = 1; nc <= maxCol; nc++) {
+    if (validCols[nc]) continue;
+    var orphanPrice = String(rawPriceRow[nc] == null ? '' : rawPriceRow[nc]).trim();
+    if (orphanPrice) {
+      addPointIssue(
+        issues,
+        formatUserCell(sheetName, colToLetter(nc) + '3'),
+        orphanPrice,
+        '单价缺少角色名',
+        '该列第3行有单价，但第2行没有角色名，系统无法解析该列；请在 ' + colToLetter(nc) + '2 填写角色名或删除该单价。'
+      );
+    }
+    for (var er = 3; er < data.length; er++) {
+      var orphanData = (data[er] || [])[nc];
+      if (!isFilledCell(orphanData)) continue;
       skippedCount++;
       addPointIssue(
         issues,
-        formatUserCell(sheetName, colToLetter(c) + (r + 1)),
-        row[c],
-        '数据在解析范围外',
-        '系统只解析第2行识别到的前 ' + parsedColumnCount + ' 个角色列；该单元格未计入点数，请检查第2行表头是否有空列或被移动。'
+        formatUserCell(sheetName, colToLetter(nc) + (er + 1)),
+        orphanData,
+        '数据列缺少角色名',
+        '该单元格所在列第2行没有角色名，系统无法判断它属于哪个角色，因此不会计点；请在 ' + colToLetter(nc) + '2 填写角色名或移动该列数据。'
       );
     }
   }
@@ -1009,8 +1015,8 @@ function buildPointMismatchReport(wb, expectedTotal, parsedTotal) {
   var merges = ws['!merges'] || [];
   for (var m = 0; m < merges.length; m++) {
     var merge = merges[m];
-    var startsInData = merge.s.r >= 3 && merge.s.c >= 1 && merge.s.c <= parsedColumnCount;
-    var spansDataArea = merge.e.r >= 3 && merge.e.c >= 1 && merge.s.c <= parsedColumnCount;
+    var startsInData = merge.s.r >= 3 && merge.s.c >= 1 && !!validCols[merge.s.c];
+    var spansDataArea = merge.e.r >= 3 && merge.e.c >= 1 && !!validCols[merge.s.c];
     if (!startsInData && !spansDataArea) continue;
     var startCell = XLSX.utils.encode_cell(merge.s);
     var endCell = XLSX.utils.encode_cell(merge.e);
@@ -1316,12 +1322,13 @@ function tryParsePreview(wb) {
       recordCount += pointData.points[parsedRoles[p]] || 0;
     }
     var headers = pointData.headers;
+    var headerCols = pointData.headerCols;
     var cnSet = {};
     for (var r = 3; r < data.length; r++) {
       var row = data[r];
       if (!row || !row.length) continue;
-      for (var c = 1; c <= headers.length; c++) {
-        var name = String(row[c] || '').trim();
+      for (var h = 0; h < headerCols.length; h++) {
+        var name = String(row[headerCols[h]] || '').trim();
         if (!name) continue;
         cnSet[name] = true;
       }
@@ -1361,29 +1368,45 @@ function getSheetKind(wb) {
 function validateHeaderAndPrices(data) {
   if (data.length < 4) throw new Error('数据行不足（表内仅' + data.length + '行，至少需要4行——第1行品类名、第2行角色、第3行单价、第4+行数据）');
   var rawHeaders = data[1].slice(1);
+  var rawPriceRow = data[2] || [];
+  // 扫描范围：第2行/第3行/数据区出现内容的最大列
+  var maxCol = Math.max(rawHeaders.length, rawPriceRow.length - 1);
+  for (var pr = 3; pr < data.length; pr++) {
+    if (data[pr] && data[pr].length - 1 > maxCol) maxCol = data[pr].length - 1;
+  }
   var headers = [];
+  var headerCols = [];
+  var prices = [];
   var seen = {};
   var seenAtCol = {};
-  for (var rh = 0; rh < rawHeaders.length; rh++) {
-    var hdr = String(rawHeaders[rh] || '').trim();
-    if (!hdr) throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名为空，请检查表头是否缺少角色名或存在合并单元格');
+  for (var ci = 1; ci <= maxCol; ci++) {
+    var hdr = String(rawHeaders[ci - 1] == null ? '' : rawHeaders[ci - 1]).trim();
+    var pv = String(rawPriceRow[ci] == null ? '' : rawPriceRow[ci]).trim();
+    var hasData = false;
+    for (var dr = 3; dr < data.length && !hasData; dr++) {
+      if (data[dr] && String(data[dr][ci] || '').trim()) hasData = true;
+    }
+    if (!hdr && !pv && !hasData) continue; // 角色/单价/数据全空的列：跳过
+    if (!hdr) {
+      if (pv) throw new Error('格式错误：第3行第' + colToLetter(ci) + '列有单价，但第2行对应角色名为空，请补齐角色名或删除该单价');
+      throw new Error('格式错误：第' + colToLetter(ci) + '列存在购买数据，但第2行角色名为空，请检查表头是否缺少角色名或存在合并单元格');
+    }
     if (seen[hdr]) {
-      var firstCol = seenAtCol[hdr];
-      throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名"' + hdr + '"重复（首次出现于第' + colToLetter(firstCol) + '列）');
+      throw new Error('格式错误：第2行第' + colToLetter(ci) + '列角色名"' + hdr + '"重复（首次出现于第' + colToLetter(seenAtCol[hdr]) + '列）');
     }
     seen[hdr] = true;
-    seenAtCol[hdr] = rh + 1;
+    seenAtCol[hdr] = ci;
     headers.push(hdr);
+    headerCols.push(ci);
+    if (pv === '') {
+      prices.push(0); // 有角色无单价：单价按0
+    } else if (!/^\d+(\.\d+)?$/.test(pv)) {
+      throw new Error('格式错误：第3行第' + colToLetter(ci) + '列单价"' + pv + '"无法解析，请输入纯数字（不能包含中文或特殊符号）');
+    } else {
+      prices.push(parseFloat(pv));
+    }
   }
-  var rawPriceRow = data[2] || [];
-  var prices = [];
-  for (var pc = 1; pc <= rawHeaders.length; pc++) {
-    var pv = String(rawPriceRow[pc] == null ? '' : rawPriceRow[pc]).trim();
-    if (pv === '') throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价为空，请输入纯数字');
-    if (!/^\d+(\.\d+)?$/.test(pv)) throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价"' + pv + '"无法解析，请输入纯数字（不能包含中文或特殊符号）');
-    prices.push(parseFloat(pv));
-  }
-  return { headers: headers, prices: prices };
+  return { headers: headers, headerCols: headerCols, prices: prices };
 }
 
 function parseSheetData(data) {
@@ -1395,16 +1418,17 @@ function parseSheetData(data) {
   }
   var vhp = validateHeaderAndPrices(data);
   var headers = vhp.headers;
+  var headerCols = vhp.headerCols;
   var prices = vhp.prices;
   var purchases = [];
   for (var r = 3; r < data.length; r++) {
     var row = data[r];
     if (!row || !row.length) continue;
-    for (var c = 1; c <= headers.length; c++) {
-      var name = String(row[c] || '').trim();
+    for (var h = 0; h < headers.length; h++) {
+      var name = String(row[headerCols[h]] || '').trim();
       if (!name) continue;
-      var rawLabel = String(headers[c - 1] || '').trim();
-      var price = parseFloat(prices[c - 1]) || 0;
+      var rawLabel = String(headers[h] || '').trim();
+      var price = parseFloat(prices[h]) || 0;
       purchases.push({
         person: name,
         character: rawLabel,
@@ -1429,15 +1453,15 @@ function parseSheetWithPrices(wb, priceMap) {
   assertA1Present(ws);
   var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
   var kind = String(data[0][0] || '').trim();
-  var headers = validateHeaderAndPrices(data).headers;
+  var vhp = validateHeaderAndPrices(data);
   var purchases = [];
   for (var r = 3; r < data.length; r++) {
     var row = data[r];
     if (!row || !row.length) continue;
-    for (var c = 1; c <= headers.length; c++) {
-      var name = String(row[c] || '').trim();
+    for (var h = 0; h < vhp.headers.length; h++) {
+      var name = String(row[vhp.headerCols[h]] || '').trim();
       if (!name) continue;
-      var rawLabel = String(headers[c - 1] || '').trim();
+      var rawLabel = String(vhp.headers[h] || '').trim();
       var price = priceMap[rawLabel] || 0;
       purchases.push({ person: name, character: rawLabel, label: rawLabel, kind: kind, price: price });
     }
@@ -1449,16 +1473,16 @@ function extractPointsPerChar(wb) {
   var ws = wb.Sheets[wb.SheetNames[0]];
   assertA1Present(ws);
   var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-  var headers = validateHeaderAndPrices(data).headers;
+  var vhp = validateHeaderAndPrices(data);
   var points = {};
-  for (var c = 1; c <= headers.length; c++) {
+  for (var h = 0; h < vhp.headers.length; h++) {
     var count = 0;
     for (var r = 3; r < data.length; r++) {
-      if (String(data[r][c] || '').trim()) count++;
+      if (String((data[r] || [])[vhp.headerCols[h]] || '').trim()) count++;
     }
-    points[String(headers[c - 1] || '').trim()] = count;
+    points[String(vhp.headers[h] || '').trim()] = count;
   }
-  return {points: points, headers: headers.map(function(h) { return String(h).trim(); })};
+  return {points: points, headers: vhp.headers.map(function(hh) { return String(hh).trim(); }), headerCols: vhp.headerCols};
 }
 
 function extractPrices(wb) {
@@ -1466,8 +1490,8 @@ function extractPrices(wb) {
   var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
   var vhp = validateHeaderAndPrices(data);
   var prices = {};
-  for (var c = 1; c <= vhp.headers.length; c++) {
-    prices[vhp.headers[c - 1]] = vhp.prices[c - 1];
+  for (var h = 0; h < vhp.headers.length; h++) {
+    prices[vhp.headers[h]] = vhp.prices[h];
   }
   return prices;
 }

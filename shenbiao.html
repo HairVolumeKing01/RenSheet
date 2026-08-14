@@ -840,24 +840,34 @@ function tryParsePreview(wb) {
       if (!kind) throw new Error('格式错误：sheet「' + wb.SheetNames[si] + '」A1单元格（品类名）为空');
       kinds.push(kind);
       var rawHeaders = (data[1] || []).slice(1);
-      var headers = [];
-      for (var rh = 0; rh < rawHeaders.length; rh++) {
-        var hdr = String(rawHeaders[rh] || '').trim();
-        if (!hdr) throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名为空，请检查表头是否缺少角色名或存在合并单元格');
-        headers.push(hdr);
-      }
       var rawPriceRow = data[2] || [];
-      for (var pc = 1; pc <= rawHeaders.length; pc++) {
-        var pv = String(rawPriceRow[pc] == null ? '' : rawPriceRow[pc]).trim();
-        if (pv === '') throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价为空，请输入纯数字');
-        if (!/^\d+(\.\d+)?$/.test(pv)) throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价"' + pv + '"无法解析，请输入纯数字（不能包含中文或特殊符号）');
+      // 扫描范围：第2行/第3行/数据区出现内容的最大列
+      var maxCol = Math.max(rawHeaders.length, rawPriceRow.length - 1);
+      for (var pr = 3; pr < data.length; pr++) {
+        if (data[pr] && data[pr].length - 1 > maxCol) maxCol = data[pr].length - 1;
       }
-      totalRole += headers.length;
+      var headerCols = [];
+      for (var ci = 1; ci <= maxCol; ci++) {
+        var hdr = String(rawHeaders[ci - 1] == null ? '' : rawHeaders[ci - 1]).trim();
+        var pv = String(rawPriceRow[ci] == null ? '' : rawPriceRow[ci]).trim();
+        var hasData = false;
+        for (var dr = 3; dr < data.length && !hasData; dr++) {
+          if (data[dr] && String(data[dr][ci] || '').trim()) hasData = true;
+        }
+        if (!hdr && !pv && !hasData) continue; // 角色/单价/数据全空的列：跳过
+        if (!hdr) {
+          if (pv) throw new Error('格式错误：第3行第' + colToLetter(ci) + '列有单价，但第2行对应角色名为空，请补齐角色名或删除该单价');
+          throw new Error('格式错误：第' + colToLetter(ci) + '列存在购买数据，但第2行角色名为空，请检查表头是否缺少角色名或存在合并单元格');
+        }
+        if (pv !== '' && !/^\d+(\.\d+)?$/.test(pv)) throw new Error('格式错误：第3行第' + colToLetter(ci) + '列单价"' + pv + '"无法解析，请输入纯数字（不能包含中文或特殊符号）');
+        headerCols.push(ci); // 有角色：单价为空按0处理
+      }
+      totalRole += headerCols.length;
       for (var r = 3; r < data.length; r++) {
         var row = data[r];
         if (!row || !row.length) continue;
-        for (var c = 1; c <= headers.length; c++) {
-          var name = String(row[c] || '').trim();
+        for (var h = 0; h < headerCols.length; h++) {
+          var name = String(row[headerCols[h]] || '').trim();
           if (!name) continue;
           totalCnSet[name] = true; totalRec++;
         }
@@ -900,37 +910,53 @@ function parseSheetData(data) {
     if (String(data[0][c] || '').trim()) throw new Error('格式错误：第一行仅A1可填写品类名，B1及其他单元格请留空（当前' + colToLetter(c) + '1单元格有值）');
   }
   var rawHeaders = data[1].slice(1);
+  var rawPriceRow = data[2] || [];
+  // 扫描范围：第2行/第3行/数据区出现内容的最大列
+  var maxCol = Math.max(rawHeaders.length, rawPriceRow.length - 1);
+  for (var pr = 3; pr < data.length; pr++) {
+    if (data[pr] && data[pr].length - 1 > maxCol) maxCol = data[pr].length - 1;
+  }
   var headers = [];
+  var headerCols = [];
+  var prices = [];
   var seen = {};
   var seenAtCol = {};
-  for (var rh = 0; rh < rawHeaders.length; rh++) {
-    var hdr = String(rawHeaders[rh] || '').trim();
-    if (!hdr) throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名为空，请检查表头是否缺少角色名或存在合并单元格');
+  for (var ci = 1; ci <= maxCol; ci++) {
+    var hdr = String(rawHeaders[ci - 1] == null ? '' : rawHeaders[ci - 1]).trim();
+    var pv = String(rawPriceRow[ci] == null ? '' : rawPriceRow[ci]).trim();
+    var hasData = false;
+    for (var dr = 3; dr < data.length && !hasData; dr++) {
+      if (data[dr] && String(data[dr][ci] || '').trim()) hasData = true;
+    }
+    if (!hdr && !pv && !hasData) continue; // 角色/单价/数据全空的列：跳过
+    if (!hdr) {
+      if (pv) throw new Error('格式错误：第3行第' + colToLetter(ci) + '列有单价，但第2行对应角色名为空，请补齐角色名或删除该单价');
+      throw new Error('格式错误：第' + colToLetter(ci) + '列存在购买数据，但第2行角色名为空，请检查表头是否缺少角色名或存在合并单元格');
+    }
     if (seen[hdr]) {
-      var firstCol = seenAtCol[hdr];
-      throw new Error('格式错误：第2行第' + colToLetter(rh + 1) + '列角色名"' + hdr + '"重复（首次出现于第' + colToLetter(firstCol) + '列）');
+      throw new Error('格式错误：第2行第' + colToLetter(ci) + '列角色名"' + hdr + '"重复（首次出现于第' + colToLetter(seenAtCol[hdr]) + '列）');
     }
     seen[hdr] = true;
-    seenAtCol[hdr] = rh + 1;
+    seenAtCol[hdr] = ci;
     headers.push(hdr);
-  }
-  var rawPriceRow = data[2] || [];
-  var prices = [];
-  for (var pc = 1; pc <= rawHeaders.length; pc++) {
-    var pv = String(rawPriceRow[pc] == null ? '' : rawPriceRow[pc]).trim();
-    if (pv === '') throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价为空，请输入纯数字');
-    if (!/^\d+(\.\d+)?$/.test(pv)) throw new Error('格式错误：第3行第' + colToLetter(pc) + '列单价"' + pv + '"无法解析，请输入纯数字（不能包含中文或特殊符号）');
-    prices.push(parseFloat(pv));
+    headerCols.push(ci);
+    if (pv === '') {
+      prices.push(0); // 有角色无单价：单价按0
+    } else if (!/^\d+(\.\d+)?$/.test(pv)) {
+      throw new Error('格式错误：第3行第' + colToLetter(ci) + '列单价"' + pv + '"无法解析，请输入纯数字（不能包含中文或特殊符号）');
+    } else {
+      prices.push(parseFloat(pv));
+    }
   }
   var purchases = [];
   for (var r = 3; r < data.length; r++) {
     var row = data[r];
     if (!row || !row.length) continue;
-    for (var c = 1; c <= headers.length; c++) {
-      var name = String(row[c] || '').trim();
+    for (var h = 0; h < headers.length; h++) {
+      var name = String(row[headerCols[h]] || '').trim();
       if (!name) continue;
-      var rawLabel = String(headers[c - 1] || '').trim();
-      var price = parseFloat(prices[c - 1]) || 0;
+      var rawLabel = String(headers[h] || '').trim();
+      var price = parseFloat(prices[h]) || 0;
       purchases.push({
         person: name,
         character: rawLabel,
@@ -1059,6 +1085,11 @@ function processAllFiles() {
 
   if (parseErrors.length) {
     showToast(parseErrors.join('\n'), true);
+    return null;
+  }
+
+  if (!allPurchases.length) {
+    showToast('所有文件均无有效数据：请检查排表是否只有表头而没有购买记录', true);
     return null;
   }
 
