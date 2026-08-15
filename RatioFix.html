@@ -698,7 +698,7 @@ body {
         <div class="form-label">颜色风格</div>
         <div class="color-swatches" id="colorSwatches"></div>
       </div>
-      <div class="desc-note">最终表将在肾表基础上增加「原肾」「实肾」「红补蓝退」三列，红补蓝退不随主题色变化</div>
+      <div class="desc-note">最终表将在肾表基础上增加「原肾」「现肾」「红补蓝退」三列，红补蓝退不随主题色变化</div>
       <div class="step-nav">
         <button class="btn-step btn-step-prev" onclick="goToStep(3)">上一步</button>
         <button class="btn-step btn-step-next" id="btnNext4" onclick="goToStep(5)">下一步</button>
@@ -4139,7 +4139,7 @@ function computeAndRenderFinal() {
   var origPurchases = parseSheet(originalFile.workbook);
   originalShenMap = aggregatePersonMap(origPurchases);
 
-  // Parse actual purchases with NEW prices → 实肾 map
+  // Parse actual purchases with NEW prices → 现肾 map
   var actualPurchases = parseSheetWithPrices(actualFile.workbook, newPrices);
   actualShenMap = aggregatePersonMap(actualPurchases);
 
@@ -4157,11 +4157,11 @@ function computeAndRenderFinal() {
     var om = originalShenMap[person] || {totalCount:0, totalCost:0, byKind:{}};
     mergedMap[person] = {
       totalCount: am.totalCount,
-      totalCost: am.totalCost,  // 肾 = 实肾
+      totalCost: am.totalCost,  // 肾 = 现肾
       byKind: am.byKind,
       originalShen: om.totalCost,
       actualShen: am.totalCost,
-      diff: am.totalCost - om.totalCost  // 退补 = 实肾 - 原肾（正=补/红，负=退/蓝）
+      diff: am.totalCost - om.totalCost  // 退补 = 现肾 - 原肾（正=补/红，负=退/蓝）
     };
   }
 
@@ -4177,7 +4177,7 @@ function computeAndRenderFinal() {
 }
 
 function buildFinalListTable(data) {
-  var headers = ['cn', '明细', '点数', '原肾', '实肾', '红补蓝退'];
+  var headers = ['cn', '明细', '点数', '原肾', '现肾', '红补蓝退'];
   var rows = [];
   var allKinds = getSortedKinds(data.personMap);
 
@@ -4311,7 +4311,7 @@ function renderFinalPreview() {
 
   if (Math.abs(detailRoundingDiff) > 0.005) {
     html += '<div style="background:#FFFBEB;border:1px solid #F6C453;border-radius:6px;padding:10px 16px;margin-bottom:16px;text-align:left;color:#8A5A00;font-size:12px;">';
-    html += '明细舍入差：实肾合计 ' + sumActual.toFixed(2) + ' － 原肾合计 ' + sumOrig.toFixed(2) + ' = ' + detailRoundingDiff.toFixed(2) +
+    html += '明细舍入差：现肾合计 ' + sumActual.toFixed(2) + ' － 原肾合计 ' + sumOrig.toFixed(2) + ' = ' + detailRoundingDiff.toFixed(2) +
       '。该差额来自角色单价的小数位限制，不参与参数总额校验。</div>';
   }
 
