@@ -4161,7 +4161,7 @@ function computeAndRenderFinal() {
       byKind: am.byKind,
       originalShen: om.totalCost,
       actualShen: am.totalCost,
-      diff: om.totalCost - am.totalCost
+      diff: am.totalCost - om.totalCost  // 退补 = 实肾 - 原肾（正=补/红，负=退/蓝）
     };
   }
 
@@ -4288,7 +4288,7 @@ function renderFinalPreview() {
   var expectedOrigTotal = originalTotalPoints * avgPriceOrig;
   var expectedActualTotal = actualTotalPoints * avgPriceActual;
   var validationPassed = areEquivalentAmounts(expectedOrigTotal, expectedActualTotal);
-  var detailRoundingDiff = sumOrig - sumActual;
+  var detailRoundingDiff = sumActual - sumOrig;
 
   html += '<div style="font-size:12px;color:var(--gray-400);margin-bottom:16px;">';
   html += totalPersons + ' 人 | 补款 ' + supplement + ' 人 | 退款 ' + refund + ' 人';
@@ -4311,7 +4311,7 @@ function renderFinalPreview() {
 
   if (Math.abs(detailRoundingDiff) > 0.005) {
     html += '<div style="background:#FFFBEB;border:1px solid #F6C453;border-radius:6px;padding:10px 16px;margin-bottom:16px;text-align:left;color:#8A5A00;font-size:12px;">';
-    html += '明细舍入差：原肾合计 ' + sumOrig.toFixed(2) + ' － 实肾合计 ' + sumActual.toFixed(2) + ' = ' + detailRoundingDiff.toFixed(2) +
+    html += '明细舍入差：实肾合计 ' + sumActual.toFixed(2) + ' － 原肾合计 ' + sumOrig.toFixed(2) + ' = ' + detailRoundingDiff.toFixed(2) +
       '。该差额来自角色单价的小数位限制，不参与参数总额校验。</div>';
   }
 
