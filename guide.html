@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none';">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RenSheet — 使用指南</title>
+<!-- 本页为纯展示页，无需 xlsx/exceljs；若未来加入解析功能需补充 lib 脚本引用 -->
+<style>
+:root {
+  --blue-900: #0D2137;
+  --blue-700: #1A4570;
+  --blue-500: #2B6FA8;
+  --blue-300: #7BB3DD;
+  --blue-100: #D6EAF5;
+  --blue-50: #EDF5FA;
+  --water: #B8D8E3;
+  --gray-700: #4A5568;
+  --gray-400: #A0AEC0;
+  --gray-200: #E2E8F0;
+  --gray-100: #F7FAFC;
+  --white: #FFFFFF;
+  --radius: 8px;
+  --red-muted: #C0564A; /* 红补单元格专用低饱和砖红 */
+  --font: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--gray-100);
+  color: var(--gray-700);
+  line-height: 1.6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 1060px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 64px 24px;
+}
+
+/* Header（与工具页同款） */
+.header { padding: 0 0 56px; }
+.header a {
+  display: inline-block;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--blue-500);
+  text-decoration: none;
+  letter-spacing: 1px;
+  transition: color 0.15s;
+}
+.header a:hover { color: var(--blue-700); }
+.header h1 {
+  font-size: 36px;
+  font-weight: 300;
+  color: var(--blue-900);
+  letter-spacing: 4px;
+}
+.header .intro {
+  margin-top: 12px;
+  font-size: 16px;
+  color: var(--blue-700);
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+/* Card（与工具页同款） */
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 32px 36px;
+  margin-bottom: 20px;
+  border: 1px solid var(--gray-200);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  text-align: center;
+}
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blue-700);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 18px;
+}
+
+/* ============ STEP 1 流程总览 ============ */
+.guide-flow { position: relative; padding: 8px 0 12px; }
+.flow-track {
+  position: absolute;
+  top: 20px;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--blue-300) 0 6px, transparent 6px 12px);
+}
+.flow-dot {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--blue-500);
+  animation: flowDotX 5s linear infinite;
+}
+.flow-list {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  list-style: none;
+  position: relative;
+}
+.flow-node { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.node-dot {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--white);
+  border: 1px solid var(--blue-300);
+  color: var(--blue-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: flowStep 5s linear infinite;
+  animation-delay: calc(var(--i) * 1s); /* 正延迟：节点按 --i 顺序从左往右依次点亮 */
+}
+.node-num {
+  font-size: 14px;
+  font-weight: 600;
+  animation: flowStepChild 5s linear infinite;
+  animation-delay: calc(var(--i) * 1s);
+}
+.node-check {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  opacity: 0;
+  animation: flowStepChild 5s linear infinite;
+  animation-delay: calc(var(--i) * 1s);
+}
+.node-label { font-size: 13px; font-weight: 600; color: var(--gray-700); letter-spacing: 1px; }
+
+@keyframes flowStep {
+  0%, 2%   { background: var(--white);  border-color: var(--blue-300); box-shadow: none; }
+  4%       { background: var(--blue-500); border-color: var(--blue-500); color: var(--white);
+             box-shadow: 0 0 0 6px rgba(43,111,168,0.12); }
+  20%      { background: var(--blue-50); border-color: var(--blue-300); box-shadow: none; }
+  100%     { background: var(--blue-50); border-color: var(--blue-300); box-shadow: none; }
+}
+@keyframes flowStepChild {
+  0%, 19.5% { opacity: 1; }
+  20%, 100% { opacity: 0; }
+}
+@keyframes flowDotX { from { left: 0; } to { left: 100%; } }
+@keyframes flowDotY { from { top: 0; } to { top: 100%; } }
+
+/* ============ STEP 2 工具演示 ============ */
+.guide-tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--gray-200); margin-bottom: 22px; }
+.guide-tab {
+  flex: 0 0 auto;
+  position: relative;
+  background: transparent;
+  border: none;
+  padding: 10px 16px;
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--gray-400);
+  letter-spacing: 1px;
+  cursor: pointer;
+  border-radius: var(--radius) var(--radius) 0 0;
+  transition: all 0.25s ease;
+}
+.guide-tab::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--blue-300);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.guide-tab:hover { color: var(--blue-500); background: var(--blue-50); }
+.guide-tab.active { color: var(--blue-700); background: var(--white); }
+.guide-tab.active::before { opacity: 1; }
+.guide-tab:focus-visible { outline: 2px solid var(--blue-300); outline-offset: 2px; }
+
+.guide-panel { display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px; align-items: start; text-align: left; }
+.guide-panel[hidden] { display: none; }
+.guide-panel:not([hidden]) { animation: panelIn 0.3s ease; }
+@keyframes panelIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* 动画舞台（迷你模拟界面） */
+.guide-stage {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  overflow: hidden;
+}
+.stage-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--white);
+  border-bottom: 1px solid var(--gray-200);
+  padding: 8px 12px;
+}
+.stage-dots { display: flex; gap: 4px; }
+.stage-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--gray-200); }
+.stage-dots i:first-child { background: var(--blue-300); }
+.stage-title { font-size: 12px; color: var(--gray-700); font-weight: 600; letter-spacing: 1px; }
+.stage-replay {
+  margin-left: auto;
+  font-family: var(--font);
+  font-size: 11px;
+  color: var(--blue-500);
+  background: var(--white);
+  border: 1px solid var(--blue-300);
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.stage-replay:hover { background: var(--blue-50); color: var(--blue-700); }
+.stage-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--blue-100); }
+.stage-progress i { display: block; height: 100%; width: 0; background: var(--blue-500); transition: width 0.3s linear; }
+
+.stage-body {
+  position: relative;
+  min-height: 300px;
+  padding: 18px 16px;
+  background: linear-gradient(180deg, var(--blue-50), var(--white));
+  display: flex;
+  flex-direction: column;
+}
+
+/* 迷你界面元件 */
+.m-drop { border: 2px dashed var(--blue-300); border-radius: 6px; padding: 14px; text-align: center; }
+.m-drop-text { font-size: 12px; color: var(--gray-400); font-weight: 500; }
+.m-drop.flash, .m-btn.flash { animation: flashPulse 0.8s ease-out; }
+@keyframes flashPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(43,111,168,0.35); border-color: var(--blue-500); }
+  100% { box-shadow: 0 0 0 10px rgba(43,111,168,0); }
+}
+
+.m-chip-row { display: flex; justify-content: center; gap: 8px; height: 34px; padding-top: 6px; }
+.m-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--white);
+  border: 1px solid var(--blue-300);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--blue-700);
+  font-weight: 500;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.chip-ic { width: 12px; height: 12px; flex-shrink: 0; }
+
+.m-styles { display: flex; justify-content: center; gap: 8px; margin-top: 10px; }
+.m-style {
+  font-size: 11px;
+  color: var(--gray-700);
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  padding: 4px 12px;
+  transition: all 0.2s ease;
+}
+.m-style.sel { border-color: var(--blue-500); color: var(--blue-700); background: var(--blue-50); }
+
+.m-table {
+  margin-top: 12px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.m-table-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--blue-900);
+  background: var(--blue-100);
+  padding: 6px 10px;
+  text-align: center;
+  letter-spacing: 1px;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.m-thead, .m-trow { display: grid; grid-template-columns: 1.2fr 1fr 1fr; }
+.m-thead { background: var(--blue-50); transition: opacity 0.35s ease, transform 0.35s ease; }
+.m-th { font-size: 11px; color: var(--blue-700); font-weight: 600; padding: 5px 10px; text-align: center; }
+.m-trow { transition: opacity 0.35s ease, transform 0.35s ease; }
+.m-td { font-size: 12px; color: var(--gray-700); padding: 5px 10px; text-align: center; }
+.m-zebra { background: var(--blue-50); }
+
+.m-btn {
+  align-self: center;
+  margin-top: 12px;
+  background: var(--blue-500);
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 18px;
+  border-radius: 6px;
+  letter-spacing: 1px;
+}
+
+.m-toast {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  background: var(--blue-700);
+  color: var(--white);
+  font-size: 11px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+  z-index: 6;
+}
+.m-toast.show { opacity: 1; transform: translateY(-2px); }
+
+/* ratiofix 专用元件：调价配平器迷你演示 */
+.m-heat { display: flex; justify-content: center; gap: 8px; margin-top: 12px; transition: opacity 0.35s ease, transform 0.35s ease; }
+.m-heat-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  padding: 4px 10px;
+  transition: border-color 0.25s ease;
+}
+.m-heat-chip.ok { border-color: var(--blue-300); }
+.m-heat-chip.missing { background: #FFF8E1; border-color: #F0C040; }
+.m-heat-name { font-size: 10.5px; color: var(--gray-700); font-weight: 600; }
+.m-heat-status { font-size: 9px; color: var(--gray-400); }
+.m-heat-chip.missing .m-heat-status { color: #8A5A00; }
+.m-heat-confirm {
+  align-self: center;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--blue-500);
+  background: var(--white);
+  border: 1px solid var(--blue-300);
+  border-radius: 6px;
+  padding: 3px 12px;
+}
+.m-btable {
+  margin-top: 12px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.m-bthead, .m-btrow { display: grid; grid-template-columns: 56px 1fr 1fr 1fr; }
+.m-bthead { background: var(--blue-50); }
+.m-bth { font-size: 10px; color: var(--blue-700); font-weight: 600; padding: 4px; text-align: center; }
+.m-btlabel { font-size: 10px; color: var(--blue-700); font-weight: 600; padding: 4px; text-align: center; background: var(--blue-50); }
+.m-btd { font-size: 10.5px; color: var(--gray-700); padding: 4px; text-align: center; }
+.m-btrow:nth-child(even) .m-btd { background: var(--blue-50); }
+.m-pchg.up { color: var(--red-muted); font-weight: 700; }
+.m-pchg.down { color: var(--blue-500); font-weight: 700; }
+.m-adj {
+  display: inline-block;
+  width: 52px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 4px;
+  padding: 1px 2px;
+  font-size: 10.5px;
+  color: var(--blue-900);
+  font-weight: 700;
+  text-align: center;
+}
+.m-nprice { font-size: 10.5px; color: var(--blue-700); font-weight: 700; }
+.m-balance-line {
+  align-self: center;
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--gray-700);
+  font-weight: 600;
+}
+.m-balance-line .bal-val { color: var(--blue-900); font-weight: 700; }
+.m-balance-line .st-off { color: var(--red-muted); }
+.m-balance-line .st-on { display: none; color: #276749; }
+.m-balance-line.balanced .st-off { display: none; }
+.m-balance-line.balanced .st-on { display: inline; }
+.m-abtn {
+  align-self: center;
+  margin-top: 10px;
+  background: var(--blue-700);
+  color: var(--white);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 16px;
+  border-radius: 6px;
+  letter-spacing: 1px;
+}
+.m-report {
+  margin-top: 8px;
+  background: #F0FFF4;
+  border: 1px solid #9AE6B4;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 10px;
+  color: #276749;
+  line-height: 1.5;
+  text-align: left;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+/* 双屏切换：第一屏=配平器，第二屏=最终退补表（绝对覆盖淡入） */
+.m-screen { transition: opacity 0.45s ease; }
+.m-screen.off { opacity: 0; pointer-events: none; }
+.m-screen-final {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 2;
+  background: linear-gradient(180deg, var(--blue-50), var(--white));
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+  transition: opacity 0.45s ease;
+}
+html.guide-anim .m-screen-final { opacity: 0; }
+html.guide-anim .m-screen-final.in { opacity: 1; pointer-events: auto; }
+.m-final-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--blue-900);
+  background: var(--blue-100);
+  border-radius: 6px 6px 0 0;
+  padding: 6px 10px;
+  text-align: center;
+  letter-spacing: 1px;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.m-ftable { background: var(--white); border: 1px solid var(--gray-200); border-top: none; border-radius: 0 0 6px 6px; overflow: hidden; }
+.m-frow { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; transition: opacity 0.35s ease, transform 0.35s ease; }
+.m-fth { font-size: 10.5px; color: var(--blue-700); font-weight: 600; padding: 4px; text-align: center; }
+.m-frow.m-fhead .m-fth { background: var(--blue-50); }
+.m-ftd { font-size: 11px; color: var(--gray-700); padding: 4px; text-align: center; }
+.m-frow.m-fz .m-ftd { background: var(--blue-50); }
+.m-fref { font-size: 11px; font-weight: 700; padding: 4px; text-align: center; }
+.m-fref.pos { color: var(--red-muted); background: rgba(192,86,74,0.08); }
+.m-fref.neg { color: var(--blue-500); background: rgba(43,111,168,0.08); }
+.m-fref.zero { color: var(--gray-400); }
+
+/* guoji 专用元件 */
+.m-modes { display: flex; gap: 8px; }
+.m-mode {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  padding: 6px 4px;
+  transition: all 0.2s ease;
+}
+.m-mode.sel { border-color: var(--blue-500); box-shadow: 0 0 0 3px rgba(43,111,168,0.10); }
+.m-mode-name { font-size: 11px; font-weight: 700; color: var(--blue-900); }
+.m-mode.sel .m-mode-name { color: var(--blue-700); }
+.m-mode-desc { font-size: 9px; color: var(--gray-400); }
+.m-mode-note {
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--blue-700);
+  background: var(--blue-50);
+  border-radius: 6px;
+  padding: 4px 8px;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.m-inputs { display: flex; gap: 10px; margin-top: 10px; }
+.m-input { flex: 1; background: var(--white); border: 1px solid var(--gray-200); border-radius: 6px; padding: 6px 10px; }
+.m-label { display: block; font-size: 10px; color: var(--gray-400); }
+.m-val { font-size: 13px; font-weight: 700; color: var(--blue-900); }
+.m-rate { margin-top: 8px; font-size: 12px; color: var(--gray-700); font-weight: 500; transition: opacity 0.35s ease, transform 0.35s ease; }
+.m-rate b { color: var(--blue-900); font-weight: 700; }
+.m-cn {
+  margin-top: 8px;
+  background: var(--white);
+  border: 1px dashed var(--blue-300);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 11.5px;
+  color: var(--gray-700);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.m-theme { margin-top: 10px; display: flex; justify-content: center; gap: 8px; }
+.m-theme-item { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--gray-200); transition: all 0.2s ease; }
+.m-theme-item.sel { outline: 2px solid var(--blue-500); outline-offset: 1px; }
+.m-filename { margin-top: 8px; text-align: center; font-size: 11.5px; color: var(--blue-700); font-weight: 600; transition: opacity 0.35s ease, transform 0.35s ease; }
+
+/* 假光标 */
+.m-cursor {
+  position: absolute;
+  top: 0; left: 0;
+  width: 22px;
+  height: 22px;
+  color: var(--blue-700);
+  z-index: 5;
+  pointer-events: none;
+  transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.m-cursor svg { width: 22px; height: 22px; display: block; fill: var(--white); stroke: currentColor; transition: transform 0.15s ease; }
+.m-cursor.click svg { transform: scale(0.8); }
+.m-ring {
+  position: absolute;
+  left: 16px; top: 18px;
+  width: 12px; height: 12px;
+  margin-left: -6px; margin-top: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--blue-500);
+  opacity: 0;
+  pointer-events: none;
+}
+.m-cursor.click .m-ring { animation: ringPing 0.6s ease-out; }
+@keyframes ringPing {
+  from { transform: scale(0.3); opacity: 0.9; }
+  to   { transform: scale(2); opacity: 0; }
+}
+
+/* 动画初始隐藏态：仅在 html.guide-anim 下生效（无 JS / reduced-motion 时为静态完成态快照） */
+html.guide-anim .m-chip,
+html.guide-anim .m-table-title,
+html.guide-anim .m-thead,
+html.guide-anim .m-trow,
+html.guide-anim .m-heat,
+html.guide-anim .m-btable,
+html.guide-anim .m-report,
+html.guide-anim .m-final-title,
+html.guide-anim .m-frow,
+html.guide-anim .m-mode-note,
+html.guide-anim .m-rate,
+html.guide-anim .m-cn,
+html.guide-anim .m-filename { opacity: 0; transform: translateY(8px); }
+html.guide-anim .in { opacity: 1; transform: none; }
+html.guide-anim .m-toast.show { opacity: 1; transform: translateY(-2px); }
+
+/* 图文步骤列表 */
+.guide-steps { display: flex; flex-direction: column; gap: 10px; list-style: none; }
+.guide-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--blue-50);
+  border-radius: var(--radius);
+}
+.step-num { flex-shrink: 0; width: 52px; font-size: 11px; font-weight: 700; color: var(--blue-300); letter-spacing: 1px; padding-top: 3px; }
+.step-icon { flex-shrink: 0; width: 18px; height: 18px; color: var(--blue-500); margin-top: 1px; }
+.step-text { font-size: 13.5px; color: var(--blue-700); font-weight: 500; line-height: 1.55; }
+
+/* ============ STEP 3 视频讲解卡 ============ */
+.guide-video-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 26px 28px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  text-decoration: none;
+  color: var(--gray-700);
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+}
+.guide-video-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--blue-300);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.guide-video-card:hover {
+  border-color: var(--blue-300);
+  box-shadow: 0 4px 16px rgba(26,69,112,0.10);
+  transform: translateY(-2px);
+}
+.guide-video-card:hover::before { opacity: 1; }
+.video-icon-wrap {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: var(--blue-100);
+  border: 1px solid var(--blue-300);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.video-icon { width: 26px; height: 26px; color: var(--blue-700); }
+.video-text { display: flex; flex-direction: column; gap: 4px; }
+.video-title { font-size: 17px; font-weight: 600; color: var(--blue-900); letter-spacing: 1px; }
+.video-desc { font-size: 13px; color: var(--gray-700); font-weight: 500; }
+.video-tag {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--blue-500);
+  background: var(--blue-50);
+  border: 1px solid var(--blue-300);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-700);
+  letter-spacing: 1px;
+  padding-top: 48px;
+}
+.contact-link { font-size: 12px; color: var(--blue-500); font-weight: 500; }
+.contact-link:hover { color: var(--gold-300, var(--blue-700)); }
+
+/* ============ 响应式 ============ */
+@media (max-width: 768px) {
+  .container { padding: 40px 20px; }
+  .header { padding: 0 0 40px; }
+  .header h1 { font-size: 28px; }
+  .card { padding: 24px 18px; }
+  /* 流程转纵向 */
+  .flow-list { grid-template-columns: 1fr; gap: 18px; }
+  .flow-track {
+    top: 12px; bottom: 12px;
+    left: 20px; right: auto;
+    width: 2px; height: auto;
+    background: repeating-linear-gradient(180deg, var(--blue-300) 0 6px, transparent 6px 12px);
+  }
+  .flow-dot { top: 0; left: -3px; animation: flowDotY 5s linear infinite; }
+  .flow-node { flex-direction: row; gap: 12px; justify-content: flex-start; }
+  /* 面板单列：stage 在上、步骤在下 */
+  .guide-panel { grid-template-columns: 1fr; }
+  .guide-tabs { gap: 0; }
+  .guide-tab { flex: 1; justify-content: center; font-size: 13.5px; padding: 10px 4px; }
+  .guide-video-card { padding: 20px; }
+  .video-tag { display: none; }
+  .stage-body { min-height: 260px; }
+}
+
+/* 减少动态效果：全部冻结为静态完成态，重播按钮隐藏（JS 侧亦不启动） */
+@media (prefers-reduced-motion: reduce) {
+  .flow-node, .node-num, .node-check, .flow-dot { animation: none !important; }
+  .node-dot { background: var(--blue-50); }
+  .node-check { opacity: 1; }
+  .node-num { opacity: 0; }
+  .stage-replay { display: none; }
+  .m-cursor, .m-ring { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="container" id="guide">
+
+  <!-- Header -->
+  <div class="header">
+    <a href="index.html">&larr; 返回首页</a>
+    <h1>RenSheet</h1>
+    <p class="intro">使用指南 · 快速上手</p>
+  </div>
+
+  <!-- STEP 1 — 流程总览 -->
+  <div class="card">
+    <div class="card-title">STEP 1 — 流程总览</div>
+    <p style="font-size:14px;color:var(--gray-700);font-weight:500;margin-bottom:28px;">三个工具共用一条流水线：导入排表 → 解析 → 处理 → 预览 → 导出。点击下方标签页查看每个工具的操作演示。</p>
+    <div class="guide-flow" aria-hidden="true">
+      <div class="flow-track"><span class="flow-dot"></span></div>
+      <ol class="flow-list">
+        <li class="flow-node" style="--i:0">
+          <span class="node-dot"><span class="node-num">1</span><svg class="node-check" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 27l7 7 14-15"/></svg></span>
+          <span class="node-label">导入排表</span>
+        </li>
+        <li class="flow-node" style="--i:1">
+          <span class="node-dot"><span class="node-num">2</span><svg class="node-check" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 27l7 7 14-15"/></svg></span>
+          <span class="node-label">解析</span>
+        </li>
+        <li class="flow-node" style="--i:2">
+          <span class="node-dot"><span class="node-num">3</span><svg class="node-check" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 27l7 7 14-15"/></svg></span>
+          <span class="node-label">处理</span>
+        </li>
+        <li class="flow-node" style="--i:3">
+          <span class="node-dot"><span class="node-num">4</span><svg class="node-check" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 27l7 7 14-15"/></svg></span>
+          <span class="node-label">预览</span>
+        </li>
+        <li class="flow-node" style="--i:4">
+          <span class="node-dot"><span class="node-num">5</span><svg class="node-check" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 27l7 7 14-15"/></svg></span>
+          <span class="node-label">导出</span>
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- STEP 2 — 工具演示（打赏页无需教程，勿添加 tab） -->
+  <div class="card">
+    <div class="card-title">STEP 2 — 工具演示</div>
+    <div class="guide-tabs" id="guideTabs" role="tablist" aria-label="选择工具教程">
+      <button class="guide-tab active" id="tab-shenbiao" role="tab" aria-selected="true" aria-controls="panel-shenbiao" tabindex="0">肾表</button>
+      <button class="guide-tab" id="tab-ratiofix" role="tab" aria-selected="false" aria-controls="panel-ratiofix" tabindex="-1">二调退补表</button>
+      <button class="guide-tab" id="tab-guoji" role="tab" aria-selected="false" aria-controls="panel-guoji" tabindex="-1">国际表</button>
+    </div>
+
+    <!-- 面板 1：肾表 -->
+    <div class="guide-panel" id="panel-shenbiao" role="tabpanel" aria-labelledby="tab-shenbiao" data-scene="shenbiao">
+      <div class="guide-stage">
+        <div class="stage-bar">
+          <span class="stage-dots"><i></i><i></i><i></i></span>
+          <span class="stage-title">肾表 · 操作演示</span>
+          <button class="stage-replay" type="button" aria-label="重播动画演示">重播</button>
+          <span class="stage-progress"><i></i></span>
+        </div>
+        <div class="stage-body" aria-hidden="true">
+          <div class="m-drop"><span class="m-drop-text">点击上传排表</span></div>
+          <div class="m-chip-row">
+            <span class="m-chip"><svg class="chip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>示例排表.xlsx</span>
+          </div>
+          <div class="m-styles"><span class="m-style">样式A</span><span class="m-style style-b">样式B</span><span class="m-style">样式C</span></div>
+          <div class="m-table">
+            <div class="m-table-title">吧唧 · 肾表</div>
+            <div class="m-thead"><span class="m-th">角色</span><span class="m-th">点数</span><span class="m-th">肾额</span></div>
+            <div class="m-trow m-zebra"><span class="m-td">张三</span><span class="m-td">100</span><span class="m-td">33.40</span></div>
+            <div class="m-trow"><span class="m-td">李四</span><span class="m-td">80</span><span class="m-td">26.72</span></div>
+            <div class="m-trow m-zebra"><span class="m-td">王五</span><span class="m-td">70</span><span class="m-td">23.38</span></div>
+          </div>
+          <div class="m-btn">导出肾表</div>
+          <div class="m-toast">已导出 肾表.xlsx</div>
+          <span class="m-cursor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 3l14 8-6.5 2.5L10 20z"/></svg><i class="m-ring"></i></span>
+        </div>
+      </div>
+      <ol class="guide-steps">
+        <li class="guide-step"><span class="step-num">STEP 1</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M26 34V16"/><path d="M18 24l8-8 8 8"/><path d="M10 40h32"/></svg><span class="step-text">准备排表：A1 写品类名（如"吧唧"），B1 及之后必须留空；第 1 行写角色名（每个角色只能出现一次）；第 2 行写对应单价；第 3 行起，每个写了人名的格子 = 这个人买了该列角色 1 个谷子。一个 Excel 可放多个品类 sheet，也可以每品类一个文件分开传</span></li>
+        <li class="guide-step"><span class="step-num">STEP 2</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 20h28"/><path d="M32 12l8 8-8 8"/><path d="M40 32H12"/><path d="M20 24l-8 8 8 8"/></svg><span class="step-text">导入排表：先选上传模式——「多sheet单文件」（一个 Excel 含多个品类 sheet）或「分表上传」（多个 Excel 各一个品类）；拖拽或点击上传 .xlsx，非 xlsx 或格式错误会弹窗提示；已添加的文件显示为标签，可点 × 移除</span></li>
+        <li class="guide-step"><span class="step-num">STEP 3</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="26" cy="26" r="14"/><circle cx="26" cy="26" r="5"/><path d="M26 2v8M26 42v8M2 26h8M42 26h8"/></svg><span class="step-text">输出设置：样式可选分类式、清单式或同时选中；填写文件名并点「重命名」（该名称就是导出表格的标题）；可选开启「定尾模式」（固定金额如 20，或比例如 30%）；摊入打包费、手续费时开启「添加其他费用」（点数/人数/本体肾额比例均摊）；16 套主题色点击实时切换</span></li>
+        <li class="guide-step"><span class="step-num">STEP 4</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="26" cy="26" r="16"/><path d="M22 19l11 7-11 7z"/></svg><span class="step-text">开始处理：生成预览表后逐人核对金额；顶部出现红色提示 = 实际总肾 ≠ 点数×单价之和，回排表检查单价或漏填的格子</span></li>
+        <li class="guide-step"><span class="step-num">STEP 5</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M26 12v20"/><path d="M18 24l8 8 8-8"/><path d="M10 40h32"/></svg><span class="step-text">导出肾表：点击保存 xlsx 到本地；定尾模式下多出 定金|尾款 两列，并自动校验 定金合计 + 尾款合计 = 总肾合计</span></li>
+      </ol>
+    </div>
+
+    <!-- 面板 2：二调退补表 -->
+    <div class="guide-panel" id="panel-ratiofix" role="tabpanel" aria-labelledby="tab-ratiofix" data-scene="ratiofix" hidden>
+      <div class="guide-stage">
+        <div class="stage-bar">
+          <span class="stage-dots"><i></i><i></i><i></i></span>
+          <span class="stage-title">二调退补表 · 操作演示</span>
+          <button class="stage-replay" type="button" aria-label="重播动画演示">重播</button>
+          <span class="stage-progress"><i></i></span>
+        </div>
+        <div class="stage-body" aria-hidden="true">
+          <div class="m-screen">
+          <div class="m-drop"><span class="m-drop-text">上传原排表 + 拆配实际排表</span></div>
+          <div class="m-chip-row">
+            <span class="m-chip"><svg class="chip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>原排表.xlsx</span>
+            <span class="m-chip"><svg class="chip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>拆配实际.xlsx</span>
+          </div>
+          <div class="m-heat">
+            <span class="m-heat-chip missing"><span class="m-heat-name">新品透卡</span><span class="m-heat-status">新增角色</span></span>
+            <span class="m-heat-chip"><span class="m-heat-name">武道正比立牌</span><span class="m-heat-status">原排角色</span></span>
+            <span class="m-heat-chip"><span class="m-heat-name">武道q立</span><span class="m-heat-status">原排角色</span></span>
+          </div>
+          <div class="m-heat-confirm">确认调价热度排序</div>
+          <div class="m-btable">
+            <div class="m-bthead"><span class="m-bth">角色</span><span class="m-bth">新品透卡</span><span class="m-bth">武道正比立牌</span><span class="m-bth">武道q立</span></div>
+            <div class="m-btrow"><span class="m-btlabel">原排调价</span><span class="m-btd">--</span><span class="m-btd">+5.00</span><span class="m-btd">0.00</span></div>
+            <div class="m-btrow"><span class="m-btlabel">点数变化</span><span class="m-btd m-pchg up">+4</span><span class="m-btd m-pchg down">-2</span><span class="m-btd m-pchg up">+6</span></div>
+            <div class="m-btrow"><span class="m-btlabel">调价</span><span class="m-btd"><span class="m-adj" data-dec="2">0.00</span></span><span class="m-btd"><span class="m-adj" data-dec="2">5.00</span></span><span class="m-btd"><span class="m-adj" data-dec="2">0.00</span></span></div>
+            <div class="m-btrow"><span class="m-btlabel">新单价</span><span class="m-btd"><span class="m-nprice" data-dec="2">20.00</span></span><span class="m-btd"><span class="m-nprice" data-dec="2">25.00</span></span><span class="m-btd"><span class="m-nprice" data-dec="2">20.00</span></span></div>
+          </div>
+          <div class="m-balance-line">Σ(点数×调价) = <span class="bal-val" data-dec="2">30.00</span> 元 <span class="st-off">未平衡，目标值 0.00</span><span class="st-on">已平衡</span></div>
+          <div class="m-abtn">自动配平</div>
+          <div class="m-report">自动配平完成：标准准则，整数元步长。本次调整合计 16.00 元：新品透卡 +7.00（新增排第一），武道正比立牌 +1.00（真热门缺配），武道q立 -8.00（冷门爆配）。</div>
+          <div class="m-btn">下载新排表</div>
+          <div class="m-toast">已下载 新排表.xlsx</div>
+          </div>
+          <!-- 第二屏：最终退补表展示 + 导出引导 -->
+          <div class="m-screen-final">
+            <div class="m-final-title">二调退补表 · 最终预览</div>
+            <div class="m-ftable">
+              <div class="m-frow m-fhead"><span class="m-fth">名字</span><span class="m-fth">原肾</span><span class="m-fth">现肾</span><span class="m-fth">红补蓝退</span></div>
+              <div class="m-frow m-fz"><span class="m-fth">张三</span><span class="m-ftd">75.00</span><span class="m-ftd">79.00</span><span class="m-fref pos">+4.00</span></div>
+              <div class="m-frow"><span class="m-fth">李四</span><span class="m-ftd">55.00</span><span class="m-ftd">51.00</span><span class="m-fref neg">-4.00</span></div>
+              <div class="m-frow m-fz"><span class="m-fth">王五</span><span class="m-ftd">20.00</span><span class="m-ftd">20.00</span><span class="m-fref zero">0.00</span></div>
+            </div>
+            <div class="m-btn">导出最终表</div>
+            <div class="m-toast">已导出 退补表.xlsx</div>
+          </div>
+          <span class="m-cursor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 3l14 8-6.5 2.5L10 20z"/></svg><i class="m-ring"></i></span>
+        </div>
+      </div>
+      <ol class="guide-steps">
+        <li class="guide-step"><span class="step-num">STEP 1</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M26 34V16"/><path d="M18 24l8-8 8 8"/><path d="M10 40h32"/></svg><span class="step-text">上传原排表与拆配实际排表（第一次开团的表 + 最终分货的表，格式同肾表，只读第一个sheet）。填写拆配表均价与拆配表总点数，原排表均价由系统自动算出；三重校验通过才能进入下一步</span></li>
+        <li class="guide-step"><span class="step-num">STEP 2</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 12h28"/><path d="M26 12v28"/><path d="M12 40h28"/><path d="M14 20l12-4 12 4"/></svg><span class="step-text">确认调价热度排序：角色按调价热度从高到低排列，黄色为原排表不存在的新角色，可用 ←→ 调整位置，点「确认调价热度排序」后才能自动配平</span></li>
+        <li class="guide-step"><span class="step-num">STEP 3</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M26 8l14 5v11c0 10-6 16-14 20-8-4-14-10-14-20V13z"/><path d="M18 26l6 6 10-12"/></svg><span class="step-text">点击「自动配平」：系统按热度准则求解，谁该涨、谁该降都有报告说明理由；「换调价」可切换方案，不满意可手动微调；必须满足 Σ(点数×调价) = 0 才能进入下一步</span></li>
+        <li class="guide-step"><span class="step-num">STEP 4</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="26" cy="26" r="8"/><path d="M26 6v8M26 38v8M6 26h8M38 26h8M12 12l6 6M34 34l6 6M40 12l-6 6M18 34l-6 6"/></svg><span class="step-text">确认新排表：核对各角色新单价（新单价 = 拆配表均价 + 最终调价），可下载写入新单价的排表，勾选确认后进入下一步</span></li>
+        <li class="guide-step"><span class="step-num">STEP 5</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="8" y="10" width="36" height="32" rx="3"/><path d="M8 22h36M8 32h36M20 22v20"/></svg><span class="step-text">预览导出：最终表列 = cn | 明细 | 点数 | 原肾 | 现肾 | 红补蓝退；红补蓝退 = 现肾 − 原肾，正数=补款（红）、负数=退款（蓝），确认无误导出保存</span></li>
+      </ol>
+    </div>
+
+    <!-- 面板 3：国际表 -->
+    <div class="guide-panel" id="panel-guoji" role="tabpanel" aria-labelledby="tab-guoji" data-scene="guoji" hidden>
+      <div class="guide-stage">
+        <div class="stage-bar">
+          <span class="stage-dots"><i></i><i></i><i></i></span>
+          <span class="stage-title">国际表 · 操作演示</span>
+          <button class="stage-replay" type="button" aria-label="重播动画演示">重播</button>
+          <span class="stage-progress"><i></i></span>
+        </div>
+        <div class="stage-body" aria-hidden="true">
+          <div class="m-modes">
+            <span class="m-mode m-mode-full"><span class="m-mode-name">全重分摊</span><span class="m-mode-desc">需称整团包裹总重</span></span>
+            <span class="m-mode"><span class="m-mode-name">净重分摊</span><span class="m-mode-desc">无需称包裹</span></span>
+          </div>
+          <div class="m-mode-note">两种算法金额完全相同，选择依据只是要不要称包裹</div>
+          <div class="m-inputs">
+            <div class="m-input"><span class="m-label">总国际运费（元）</span><span class="m-val" data-dec="0">0</span></div>
+            <div class="m-input"><span class="m-label">总包裹重量（克）</span><span class="m-val" data-dec="0">0</span></div>
+          </div>
+          <div class="m-rate">费率 <b class="rate-val" data-dec="4">0.0000</b> 元/g</div>
+          <div class="m-drop" style="margin-top:12px;"><span class="m-drop-text">点击上传排表</span></div>
+          <div class="m-chip-row">
+            <span class="m-chip"><svg class="chip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>吧唧 · 10g/点</span>
+            <span class="m-chip"><svg class="chip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>立牌 · 80g/点</span>
+          </div>
+          <div class="m-table">
+            <div class="m-table-title">国际运费分摊表</div>
+            <div class="m-thead"><span class="m-th">品名</span><span class="m-th">单点克重</span><span class="m-th">国际运费</span></div>
+            <div class="m-trow m-zebra"><span class="m-td">吧唧</span><span class="m-td">10g</span><span class="m-td">1.20</span></div>
+            <div class="m-trow"><span class="m-td">立牌</span><span class="m-td">80g</span><span class="m-td">9.60</span></div>
+          </div>
+          <div class="m-cn">非排表区：李四 +50g</div>
+          <div class="m-theme"><span class="m-theme-item t-a" style="background:var(--blue-500);"></span><span class="m-theme-item" style="background:var(--water);"></span></div>
+          <div class="m-filename">文件名：拼团国际运费表.xlsx</div>
+          <div class="m-btn">导出国际表</div>
+          <div class="m-toast">已导出 拼团国际运费表.xlsx</div>
+          <span class="m-cursor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 3l14 8-6.5 2.5L10 20z"/></svg><i class="m-ring"></i></span>
+        </div>
+      </div>
+      <ol class="guide-steps">
+        <li class="guide-step"><span class="step-num">STEP 1</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 10v8c0 6 10 6 10 12v12"/><path d="M36 10v8c0 6-10 6-10 12v12"/><circle cx="16" cy="10" r="3"/><circle cx="36" cy="10" r="3"/><circle cx="26" cy="42" r="3"/></svg><span class="step-text">选择算法：全重分摊（需称好整团包裹总重量）或净重分摊（无需称包裹）；两种算法金额完全相同，选哪个只取决于「要不要称包裹」，选定后锁定，可「重新选择模式」重来</span></li>
+        <li class="guide-step"><span class="step-num">STEP 2</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="26" cy="26" r="16"/><path d="M18 20l4 6-4 6M34 20l-4 6 4 6"/></svg><span class="step-text">填基础参数：总国际运费（元）；全重分摊再加总包裹重量（克，整箱打包后称重），费率自动实时算出（元/克）。净重分摊只填总运费即可</span></li>
+        <li class="guide-step"><span class="step-num">STEP 3</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M26 34V16"/><path d="M18 24l8-8 8 8"/><path d="M10 40h32"/></svg><span class="step-text">导入排表：格式与肾表相同（第 2 行单价对本工具无效，不用管）。每个排表填写 种类名称、单点克重（称几个该谷子的总重 ÷ 个数）、校验总点数，点「解析此排表」</span></li>
+        <li class="guide-step"><span class="step-num">STEP 4</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="22" cy="22" r="12"/><path d="M31 31l10 10"/></svg><span class="step-text">核对解析结果：唯一 CN 数、总点数、总本体重量是否对得上；下方每人点数与重量明细可逐行自查，校验不符会提示差多少点</span></li>
+        <li class="guide-step"><span class="step-num">STEP 5</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 12h28"/><path d="M26 12v28"/><path d="M12 40h28"/><path d="M14 20l12-4 12 4"/></svg><span class="step-text">非排表区：没进排表的散货，手动添加 CN 名称 + 额外克数；也可上传 CN-本体表（A 列 CN 名、B 列克数）批量导入，同名 CN 自动合并</span></li>
+        <li class="guide-step"><span class="step-num">STEP 6</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 14h32M10 26h20M10 38h32"/></svg><span class="step-text">输出设置：填写文件名并点「重命名」，选择颜色主题（16 色）</span></li>
+        <li class="guide-step"><span class="step-num">STEP 7</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M26 12v20"/><path d="M18 24l8 8 8-8"/><path d="M10 40h32"/></svg><span class="step-text">处理与导出：全重模式预览列 = cn | 本体(g) | 箱摊(g) | 总重(g) | 国际(元)；净重模式 = cn | 本体(g) | 国际(元)。校验问题以红/黄横幅提示；确认无误点「导出国际表」保存</span></li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- STEP 3 — 视频讲解 -->
+  <div class="card">
+    <div class="card-title">STEP 3 — 视频讲解</div>
+    <a class="guide-video-card" id="guideVideo" href="https://www.xiaohongshu.com/user/profile/591529972" target="_blank" rel="noopener" aria-label="前往小红书观看使用指南讲解视频（在新窗口打开）">
+      <span class="video-icon-wrap">
+        <svg class="video-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="26" cy="26" r="19"/><path d="M22 18l14 8-14 8z"/></svg>
+      </span>
+      <span class="video-text">
+        <span class="video-title">视频讲解</span>
+        <span class="video-desc">完整操作演示发布在小红书，点击跳转观看</span>
+      </span>
+      <span class="video-tag">小红书 · 外部链接</span>
+    </a>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">RenSheet · 高效打表，纯净体验</div>
+  <div class="footer">有问题请私信开发者唯一小红书：<a class="contact-link" href="https://www.xiaohongshu.com/user/profile/591529972" target="_blank" rel="noopener">591529972@无敌头铁王</a><br>或加用户咨询qq群：740838603</div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  if (window.__guideInit) return; // 防重复执行（兼冒烟探针）
+  window.__guideInit = true;
+
+  // 减少动态效果偏好：不启动动画，HTML 直接呈现静态完成态
+  var REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (REDUCED) return;
+
+  // 触发 CSS 初始隐藏态（同步执行，先于首帧绘制）
+  document.documentElement.classList.add('guide-anim');
+
+  /* ==================== 工具函数 ==================== */
+  function q(sel, root) { return (root || document).querySelector(sel); }
+  function qa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  function addCls(root, sel, cls) { qa(sel, root).forEach(function (e) { e.classList.add(cls); }); }
+  function rmCls(root, sel, cls) { qa(sel, root).forEach(function (e) { e.classList.remove(cls); }); }
+
+  // 光标移动到面板内某元素中心（只动 transform，由 CSS 补间）
+  function cursorTo(panel, sel) {
+    var el = q(sel, panel);
+    if (!el) return;
+    var cur = q('.m-cursor', panel);
+    var body = q('.stage-body', panel);
+    var er = el.getBoundingClientRect();
+    var br = body.getBoundingClientRect();
+    cur.style.transform = 'translate(' + (er.left - br.left + er.width / 2 - 11) + 'px,' + (er.top - br.top + er.height / 2 - 4) + 'px)';
+  }
+
+  // 数字递增（rAF 相对时间，不受后台节流影响）
+  function tickText(el, target, durMs) {
+    var dec = parseInt(el.getAttribute('data-dec') || '0', 10);
+    var start = performance.now();
+    var from = parseFloat(el.textContent) || 0;
+    function frame(now) {
+      var k = Math.min(1, (now - start) / durMs);
+      el.textContent = (from + (target - from) * k).toFixed(dec);
+      if (k < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // 点击特效：光标缩小 + 扩散圈 + 目标亮闪
+  function clickOn(panel, sel) {
+    var cur = q('.m-cursor', panel);
+    cur.classList.add('click');
+    if (sel) addCls(panel, sel, 'flash');
+  }
+
+  /* ==================== 场景定义（时间轴） ==================== */
+  var SCENES = {
+    shenbiao: {
+      dur: 10500, hold: 1600,
+      reset: function () {},
+      steps: [
+        [200,  function (p) { cursorTo(p, '.m-drop'); }],
+        [900,  function (p) { addCls(p, '.m-chip', 'in'); addCls(p, '.m-drop', 'flash'); }],
+        [1500, function (p) { cursorTo(p, '.style-b'); }],
+        [1900, function (p) { addCls(p, '.style-b', 'sel'); }],
+        [2300, function (p) { cursorTo(p, '.m-table'); }],
+        [2500, function (p) { addCls(p, '.m-table-title', 'in'); }],
+        [2800, function (p) { addCls(p, '.m-thead', 'in'); }],
+        [3100, function (p) { qa('.m-trow', p)[0].classList.add('in'); }],
+        [3500, function (p) { qa('.m-trow', p)[1].classList.add('in'); }],
+        [3900, function (p) { qa('.m-trow', p)[2].classList.add('in'); }],
+        [4400, function (p) { cursorTo(p, '.m-btn'); }],
+        [4800, function (p) { clickOn(p, '.m-btn'); }],
+        [5000, function (p) { rmCls(p, '.m-cursor', 'click'); addCls(p, '.m-toast', 'show'); }],
+        [6500, function (p) { rmCls(p, '.m-toast', 'show'); }]
+      ]
+    },
+    ratiofix: {
+      dur: 15000, hold: 1600,
+      reset: function (p) {
+        var adjInit = ['0.00', '5.00', '0.00'], npInit = ['20.00', '25.00', '20.00'];
+        qa('.m-adj', p).forEach(function (e, i) { e.textContent = adjInit[i]; });
+        qa('.m-nprice', p).forEach(function (e, i) { e.textContent = npInit[i]; });
+        var bv = q('.bal-val', p);
+        if (bv) bv.textContent = '30.00';
+      },
+      steps: [
+        /* 第一屏：上传 → 热度确认 → 自动配平 → Σ归零 → 分配报告 → 下载新排表 */
+        [300,  function (p) { cursorTo(p, '.m-drop'); }],
+        [800,  function (p) { qa('.m-chip', p)[0].classList.add('in'); addCls(p, '.m-drop', 'flash'); }],
+        [1300, function (p) { qa('.m-chip', p)[1].classList.add('in'); }],
+        [1700, function (p) { addCls(p, '.m-heat', 'in'); }],
+        [2100, function (p) { cursorTo(p, '.m-heat-confirm'); }],
+        [2400, function (p) { clickOn(p, '.m-heat-confirm'); addCls(p, '.m-heat-chip', 'ok'); }],
+        [2900, function (p) { addCls(p, '.m-btable', 'in'); }],
+        [3300, function (p) { cursorTo(p, '.m-abtn'); }],
+        [3600, function (p) { clickOn(p, '.m-abtn'); }],
+        [3700, function (p) { tickText(qa('.m-adj', p)[0], 7.0, 600); }],
+        [4000, function (p) { tickText(qa('.m-adj', p)[1], 6.0, 600); }],
+        [4300, function (p) { tickText(qa('.m-adj', p)[2], -8.0, 600); }],
+        [4500, function (p) { tickText(qa('.m-nprice', p)[0], 27.0, 600); }],
+        [4750, function (p) { tickText(qa('.m-nprice', p)[1], 26.0, 600); }],
+        [5000, function (p) { tickText(qa('.m-nprice', p)[2], 12.0, 600); }],
+        [5300, function (p) { tickText(q('.bal-val', p), 0, 700); }],
+        [5900, function (p) { addCls(p, '.m-report', 'in'); }],
+        [6000, function (p) { q('.m-balance-line', p).classList.add('balanced'); }],
+        [6600, function (p) { cursorTo(p, '.m-screen .m-btn'); }],
+        [6900, function (p) { clickOn(p, '.m-screen .m-btn'); }],
+        [7100, function (p) { rmCls(p, '.m-cursor', 'click'); addCls(p, '.m-screen .m-toast', 'show'); }],
+        [8100, function (p) { rmCls(p, '.m-screen .m-toast', 'show'); }],
+        /* 第二屏：退补表展示 → 导出引导 */
+        [8500, function (p) { q('.m-screen', p).classList.add('off'); addCls(p, '.m-screen-final', 'in'); }],
+        [8900, function (p) { addCls(p, '.m-final-title', 'in'); q('.m-frow.m-fhead', p).classList.add('in'); }],
+        [9200, function (p) { qa('.m-frow', p)[1].classList.add('in'); }],
+        [9500, function (p) { qa('.m-frow', p)[2].classList.add('in'); }],
+        [9800, function (p) { qa('.m-frow', p)[3].classList.add('in'); }],
+        [10300, function (p) { cursorTo(p, '.m-screen-final .m-btn'); }],
+        [10700, function (p) { clickOn(p, '.m-screen-final .m-btn'); }],
+        [11000, function (p) { rmCls(p, '.m-cursor', 'click'); addCls(p, '.m-screen-final .m-toast', 'show'); }],
+        [12400, function (p) { rmCls(p, '.m-screen-final .m-toast', 'show'); }]
+      ]
+    },
+    guoji: {
+      dur: 13000, hold: 1600,
+      reset: function (p) {
+        qa('.m-val', p).forEach(function (e) { e.textContent = (0).toFixed(parseInt(e.getAttribute('data-dec') || '0', 10)); });
+        qa('.rate-val', p).forEach(function (e) { e.textContent = (0).toFixed(4); });
+      },
+      steps: [
+        /* STEP2 展示两种算法模式：点选全重分摊（净重链路不展开） */
+        [300,  function (p) { cursorTo(p, '.m-mode-full'); }],
+        [600,  function (p) { clickOn(p, '.m-mode-full'); addCls(p, '.m-mode-full', 'sel'); }],
+        [900,  function (p) { addCls(p, '.m-mode-note', 'in'); }],
+        [1800, function (p) { rmCls(p, '.m-mode-note', 'in'); }],
+        /* STEP3 基础参数：全重模式填运费+包裹重 */
+        [2000, function (p) { cursorTo(p, '.m-input'); }],
+        [2300, function (p) { tickText(qa('.m-val', p)[0], 100, 700); }],
+        [2900, function (p) { cursorTo(p, '.m-input:nth-child(2)'); }],
+        [3100, function (p) { tickText(qa('.m-val', p)[1], 5000, 700); }],
+        [3900, function (p) { addCls(p, '.m-rate', 'in'); }],
+        [4000, function (p) { tickText(q('.rate-val', p), 0.02, 700); }],
+        /* STEP4 导入解析 */
+        [5000, function (p) { cursorTo(p, '.m-drop'); }],
+        [5300, function (p) { qa('.m-chip', p)[0].classList.add('in'); addCls(p, '.m-drop', 'flash'); }],
+        [5800, function (p) { qa('.m-chip', p)[1].classList.add('in'); }],
+        [6200, function (p) { addCls(p, '.m-table-title', 'in'); addCls(p, '.m-thead', 'in'); }],
+        [6600, function (p) { qa('.m-trow', p)[0].classList.add('in'); }],
+        [7000, function (p) { qa('.m-trow', p)[1].classList.add('in'); }],
+        /* STEP5/6 非排表 + 主题文件名 */
+        [7400, function (p) { addCls(p, '.m-cn', 'in'); }],
+        [7900, function (p) { addCls(p, '.t-a', 'sel'); }],
+        [8200, function (p) { addCls(p, '.m-filename', 'in'); }],
+        /* STEP7 导出 */
+        [8800, function (p) { cursorTo(p, '.m-btn'); }],
+        [9100, function (p) { clickOn(p, '.m-btn'); }],
+        [9300, function (p) { rmCls(p, '.m-cursor', 'click'); addCls(p, '.m-toast', 'show'); }],
+        [10400, function (p) { rmCls(p, '.m-toast', 'show'); }]
+      ]
+    }
+  };
+
+  /* ==================== 场景播放器 ==================== */
+  var player = {
+    timers: [], panel: null, playing: false,
+    play: function (panel) {
+      this.stop();
+      this.panel = panel;
+      var scene = SCENES[panel.getAttribute('data-scene')];
+      if (!scene) return;
+      // 通用重置：移除全部状态 class + 光标复位 + 数字归零 + 进度条归零
+      qa('.in,.show,.flash,.sel,.ok,.balanced,.off,.pop,.click', panel).forEach(function (e) {
+        e.classList.remove('in', 'show', 'flash', 'sel', 'ok', 'balanced', 'off', 'pop', 'click');
+      });
+      var cur = q('.m-cursor', panel);
+      if (cur) cur.style.transform = '';
+      var prog = q('.stage-progress i', panel);
+      if (prog) prog.style.width = '0%';
+      if (scene.reset) scene.reset(panel);
+      var self = this;
+      scene.steps.forEach(function (s) {
+        self.timers.push(setTimeout(function () {
+          s[1](panel);
+          if (prog) prog.style.width = (s[0] / scene.dur * 100) + '%';
+        }, s[0]));
+      });
+      this.timers.push(setTimeout(function () { self.play(panel); }, scene.dur + scene.hold));
+      this.playing = true;
+    },
+    stop: function () {
+      this.timers.forEach(clearTimeout);
+      this.timers = [];
+      this.playing = false;
+    }
+  };
+
+  /* ==================== Tab 控制器 ==================== */
+  var tabs = qa('.guide-tab');
+  var panels = qa('.guide-panel');
+  var activePanel = panels[0];
+
+  function selectTab(i, focus) {
+    tabs.forEach(function (t, idx) {
+      var on = idx === i;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+    });
+    panels.forEach(function (p, idx) { p.hidden = idx !== i; });
+    activePanel = panels[i];
+    player.play(activePanel); // display:none 会杀死 transition，切 tab 即整场重放
+    if (focus) tabs[i].focus();
+  }
+
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { selectTab(i, false); });
+  });
+  var tablist = q('#guideTabs');
+  tablist.addEventListener('keydown', function (e) {
+    var idx = tabs.indexOf(document.activeElement);
+    if (idx < 0) return;
+    var next = -1;
+    if (e.key === 'ArrowRight') next = (idx + 1) % tabs.length;
+    else if (e.key === 'ArrowLeft') next = (idx - 1 + tabs.length) % tabs.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = tabs.length - 1;
+    if (next >= 0) { e.preventDefault(); selectTab(next, true); }
+  });
+
+  // 重播按钮
+  qa('.stage-replay').forEach(function (btn, i) {
+    btn.addEventListener('click', function () { player.play(panels[i]); });
+  });
+
+  /* ==================== 离屏暂停 ==================== */
+  var inView = true;
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (en.isIntersecting) {
+        inView = true;
+        if (!player.playing && activePanel) player.play(activePanel);
+      } else {
+        inView = false;
+        player.stop();
+      }
+    });
+  }, { threshold: 0.05 });
+  io.observe(document.getElementById('guide'));
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') player.stop();
+    else if (inView && !player.playing && activePanel) player.play(activePanel);
+  });
+
+  /* ==================== 启动 ==================== */
+  selectTab(0, false);
+})();
+</script>
+</body>
+</html>

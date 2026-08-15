@@ -44,7 +44,7 @@ body {
   max-width: 1060px;
   width: 100%;
   margin: 0 auto;
-  padding: 64px 24px;
+  padding: clamp(28px, 6vw, 64px) clamp(16px, 4vw, 24px);
 }
 
 /* Footer contact link */
@@ -64,7 +64,7 @@ body {
   background: linear-gradient(90deg, #EDF5FA 0%, #D6EAF5 100%);
   border: 1px solid var(--blue-300);
   border-radius: var(--radius);
-  margin-bottom: 24px;
+  margin-bottom: clamp(16px, 2vw, 24px);
   overflow: hidden;
 }
 .notice-bar {
@@ -125,7 +125,7 @@ body {
 /* Header */
 .header {
   text-align: center;
-  padding: 0 0 56px;
+  padding: 0 0 clamp(32px, 5vw, 56px);
 }
 .header h1 {
   font-size: 36px;
@@ -141,11 +141,12 @@ body {
   font-weight: 350;
 }
 
-/* Tool grid */
+/* Tool grid（6 张等宽卡片：flex 居中排布，桌面 3+3 两行） */
 .tool-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(14px, 2.2vw, 20px);
 }
 
 /* Tool card */
@@ -154,10 +155,11 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  flex: 0 1 324px;
   background: var(--white);
   border: 1px solid var(--gray-200);
   border-radius: var(--radius);
-  padding: 44px 32px 40px;
+  padding: 40px 22px 34px;
   cursor: pointer;
   text-decoration: none;
   color: var(--gray-700);
@@ -285,6 +287,31 @@ body {
 }
 .tool-card.dashang-card:hover .spark-burst::after {
   animation: sparkBlue 1s ease-out 0.12s;
+}
+
+/* 满赠卡 — 水色涟漪 hover 特效 */
+.tool-card.gift-card { z-index: 1; overflow: hidden; }
+.tool-card.gift-card > * { position: relative; z-index: 1; }
+.tool-card.gift-card::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 10px; height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(184,216,227,0.35), transparent 70%);
+  opacity: 0;
+  transform: scale(0.4);
+  pointer-events: none;
+}
+.tool-card.gift-card:hover::after {
+  animation: giftPop 1.2s ease-out infinite;
+}
+.tool-card.gift-card:hover { border-color: var(--water); }
+@keyframes giftPop {
+  0%   { opacity: 0.9; transform: scale(0.4); }
+  60%  { opacity: 0.45; transform: scale(1.6); }
+  100% { opacity: 0; transform: scale(2.2); }
 }
 
 @keyframes sparkGold {
@@ -425,7 +452,7 @@ body {
 /* Footer */
 .footer {
   text-align: center;
-  padding-top: 48px;
+  padding-top: clamp(28px, 4vw, 48px);
   font-size: 13px;
   font-weight: 500;
   color: var(--gray-700);
@@ -437,8 +464,8 @@ body {
   .container { padding: 40px 20px; }
   .header { padding: 0 0 40px; }
   .header h1 { font-size: 28px; }
-  .tool-grid { grid-template-columns: 1fr; gap: 14px; }
-  .tool-card { padding: 34px 22px 30px; }
+  .tool-grid { flex-direction: column; gap: 14px; }
+  .tool-card { flex: 1 1 auto; padding: 34px 22px 30px; }
   .spark-burst { top: 65px; }
 }
 </style>
@@ -469,19 +496,6 @@ body {
 
     <div class="tool-grid">
 
-    <!-- 国际表 -->
-    <a class="tool-card globe-card" href="guoji.html">
-      <svg class="tool-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6">
-        <circle cx="26" cy="26" r="19"/>
-        <ellipse cx="26" cy="26" rx="10" ry="19"/>
-        <line x1="7" y1="26" x2="45" y2="26"/>
-        <line x1="26" y1="7" x2="26" y2="11"/>
-        <line x1="26" y1="41" x2="26" y2="45"/>
-      </svg>
-      <div class="tool-title">国际表</div>
-      <div class="tool-desc">拼团国际运费分摊 · 全重/净重双算法可选</div>
-    </a>
-
     <!-- 肾表 -->
     <a class="tool-card grid-card" href="shenbiao.html">
       <svg class="tool-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6">
@@ -495,6 +509,31 @@ body {
       <div class="tool-desc">拼团金额清单计算</div>
     </a>
 
+    <!-- 满赠分配退补肾表 -->
+    <a class="tool-card gift-card" href="manzeng.html">
+      <svg class="tool-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6">
+        <rect x="9" y="20" width="34" height="24" rx="3"/>
+        <line x1="9" y1="28" x2="43" y2="28"/>
+        <line x1="26" y1="20" x2="26" y2="44"/>
+        <path d="M26 20c-5-8-12-9-14-5.5C10.2 18 12.5 23 18 23h-2M26 20c5-8 12-9 14-5.5C41.8 18 39.5 23 34 23h2"/>
+      </svg>
+      <div class="tool-title">满赠分配退补肾表</div>
+      <div class="tool-desc">满赠门槛 · 自动分配 · 定价降均退补一条龙</div>
+    </a>
+
+    <!-- 国际表 -->
+    <a class="tool-card globe-card" href="guoji.html">
+      <svg class="tool-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6">
+        <circle cx="26" cy="26" r="19"/>
+        <ellipse cx="26" cy="26" rx="10" ry="19"/>
+        <line x1="7" y1="26" x2="45" y2="26"/>
+        <line x1="26" y1="7" x2="26" y2="11"/>
+        <line x1="26" y1="41" x2="26" y2="45"/>
+      </svg>
+      <div class="tool-title">国际表</div>
+      <div class="tool-desc">拼团国际运费分摊 · 全重/净重双算法可选</div>
+    </a>
+
     <!-- 二调退补表 -->
     <a class="tool-card cross-card" href="RatioFix.html">
       <svg class="tool-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6">
@@ -504,6 +543,16 @@ body {
       </svg>
       <div class="tool-title">二调退补表</div>
       <div class="tool-desc">爆配/隐藏二调退补明细计算</div>
+    </a>
+
+    <!-- 使用说明 -->
+    <a class="tool-card guide-card" href="guide.html">
+      <svg class="tool-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6">
+        <circle cx="26" cy="26" r="19"/>
+        <path d="M22 18l14 8-14 8z"/>
+      </svg>
+      <div class="tool-title">使用说明</div>
+      <div class="tool-desc">动画演示 · 三步上手三个工具</div>
     </a>
 
     <!-- 打赏页面 -->
