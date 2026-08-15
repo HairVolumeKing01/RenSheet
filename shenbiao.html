@@ -559,6 +559,14 @@ body {
         <div class="deposit-guide" id="feeRadioGuide" style="width:100%;text-align:center;"></div>
       </div>
     </div>
+    <div class="deposit-mode-row">
+      <label class="deposit-mode-check" for="giftMode">
+        <input type="checkbox" id="giftMode"> 满赠预分配
+      </label>
+      <input type="text" class="input-text deposit-input" id="giftValue" placeholder="如：100" disabled>
+      <button class="btn btn-secondary btn-sm" id="giftConfirm" disabled>确认</button>
+      <div class="deposit-guide" id="giftGuide">填写满赠门槛(元)：每满该金额赠1个，点击确认后生效。满赠仅基于本体肾额计算，不含其他费用/定金/尾款</div>
+    </div>
     <div class="btn-row" style="justify-content:center;">
       <button class="btn btn-primary" id="processBtn">开始处理</button>
       <button class="btn btn-export" id="exportBtn" disabled>导出肾表</button>
@@ -613,6 +621,9 @@ let depositModeEnabled = false;
 let feeModeEnabled = false;      // 复选框勾选状态
 let feeConfirmed = false;        // 金额已点确认
 let feeModeSelected = null;      // 'points'|'people'|'kidney'
+let giftModeEnabled = false;     // 满赠预分配勾选状态
+let giftConfirmed = false;       // 门槛已点确认
+let giftValueCents = 0;          // 确认时固化的门槛(分)
 
 // ==================== SECURITY ====================
 function escapeHtml(value) {
@@ -671,6 +682,10 @@ const feeConfirmBtn = document.getElementById('feeConfirm');
 const feeGuide = document.getElementById('feeGuide');
 const feeModePanel = document.getElementById('feeModePanel');
 const feeRadioGuide = document.getElementById('feeRadioGuide');
+const giftModeInput = document.getElementById('giftMode');
+const giftValueInput = document.getElementById('giftValue');
+const giftConfirmBtn = document.getElementById('giftConfirm');
+const giftGuide = document.getElementById('giftGuide');
 
 // ==================== TOAST ====================
 let toastTimer;
@@ -1188,6 +1203,31 @@ function getFeeAmountCents() {
   return cents > 0 ? cents : 0;
 }
 
+// ==================== 满赠预分配 ====================
+function getGiftThresholdCents() {
+  var raw = giftValueInput.value.trim();
+  if (!/^\d+(?:\.\d+)?$/.test(raw)) return 0;
+  var cents = Math.round(parseFloat(raw) * 100);
+  return cents > 0 ? cents : 0;
+}
+
+// 处理/导出共用闸: 未勾选→null；勾选未确认→false(阻断)；已确认→{thresholdCents}
+function applyGiftConfig() {
+  if (!giftModeEnabled) return null;
+  if (!giftConfirmed) {
+    showToast('已勾选满赠预分配，请填写门槛并点击确认后再处理', true);
+    return false;
+  }
+  var cents = giftValueCents;
+  if (!(cents > 0)) {
+    giftGuide.classList.add('error');
+    giftGuide.textContent = '满赠门槛已失效，请重新输入并点击确认';
+    showToast('满赠门槛已失效，请重新确认', true);
+    return false;
+  }
+  return {thresholdCents: cents};
+}
+
 function feeModeLabel(mode) {
   return mode === 'points' ? '点数均摊' : mode === 'people' ? '人数均摊' : '本体肾额比例均摊';
 }
@@ -1302,7 +1342,8 @@ function getSortedKinds(personMap) {
 function buildCategorizedTable(data) {
   var allKinds = getSortedKinds(data.personMap);
   data.feeContext = data.feeConfig ? buildFeeContext(data) : null;
-  var headers = ['cn'].concat(allKinds).concat(['点数']);
+  var hasGift = !!(data.giftConfig && data.giftConfig.thresholdCents > 0);
+  var headers = ['cn'].concat(allKinds).concat(hasGift ? ['满赠数量', '点数'] : ['点数']);
   if (data.feeConfig) {
     headers = headers.concat(data.depositConfig
       ? ['本体肾', '其他费用', '定金', '尾款', '总肾']
@@ -1342,8 +1383,9 @@ function buildCategorizedTable(data) {
       row.push(cellStr);
     }
 
-    row.push(pm.totalCount);
     var bodyCents = Math.round(pm.totalCost * 100);                     // 本体肾(分)
+    if (hasGift) row.push(Math.floor(bodyCents / data.giftConfig.thresholdCents));  // 满赠数量: 仅基于本体肾(整数分整除)
+    row.push(pm.totalCount);
     var feeCents = data.feeConfig ? calculateFee(pm, data.feeConfig, data.feeContext) : 0;  // 其他费用(分)
     var totalCents = bodyCents + feeCents;                              // 总肾(分)
     if (data.feeConfig) {
@@ -1363,7 +1405,8 @@ function buildCategorizedTable(data) {
 
 function buildListTable(data) {
   data.feeContext = data.feeConfig ? buildFeeContext(data) : null;
-  var headers = ['cn', '明细', '点数'];
+  var hasGift = !!(data.giftConfig && data.giftConfig.thresholdCents > 0);
+  var headers = ['cn', '明细'].concat(hasGift ? ['满赠数量', '点数'] : ['点数']);
   if (data.feeConfig) {
     headers = headers.concat(data.depositConfig
       ? ['本体肾', '其他费用', '定金', '尾款', '总肾']
@@ -1404,8 +1447,10 @@ function buildListTable(data) {
       if (group.length) breaks.push(group.join(','));
       detailStr = breaks.join('\n');
     }
-    var row = [person, detailStr, pm.totalCount];
+    var row = [person, detailStr];
     var bodyCents = Math.round(pm.totalCost * 100);
+    if (hasGift) row.push(Math.floor(bodyCents / data.giftConfig.thresholdCents));  // 满赠数量: 仅基于本体肾(整数分整除)
+    row.push(pm.totalCount);
     var feeCents = data.feeConfig ? calculateFee(pm, data.feeConfig, data.feeContext) : 0;
     var totalCents = bodyCents + feeCents;
     if (data.feeConfig) {
@@ -1449,7 +1494,7 @@ function buildTableHtml(tableData, fmt, title, themeColors) {
       var headerName = tableData.headers[c];
       if (c === 0) cellClass = 'col-name';
       else if (c === 1 && fmt === 'list') cellClass = 'col-detail';
-      else if (headerName === '点数') cellClass = 'col-count';
+      else if (headerName === '点数' || headerName === '满赠数量') cellClass = 'col-count';
       else if (headerName === '肾' || headerName === '定金' || headerName === '尾款' || headerName === '总肾') cellClass = 'col-cost';
       html += '<td class="' + cellClass + '" style="background:' + bg + '">' + escapeHtml(row[c]) + '</td>';
     }
@@ -1583,6 +1628,9 @@ processBtn.addEventListener('click', function() {
   var feeConfig = validateFeeForData(result, true);
   if (feeConfig === false) return;
   result.feeConfig = feeConfig;
+  var giftConfig = applyGiftConfig();
+  if (giftConfig === false) return;
+  result.giftConfig = giftConfig;
   processedData = result;
   processedData.title = fileNameInput.value.trim() || '肾表';
   processedData.theme = currentTheme;
@@ -1603,6 +1651,9 @@ exportBtn.addEventListener('click', function() {
   var feeConfig = validateFeeForData(processedData, true);
   if (feeConfig === false) return;
   processedData.feeConfig = feeConfig;
+  var giftConfig = applyGiftConfig();
+  if (giftConfig === false) return;
+  processedData.giftConfig = giftConfig;
   var formats = getSelectedFormats();
   if (!formats.length) { showToast('请先选择肾表样式', true); return; }
   var title = fileNameInput.value.trim() || '肾表';
@@ -1642,7 +1693,7 @@ exportBtn.addEventListener('click', function() {
       for (var c = 0; c < row.length; c++) {
         var cell = ws.getCell(r + 3, c + 1);
         var headerName = tableData.headers[c];
-        var isPointColumn = headerName === '点数';
+        var isPointColumn = headerName === '点数' || headerName === '满赠数量';
         var isMoneyColumn = headerName === '肾' || headerName === '本体肾' || headerName === '其他费用' || headerName === '定金' || headerName === '尾款' || headerName === '总肾';
         if (isPointColumn || isMoneyColumn) {
           cell.value = Number(row[c]);
@@ -1670,10 +1721,13 @@ exportBtn.addEventListener('click', function() {
     ws.getColumn(1).width = 12;
     if (fmt === 'categorized') {
       var pointColIndex = tableData.headers.indexOf('点数');
-      var kindCols = pointColIndex - 1;
+      var giftColIndex = tableData.headers.indexOf('满赠数量');
+      var firstCountCol = giftColIndex !== -1 ? giftColIndex : pointColIndex;
+      var kindCols = firstCountCol - 1;
       for (var kc = 0; kc < kindCols; kc++) {
         ws.getColumn(2 + kc).width = 28;
       }
+      if (giftColIndex !== -1) ws.getColumn(giftColIndex + 1).width = 10;  // 满赠数量
       for (var mc = pointColIndex + 1; mc <= tableData.headers.length; mc++) {
         ws.getColumn(mc).width = mc === pointColIndex + 1 ? 10 : 12;
       }
@@ -2032,6 +2086,58 @@ feeModePanel.addEventListener('change', function(e) {
   saveDraft();
 });
 
+// ==================== 满赠预分配 ====================
+giftModeInput.addEventListener('change', function() {
+  giftModeEnabled = this.checked;
+  giftValueInput.disabled = !giftModeEnabled;
+  giftConfirmBtn.disabled = !giftModeEnabled;
+  if (!giftModeEnabled) {
+    // 取消勾选 → 全部重置
+    giftConfirmed = false;
+    giftValueCents = 0;
+    giftValueInput.value = '';
+    giftGuide.classList.remove('error');
+    giftGuide.textContent = '填写满赠门槛(元)：每满该金额赠1个，点击确认后生效。满赠仅基于本体肾额计算，不含其他费用/定金/尾款';
+    if (processedData) {
+      processedData.giftConfig = null;
+      renderPreview();
+      exportBtn.disabled = false;
+    }
+  } else if (giftConfirmed) {
+    // 重新勾选且此前已确认 → 恢复锁定态
+    giftValueInput.disabled = true;
+    giftConfirmBtn.disabled = true;
+  }
+  saveDraft();
+});
+
+giftConfirmBtn.addEventListener('click', function() {
+  if (!giftModeEnabled) return;
+  var cents = getGiftThresholdCents();
+  if (cents <= 0) {
+    giftGuide.classList.add('error');
+    giftGuide.textContent = '请输入有效的门槛金额(大于 0 的数字，如 100)';
+    return;
+  }
+  giftConfirmed = true;
+  giftValueCents = cents;
+  giftValueInput.disabled = true;
+  giftConfirmBtn.disabled = true;
+  giftGuide.classList.remove('error');
+  giftGuide.textContent = '门槛已确认：每满 ' + (cents / 100).toFixed(2) + ' 元赠 1 个满赠。点击「开始处理」后肾表将显示满赠数量列';
+  saveDraft();
+});
+
+giftValueInput.addEventListener('input', function() {
+  if (!giftConfirmed) return;
+  // 已确认状态下修改输入 → 确认态失效
+  giftConfirmed = false;
+  giftValueCents = 0;
+  giftGuide.classList.add('error');
+  giftGuide.textContent = '门槛已修改，请重新点击确认';
+  saveDraft();
+});
+
 // ==================== FORMAT CHANGE ====================
 document.getElementById('formatGroup').addEventListener('change', function(e) {
   if (e.target.type !== 'checkbox') return;
@@ -2061,6 +2167,9 @@ function buildDraftObject() {
     feeValue: feeValueInput.value,
     feeConfirmed: feeConfirmed,
     feeModeSelected: feeModeSelected,
+    giftModeEnabled: giftModeEnabled,
+    giftValue: giftValueInput.value,
+    giftConfirmed: giftConfirmed,
     validationEnabled: validationEnabled,
     fileValidationInputs: fileValidationInputs,
     hasProcessedData: processedData !== null,
@@ -2133,6 +2242,24 @@ function restoreDraft() {
       feeRadios[fr2].checked = feeRadios[fr2].value === feeModeSelected;
     }
     feeRadioGuide.textContent = feeModeLabel(feeModeSelected) + '：单人其他费用按所选模式分摊，分摊后合计可能比总额多出几毛，按进一法宁可多收也不少收';
+  }
+
+  // Restore 满赠预分配
+  giftModeEnabled = saved.giftModeEnabled || false;
+  giftConfirmed = saved.giftConfirmed || false;
+  giftModeInput.checked = giftModeEnabled;
+  giftValueInput.value = saved.giftValue || '';
+  giftValueInput.disabled = !giftModeEnabled;
+  giftConfirmBtn.disabled = !giftModeEnabled;
+  if (giftConfirmed) {
+    giftValueCents = getGiftThresholdCents();
+    if (!(giftValueCents > 0)) { giftConfirmed = false; }
+  }
+  if (giftModeEnabled && giftConfirmed) {
+    giftValueInput.disabled = true;
+    giftConfirmBtn.disabled = true;
+    giftGuide.classList.remove('error');
+    giftGuide.textContent = '门槛已确认：每满 ' + (giftValueCents / 100).toFixed(2) + ' 元赠 1 个满赠。点击「开始处理」后肾表将显示满赠数量列';
   }
 
   // Restore validation
@@ -2215,6 +2342,15 @@ function showRestoreBanner(saved) {
     feeRadioGuide.textContent = '';
     feeGuide.classList.remove('error');
     feeGuide.textContent = '填写其他费用总额(元)，点击确认后选择均摊模式';
+    giftModeEnabled = false;
+    giftConfirmed = false;
+    giftValueCents = 0;
+    giftModeInput.checked = false;
+    giftValueInput.value = '';
+    giftValueInput.disabled = true;
+    giftConfirmBtn.disabled = true;
+    giftGuide.classList.remove('error');
+    giftGuide.textContent = '填写满赠门槛(元)：每满该金额赠1个，点击确认后生效。满赠仅基于本体肾额计算，不含其他费用/定金/尾款';
     validationEnabled = false;
     fileValidationInputs = {};
     document.getElementById('valNo').checked = true;
