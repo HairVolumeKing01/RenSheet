@@ -306,7 +306,7 @@ body {
 
 /* 满赠卡 — 水色涟漪 hover 特效 */
 .tool-card.gift-card { z-index: 1; overflow: hidden; }
-.tool-card.gift-card > * { position: relative; z-index: 1; }
+.tool-card.gift-card > *:not(.dev-badge) { position: relative; z-index: 1; }
 .tool-card.gift-card::after {
   content: '';
   position: absolute;
