@@ -427,14 +427,42 @@ body {
 .summary-table .hl-row td { font-weight: 700; color: var(--blue-900); background: var(--blue-50); }
 
 /* Data preview */
-.data-preview { max-height: 280px; overflow-y: auto; margin: 12px 0; }
+.data-preview { max-height: 380px; overflow-y: auto; margin: 12px 0; border: 1px solid var(--gray-200); border-radius: 6px; }
 .data-preview table { width: 100%; border-collapse: collapse; font-size: 11px; }
 .data-preview th { background: var(--gray-200); color: var(--gray-700); padding: 5px 8px; text-align: center; position: sticky; top: 0; }
 .data-preview td { padding: 4px 8px; text-align: center; border-bottom: 1px solid var(--gray-200); }
+.step3-edit-hint { font-size: 12px; color: var(--gray-500); margin: 8px 0 0; text-align: center; }
+.cn-rownum { color: var(--gray-400); font-size: 10px; }
+.cn-edit { cursor: text; }
+.cn-edit:hover { background: var(--blue-50); }
+.cn-edit.edited { background: #D6E9F2; box-shadow: inset 0 0 0 1px var(--blue-300); font-weight: 600; color: var(--blue-900); }
+.cn-edit input {
+  width: 100%; font-size: 11px; text-align: center; padding: 2px 4px;
+  border: 1px solid var(--blue-300); border-radius: 4px; outline: none; color: var(--blue-900);
+}
+.cn-lock { color: var(--gray-300); }
+.step3-error {
+  background: #FEE2E2; color: #C53030; border: 1px solid #F87171;
+  padding: 10px 14px; border-radius: 6px; font-size: 12px; line-height: 1.6; margin: 10px 0 0;
+}
 
 .confirm-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; }
 .confirm-row input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
 .confirm-row label { font-size: 13px; color: var(--gray-700); cursor: pointer; }
+
+/* Confirm-back modal */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(13,33,55,0.45);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.modal-box {
+  background: var(--white); border-radius: 12px; padding: 28px 32px;
+  max-width: 400px; width: 90%; text-align: center;
+  box-shadow: 0 10px 30px rgba(13,33,55,0.2);
+}
+.modal-title { font-size: 16px; font-weight: 700; color: var(--blue-900); }
+.modal-msg { font-size: 14px; color: var(--gray-700); margin: 12px 0 22px; line-height: 1.6; }
+.modal-btns { display: flex; justify-content: center; gap: 12px; }
 
 /* Format select — reused from shenbiao */
 .format-select { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
@@ -668,16 +696,28 @@ body {
       <div class="card-title">STEP 3/5 — 确认新排表</div>
       <div id="summaryKind" style="font-size:14px;font-weight:600;color:var(--blue-900);margin-bottom:10px;"></div>
       <div id="summaryTable"></div>
+      <div class="step3-edit-hint">数据区可直接点击修改 CN 名字（只能改名，不能增删格子）；改过的格子以水蓝高亮</div>
       <div class="data-preview" id="dataPreview"></div>
+      <div id="step3EditError" class="step3-error" style="display:none;"></div>
       <div class="confirm-row">
         <input type="checkbox" id="confirmPrices">
-        <label for="confirmPrices">我已确认新排表调价无误</label>
+        <label for="confirmPrices">我已确认新排表无误（调价与名字已核对）</label>
       </div>
       <div class="step-nav">
         <button class="btn-step btn-step-prev" onclick="goToStep(2)">上一步</button>
         <div style="display:flex;gap:10px;">
           <button class="btn-step btn-step-download" id="btnDownload" onclick="downloadNewSheet()">下载新排表</button>
           <button class="btn-step btn-step-next" id="btnNext3" onclick="goToStep(4)" disabled>下一步</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-backdrop" id="step3BackModal" style="display:none;">
+      <div class="modal-box">
+        <div class="modal-title">返回第二步</div>
+        <div class="modal-msg">确认返回吗，所改内容会全部失效</div>
+        <div class="modal-btns">
+          <button class="btn-step btn-step-prev" onclick="confirmStep3Back(false)">取消</button>
+          <button class="btn-step btn-step-next" onclick="confirmStep3Back(true)">确认返回</button>
         </div>
       </div>
     </div>
@@ -773,6 +813,9 @@ var kindName = '';
 
 // Step 3 state
 var newPrices = {};            // adjusted + avgPriceActual
+var cellEdits = {};            // {'行_列': '新名字'}，Step 3 内 CN 改名记录，离开 Step 3 即清空
+var step3RowsData = null;      // 拆配表 sheet_to_json 缓存（预览/校验/导出/现肾共用）
+var step3EditingTd = null;     // 正在编辑的单元格
 
 // Step 4/5 state
 var finalTableData = null;     // computed when entering step 5
@@ -788,6 +831,7 @@ var tagOriginal = document.getElementById('tagOriginal');
 var tagActual = document.getElementById('tagActual');
 var toast = document.getElementById('toast');
 var confirmPrices = document.getElementById('confirmPrices');
+var dataPreview = document.getElementById('dataPreview');
 
 // ==================== TOAST ====================
 var toastTimer;
@@ -805,6 +849,121 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// ==================== STEP 3: CN 单元格就地编辑 ====================
+// 只能替换内容：清空提交被拒绝，空格子不可点（无增删入口），确认时校验兜底
+function getStep3Rows() {
+  if (!step3RowsData) {
+    var ws = actualFile.workbook.Sheets[actualFile.workbook.SheetNames[0]];
+    step3RowsData = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  }
+  return step3RowsData;
+}
+
+function getEditedData() {
+  var clone = getStep3Rows().map(function(row) { return row.slice(); });
+  Object.keys(cellEdits).forEach(function(key) {
+    var parts = key.split('_');
+    clone[parseInt(parts[0], 10)][parseInt(parts[1], 10)] = cellEdits[key];
+  });
+  return clone;
+}
+
+function step3CellOriginal(td) {
+  var data = getStep3Rows();
+  var r = parseInt(td.getAttribute('data-r'), 10);
+  var c = parseInt(td.getAttribute('data-c'), 10);
+  return String((data[r] || [])[c] || '').trim();
+}
+
+function beginStep3Edit(td) {
+  if (step3EditingTd) commitStep3Edit(step3EditingTd, true);
+  step3EditingTd = td;
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.value = step3CellOriginal(td);
+  // 已编辑过的格再点开，以当前编辑值为准
+  var key = td.getAttribute('data-r') + '_' + td.getAttribute('data-c');
+  if (cellEdits[key] !== undefined) input.value = cellEdits[key];
+  td.textContent = '';
+  td.appendChild(input);
+  input.focus();
+  input.select();
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); commitStep3Edit(td, false); }
+    if (e.key === 'Escape') { e.preventDefault(); commitStep3Edit(td, true); }
+  });
+  input.addEventListener('blur', function() { commitStep3Edit(td, false); });
+}
+
+function commitStep3Edit(td, cancel) {
+  if (step3EditingTd !== td) return;
+  step3EditingTd = null;
+  var input = td.querySelector('input');
+  var key = td.getAttribute('data-r') + '_' + td.getAttribute('data-c');
+  var raw = step3CellOriginal(td);
+  var committed = cellEdits[key] !== undefined ? cellEdits[key] : raw;
+  var val = input ? String(input.value || '').trim() : '';
+  if (cancel || !val) {
+    // 取消：回到当前已提交值；清空提交：拒绝（等于删除格子）
+    if (!cancel) showToast('不能清空格子，只能修改名字', true);
+    td.textContent = committed;
+    td.classList.toggle('edited', cellEdits[key] !== undefined);
+    return;
+  }
+  if (val === raw) {
+    // 改回原名 = 撤销编辑
+    delete cellEdits[key];
+    td.textContent = raw;
+    td.classList.remove('edited');
+  } else {
+    cellEdits[key] = val;
+    td.textContent = val;
+    td.classList.add('edited');
+  }
+  // 任何编辑提交都使已确认状态失效，需重新勾选校验
+  confirmPrices.checked = false;
+  document.getElementById('btnNext3').disabled = true;
+  hideStep3EditError();
+}
+
+dataPreview.addEventListener('click', function(e) {
+  var td = e.target.closest ? e.target.closest('td.cn-edit') : null;
+  if (!td || step3EditingTd === td) return;
+  beginStep3Edit(td);
+});
+
+function validateStep3Edits() {
+  var edited = extractPointsPerCharFromData(getEditedData());
+  var diffs = [];
+  characters.forEach(function(ch) {
+    var expected = pointsPerChar[ch] || 0;
+    var actual = edited.points[ch] || 0;
+    if (expected !== actual) diffs.push('角色「' + ch + '」点数从 ' + expected + ' 变为 ' + actual);
+  });
+  if (diffs.length) {
+    return '点数校验失败，与导入的拆配表不一致：' + diffs.join('；') + '。只能修改名字，不能删除或增加格子，请检查对应列。';
+  }
+  return null;
+}
+
+function showStep3EditError(msg) {
+  var el = document.getElementById('step3EditError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function hideStep3EditError() {
+  document.getElementById('step3EditError').style.display = 'none';
+}
+
+function confirmStep3Back(ok) {
+  document.getElementById('step3BackModal').style.display = 'none';
+  if (ok) {
+    cellEdits = {};
+    goToStep(2);
+  }
 }
 
 function sanitizeCellValue(val) {
@@ -1034,6 +1193,12 @@ function buildPointMismatchReport(wb, expectedTotal, parsedTotal) {
 
 // ==================== STEP WIZARD ====================
 function goToStep(step) {
+  // Step 3 有改名时点「上一步」：弹确认框，确认才清空返回
+  if (currentStep === 3 && step === 2 && Object.keys(cellEdits).length > 0) {
+    document.getElementById('step3BackModal').style.display = 'flex';
+    return;
+  }
+
   // Validate before forward move
   if (step > currentStep) {
     var err = validateStep(currentStep);
@@ -1166,6 +1331,10 @@ function resetStep2State() {
   isBalanced = false;
   kindName = '';
   newPrices = {};
+  cellEdits = {};
+  step3RowsData = null;
+  step3EditingTd = null;
+  document.getElementById('step3BackModal').style.display = 'none';
   // 清空 STEP2+ 视图残留 DOM（替换/移除文件后旧角色列表不应残留）
   var r2Els = ['heatOrderPanel', 'balancerWrap', 'balanceDisplay', 'autoBalanceResult', 'summaryKind', 'summaryTable', 'dataPreview'];
   for (var ri = 0; ri < r2Els.length; ri++) {
@@ -1435,6 +1604,11 @@ function parseSheetWithPrices(wb, priceMap) {
   var ws = wb.Sheets[wb.SheetNames[0]];
   assertA1Present(ws);
   var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  return parseRowsWithPrices(data, priceMap);
+}
+
+// 按数据行数组解析（供 Step 3 改后数据直接聚合用，不再走文件）
+function parseRowsWithPrices(data, priceMap) {
   var kind = String(data[0][0] || '').trim();
   var vhp = validateHeaderAndPrices(data);
   var purchases = [];
@@ -1452,10 +1626,7 @@ function parseSheetWithPrices(wb, priceMap) {
   return purchases;
 }
 
-function extractPointsPerChar(wb) {
-  var ws = wb.Sheets[wb.SheetNames[0]];
-  assertA1Present(ws);
-  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+function extractPointsPerCharFromData(data) {
   var vhp = validateHeaderAndPrices(data);
   var points = {};
   for (var h = 0; h < vhp.headers.length; h++) {
@@ -1466,6 +1637,13 @@ function extractPointsPerChar(wb) {
     points[String(vhp.headers[h] || '').trim()] = count;
   }
   return {points: points, headers: vhp.headers.map(function(hh) { return String(hh).trim(); }), headerCols: vhp.headerCols};
+}
+
+function extractPointsPerChar(wb) {
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  assertA1Present(ws);
+  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  return extractPointsPerCharFromData(data);
 }
 
 function extractPrices(wb) {
@@ -3915,6 +4093,12 @@ function updateBalanceDisplay() {
 
 // ==================== STEP 3: NEW PRICE SHEET ====================
 function buildNewPriceSheet() {
+  // 清空只在「上一步」弹框确认时发生；从 Step 4/5 返回时保留已确认的改名，
+  // 保证回退再前进 Step 5 现肾仍按改后数据计算。
+  step3RowsData = null;
+  step3EditingTd = null;
+  hideStep3EditError();
+
   newPrices = {};
   for (var i = 0; i < characters.length; i++) {
     var ch = characters[i];
@@ -3939,34 +4123,36 @@ function buildNewPriceSheet() {
   html += '</tbody></table>';
   document.getElementById('summaryTable').innerHTML = html;
 
-  // Build data preview (first 10 rows from actual table)
+  // Build data preview — 全部数据行可编辑（只改名，不增删）
   buildDataPreview();
 
   // Reset confirm checkbox
   confirmPrices.checked = false;
   document.getElementById('btnNext3').disabled = true;
   confirmPrices.onchange = function() {
+    if (confirmPrices.checked) {
+      // 确认时校验点数与导入的拆配表一致，不一致拒绝确认并解释理由
+      var err = validateStep3Edits();
+      if (err) {
+        confirmPrices.checked = false;
+        showStep3EditError(err);
+      } else {
+        hideStep3EditError();
+      }
+    } else {
+      hideStep3EditError();
+    }
     document.getElementById('btnNext3').disabled = !confirmPrices.checked;
   };
 }
 
 function buildDataPreview() {
-  var ws = actualFile.workbook.Sheets[actualFile.workbook.SheetNames[0]];
-  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  var data = getStep3Rows();
   var headers = data[1].slice(1).filter(function(h) { return h !== ''; });
-  var maxRows = Math.min(data.length - 3, 10);
-  var totalDataRows = 0;
-  for (var r = 3; r < data.length; r++) {
-    var hasData = false;
-    for (var c = 1; c <= headers.length; c++) {
-      if (String(data[r][c] || '').trim()) { hasData = true; break; }
-    }
-    if (hasData) totalDataRows++;
-  }
 
   var html = '<table><thead><tr>';
-  // First column is row label column
-  html += '<th></th>';
+  // First column is Excel row number (报错定位用)
+  html += '<th>行</th>';
   for (var h = 0; h < headers.length; h++) {
     html += '<th>' + escapeHtml(String(headers[h]).trim()) + '</th>';
   }
@@ -3974,48 +4160,45 @@ function buildDataPreview() {
 
   // New price row
   html += '<tr style="font-weight:700;color:var(--blue-900);background:var(--blue-50);">';
-  html += '<td style="font-weight:600;color:var(--blue-700);">新单价</td>';
+  html += '<td class="cn-rownum">—</td>';
   for (var p = 0; p < headers.length; p++) {
     var ch = String(headers[p]).trim();
     html += '<td>' + (newPrices[ch] !== undefined ? newPrices[ch].toFixed(2) : '—') + '</td>';
   }
   html += '</tr>';
 
-  // Data rows
-  var shown = 0;
-  for (var dr = 3; dr < data.length && shown < maxRows; dr++) {
-    var row = data[dr];
+  // Data rows: 全部渲染；非空格可点编辑，空格锁定
+  for (var dr = 3; dr < data.length; dr++) {
+    var row = data[dr] || [];
     var rowHasData = false;
     for (var dc = 1; dc <= headers.length; dc++) {
       if (String(row[dc] || '').trim()) { rowHasData = true; break; }
     }
     if (!rowHasData) continue;
-    shown++;
     html += '<tr>';
-    html += '<td></td>';
+    html += '<td class="cn-rownum">' + (dr + 1) + '</td>';
     for (var dc2 = 1; dc2 <= headers.length; dc2++) {
-      html += '<td>' + escapeHtml(String(row[dc2] || '').trim() || '') + '</td>';
+      var cellText = String(row[dc2] || '').trim();
+      if (cellText) {
+        var eKey = dr + '_' + dc2;
+        var displayText = cellEdits[eKey] !== undefined ? cellEdits[eKey] : cellText;
+        var editedCls = cellEdits[eKey] !== undefined ? ' edited' : '';
+        html += '<td class="cn-edit' + editedCls + '" data-r="' + dr + '" data-c="' + dc2 + '">' + escapeHtml(displayText) + '</td>';
+      } else {
+        html += '<td class="cn-lock">·</td>';
+      }
     }
     html += '</tr>';
   }
   html += '</tbody></table>';
 
-  if (totalDataRows > maxRows) {
-    html += '<div style="font-size:11px;color:var(--gray-400);margin-top:4px;">...共 ' + totalDataRows + ' 行数据，仅显示前 ' + maxRows + ' 行</div>';
-  }
   document.getElementById('dataPreview').innerHTML = html;
 }
 
 function downloadNewSheet() {
-  var ws = actualFile.workbook.Sheets[actualFile.workbook.SheetNames[0]];
-  var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-  var headers = data[1].slice(1).filter(function(h) { return h !== ''; });
-
-  // Deep clone data
-  var newData = [];
-  for (var r = 0; r < data.length; r++) {
-    newData[r] = data[r].slice();
-  }
+  // 用户确认后下载的新排表 = 拆配表 + 新单价 + 用户改后的 CN 名字
+  var newData = getEditedData();
+  var headers = newData[1].slice(1).filter(function(h) { return h !== ''; });
 
   // Update row 2 (index 2) with new prices
   for (var c = 1; c <= headers.length; c++) {
@@ -4143,7 +4326,8 @@ function computeAndRenderFinal() {
   originalShenMap = aggregatePersonMap(origPurchases);
 
   // Parse actual purchases with NEW prices → 现肾 map
-  var actualPurchases = parseSheetWithPrices(actualFile.workbook, newPrices);
+  // 关键：以用户 Step 3 确认后的新排表数据（改后名字）+ 新调价为准
+  var actualPurchases = parseRowsWithPrices(getEditedData(), newPrices);
   actualShenMap = aggregatePersonMap(actualPurchases);
 
   // Build merged person list (union)
