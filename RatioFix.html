@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -400,6 +400,10 @@ body {
 .heat-role-name { font-size:12px; font-weight:700; color:var(--blue-900); white-space:nowrap; }
 .heat-role-status { font-size:10px; color:var(--gray-400); margin:3px 0 6px; }
 .heat-role-chip.missing .heat-role-status { color:#B7791F; }
+.heat-role-chip[draggable="true"] { cursor: grab; }
+.heat-role-chip[draggable="true"]:active { cursor: grabbing; }
+.heat-role-chip.dragging { opacity: 0.45; border-style: dashed; border-color: var(--blue-500); }
+.heat-drag-hint { font-size: 10px; color: var(--blue-300); margin-bottom: 6px; }
 .heat-move-btn {
   width:25px; height:24px; margin:0 2px; border:1px solid var(--blue-300);
   border-radius:4px; background:var(--white); color:var(--blue-700); cursor:pointer;
@@ -1013,7 +1017,7 @@ function renderStep1ParseError(report) {
   panel.innerHTML =
     '<div class="parse-error-summary">' +
       '<div class="parse-error-copy">' +
-        '<div class="parse-error-title">拆配排表解析失败：点数不一致</div>' +
+        '<div class="parse-error-title">' + escapeHtml(report.title || '拆配排表解析失败：点数不一致') + '</div>' +
         '<div class="parse-error-meta">用户输入点数：' + escapeHtml(report.expectedTotal) +
           '；系统成功解析：' + escapeHtml(report.parsedTotal) +
           '；差异：' + escapeHtml(diffText) + '</div>' +
@@ -1026,6 +1030,27 @@ function renderStep1ParseError(report) {
         '<thead><tr><th>位置</th><th>原始内容</th><th>问题类型</th><th>修改建议</th></tr></thead>' +
         '<tbody>' + rows + '</tbody>' +
       '</table>' +
+    '</div>';
+  panel.style.display = 'block';
+}
+
+function renderStep1FatalError(message) {
+  var panel = document.getElementById('step1ParseErrorPanel');
+  if (!panel) return;
+  var msg = String(message || '未知错误');
+  panel.innerHTML =
+    '<div class="parse-error-summary">' +
+      '<div class="parse-error-copy">' +
+        '<div class="parse-error-title">排表格式解析失败</div>' +
+        '<div class="parse-error-meta">' + escapeHtml(msg) + '</div>' +
+        '<div class="parse-error-meta">请按模板格式修正对应排表后重新上传。</div>' +
+      '</div>' +
+      '<button type="button" class="parse-error-toggle" data-count="1" onclick="toggleStep1ParseDetails()">展开查看 1 处问题</button>' +
+    '</div>' +
+    '<div class="parse-error-detail">' +
+      '<table class="parse-error-table"><tbody>' +
+        '<tr><td style="padding:8px;">' + escapeHtml(msg) + '</td></tr>' +
+      '</tbody></table>' +
     '</div>';
   panel.style.display = 'block';
 }
@@ -1244,41 +1269,54 @@ function validateStep(step) {
     if (!originalFile) return '请先上传原排表';
     if (!actualFile) return '请先上传拆配后实际排表';
     clearStep1ParseError();
-    refreshOriginalAverage();
-    var avg1 = avgPriceOrig;
-    var avg2 = parseFloat(document.getElementById('avgPriceActual').value);
-    var tp = parseInt(document.getElementById('totalPoints').value);
-    if (isNaN(avg1) || avg1 <= 0) return '原排表均价自动检测失败，请重新上传原排表';
-    if (isNaN(avg2) || avg2 <= 0) return '请输入拆配表均价（需大于0）';
-    if (isNaN(tp) || tp <= 0) return '请输入拆配表总点数（用于双重校验）';
+    var avg1, avg2, tp, parsedActualTotal, parsedOrigTotal;
+    try {
+      refreshOriginalAverage();
+      avg1 = avgPriceOrig;
+      avg2 = parseFloat(document.getElementById('avgPriceActual').value);
+      if (isNaN(avg1) || avg1 <= 0) return '原排表均价自动检测失败，请重新上传原排表';
+      if (isNaN(avg2) || avg2 <= 0) return '请输入拆配表均价（需大于0）';
+      var tpRaw = document.getElementById('totalPoints').value;
+      tp = Number(tpRaw);
+      if (String(tpRaw).trim() === '' || isNaN(tp)) return '请输入拆配表总点数（用于双重校验）';
+      if (!Number.isInteger(tp) || tp <= 0) return '拆配表总点数必须为正整数';
 
-    // Parse total points from both tables
-    var actualExtract = extractPointsPerChar(actualFile.workbook);
-    var actualChars = Object.keys(actualExtract.points);
-    var parsedActualTotal = 0;
-    for (var c = 0; c < actualChars.length; c++) {
-      parsedActualTotal += actualExtract.points[actualChars[c]];
-    }
+      // Parse total points from both tables
+      var actualExtract = extractPointsPerChar(actualFile.workbook);
+      var actualChars = Object.keys(actualExtract.points);
+      parsedActualTotal = 0;
+      for (var c = 0; c < actualChars.length; c++) {
+        parsedActualTotal += actualExtract.points[actualChars[c]];
+      }
 
-    var origExtract = extractPointsPerChar(originalFile.workbook);
-    var origChars = Object.keys(origExtract.points);
-    var parsedOrigTotal = 0;
-    for (var d = 0; d < origChars.length; d++) {
-      parsedOrigTotal += origExtract.points[origChars[d]];
+      var origExtract = extractPointsPerChar(originalFile.workbook);
+      var origChars = Object.keys(origExtract.points);
+      parsedOrigTotal = 0;
+      for (var d = 0; d < origChars.length; d++) {
+        parsedOrigTotal += origExtract.points[origChars[d]];
+      }
+    } catch (ex) {
+      // 格式类错误（重复角色名、非数字单价、孤儿数据列等）会由
+      // extractPointsPerChar 抛出；渲染到错误面板而不是静默失败。
+      renderStep1FatalError(ex.message);
+      return '排表解析失败：' + ex.message;
     }
 
     // Check 1: user-input total points must match parsed actual total
     if (parsedActualTotal !== tp) {
       var pointReport = buildPointMismatchReport(actualFile.workbook, tp, parsedActualTotal);
+      pointReport.title = '拆配排表点数校验未通过：输入点数与解析结果不一致';
       renderStep1ParseError(pointReport);
-      return '拆配排表解析失败：用户输入点数 ' + tp + '，系统成功解析 ' + parsedActualTotal + '，请展开查看错误明细。';
+      return '拆配排表点数校验未通过：用户输入点数 ' + tp + '，系统成功解析 ' + parsedActualTotal + '，请展开查看错误明细。';
     }
 
-    // Check 2: compare the unrounded averages entered/calculated in step 1.
+    // Check 2: 总价一致 —— 原表点数×原表均价 = 拆配点数×拆配均价（总价守恒）。
+    // 容差 0.005 元：吸收用户输入均价的小数位舍入差（1000 点内 5 位小数输入可过）；
+    // 远大于浮点噪声，使"差值显示为 -0.00"这类真实相等的情况能够通过。
     var actualSum = parsedActualTotal * avg2;
     var origSum = parsedOrigTotal * avg1;
-    if (!areEquivalentAmounts(actualSum, origSum)) {
-      return '跨表总价校验不通过！\n拆配表 ' + parsedActualTotal + ' 点 × ' + formatFiveDecimals(avg2) + ' = ' + actualSum.toFixed(2) + '\n原排表检测均价 ' + formatFiveDecimals(avg1) + '，换算总价 = ' + origSum.toFixed(2) + '\n两者差值 ' + (actualSum - origSum).toFixed(2) + '，请检查拆配表均价或排表数据。';
+    if (Math.abs(actualSum - origSum) > 0.005) {
+      return '跨表总价校验不通过！\n拆配表 ' + parsedActualTotal + ' 点 × ' + formatFiveDecimals(avg2) + ' = ' + actualSum.toFixed(2) + '\n原排表检测均价 ' + formatFiveDecimals(avg1) + '，换算总价 = ' + origSum.toFixed(2) + '\n两者差值 ' + (actualSum - origSum).toFixed(2) + '（容差 0.005 元内视为通过），请检查拆配表均价或排表数据。';
     }
 
     avgPriceOrig = avg1;
@@ -1694,10 +1732,12 @@ function refreshOriginalAverage() {
   document.getElementById('avgPriceOrig').value = formatFiveDecimals(avgPriceOrig);
 }
 
+// 金额级容差：0.005 元（5厘）内视为相等。
+// 拆配表均价由用户手工输入（最多 5 位小数），与内部全精度均价必然存在
+// 舍入差；纯浮点容差会让正常数据几乎永远无法通过跨表总价校验。
 function areEquivalentAmounts(a, b) {
   if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
-  var floatingTolerance = Number.EPSILON * Math.max(1, Math.abs(a), Math.abs(b)) * 32;
-  return Math.abs(a - b) <= floatingTolerance;
+  return Math.abs(a - b) <= 0.005;
 }
 
 // Display helper only; calculations continue using the unrounded value.
@@ -1780,14 +1820,15 @@ function renderHeatOrderPanel() {
     ? '请确认全部角色调价热度排序（新增角色：' + missingOriginalCharacters.join('、') + '）'
     : '请确认全部角色调价热度排序';
   var html = '<div class="heat-order-title">' + title + '</div>';
-  html += '<div class="heat-order-help">系统已按原调价从高到低排列。请按“调价热度最高 → 最低”从左到右调整并确认；自动方案会保持前一角色调价不低于后一角色。黄色角色为原排表中不存在的新角色。</div>';
-  html += '<div class="heat-order-list">';
+  html += '<div class="heat-order-help">系统已按原调价从高到低排列。直接拖拽角色卡片可调整顺序（从左到右 = 调价热度最高 → 最低），拖拽后需重新确认；也可用卡片上的箭头微调。自动方案会保持前一角色调价不低于后一角色。黄色角色为原排表中不存在的新角色。</div>';
+  html += '<div class="heat-order-list" id="heatOrderList">';
   for (var i = 0; i < characters.length; i++) {
     var ch = characters[i];
     var missing = !originalCharacterSet[ch];
-    html += '<div class="heat-role-chip' + (missing ? ' missing' : '') + '">';
-    html += '<div class="heat-role-name">' + ch + '</div>';
+    html += '<div class="heat-role-chip' + (missing ? ' missing' : '') + '" draggable="true" data-char="' + escapeHtml(ch) + '">';
+    html += '<div class="heat-role-name">' + escapeHtml(ch) + '</div>';
     html += '<div class="heat-role-status">' + (missing ? '新增角色·待定位' : '原排角色') + '</div>';
+    html += '<div class="heat-drag-hint">↕ 拖拽排序</div>';
     html += '<button type="button" class="heat-move-btn" onclick="moveHeatRole(' + i + ',-1)"' + (i === 0 ? ' disabled' : '') + '>&larr;</button>';
     html += '<button type="button" class="heat-move-btn" onclick="moveHeatRole(' + i + ',1)"' + (i === characters.length - 1 ? ' disabled' : '') + '>&rarr;</button>';
     html += '</div>';
@@ -1807,6 +1848,73 @@ function moveHeatRole(index, direction) {
   heatOrderConfirmed = false;
   autoBalanceSnapshot = null;
   renderBalancer();
+}
+
+// ==================== STEP 2: 热度排序拖拽 ====================
+// HTML5 拖拽：dragover 时实时移动 DOM 卡片位置，dragend/drop 时按 DOM 顺序
+// 提交回 characters，并重置确认状态——保证拖拽后的热度顺序与后续计算完全一致。
+function onHeatDragStart(e) {
+  var chip = e.target && e.target.closest ? e.target.closest('.heat-role-chip') : null;
+  if (!chip || !chip.getAttribute('draggable')) return;
+  chip.classList.add('dragging');
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', chip.getAttribute('data-char') || ''); } catch (ex) {}
+  }
+}
+
+function onHeatDragOver(e) {
+  var chip = e.target && e.target.closest ? e.target.closest('.heat-role-chip') : null;
+  var list = document.getElementById('heatOrderList');
+  if (!chip || !list) return;
+  var dragging = list.querySelector('.heat-role-chip.dragging');
+  if (!dragging) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+  var chips = list.querySelectorAll('.heat-role-chip');
+  var from = Array.prototype.indexOf.call(chips, dragging);
+  var to = Array.prototype.indexOf.call(chips, chip);
+  if (from === -1 || to === -1 || from === to) return;
+  // 水平列表：按鼠标落在目标卡片左/右半决定插入位置（左=插到它前面，右=插到它后面）
+  var rect = chip.getBoundingClientRect();
+  if (e.clientX < rect.left + rect.width / 2) {
+    list.insertBefore(dragging, chip);
+  } else {
+    list.insertBefore(dragging, chip.nextElementSibling);
+  }
+}
+
+function commitHeatDragOrder() {
+  var list = document.getElementById('heatOrderList');
+  if (!list) return;
+  var chips = list.querySelectorAll('.heat-role-chip');
+  if (chips.length !== characters.length) return; // DOM 顺序不完整时放弃
+  var newOrder = [];
+  for (var i = 0; i < chips.length; i++) {
+    newOrder.push(chips[i].getAttribute('data-char'));
+  }
+  var changed = false;
+  for (var j = 0; j < newOrder.length; j++) {
+    if (newOrder[j] !== characters[j]) { changed = true; break; }
+  }
+  if (!changed) return;
+  characters = newOrder;
+  heatOrderConfirmed = false;
+  autoBalanceSnapshot = null;
+  renderBalancer();
+  saveDraft();
+  showToast('热度顺序已调整，请重新确认');
+}
+
+function onHeatDrop(e) {
+  if (e.preventDefault) e.preventDefault();
+  commitHeatDragOrder();
+}
+
+function onHeatDragEnd(e) {
+  var chip = e.target && e.target.closest ? e.target.closest('.heat-role-chip') : null;
+  if (chip) chip.classList.remove('dragging');
+  commitHeatDragOrder();
 }
 
 function confirmHeatOrder() {
@@ -4786,6 +4894,12 @@ function showRestoreBanner(saved) {
 function init() {
   setupDropZone(dzOriginal, fileInputOrig, tagOriginal, true);
   setupDropZone(dzActual, fileInputActual, tagActual, false);
+  // 热度排序拖拽：事件代理挂在持久容器上（innerHTML 重渲染不影响监听）
+  var heatPanel = document.getElementById('heatOrderPanel');
+  heatPanel.addEventListener('dragstart', onHeatDragStart);
+  heatPanel.addEventListener('dragover', onHeatDragOver);
+  heatPanel.addEventListener('drop', onHeatDrop);
+  heatPanel.addEventListener('dragend', onHeatDragEnd);
   applyBalanceRuleConfig({mode:balanceMode, range:balanceRange, maxPriceMultiplier:balanceMaxPriceMultiplier, precision:balancePrecision});
   buildColorSwatches();
 
