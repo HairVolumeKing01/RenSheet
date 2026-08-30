@@ -327,6 +327,7 @@ body {
 .btn-auto-restore:hover { background: var(--blue-100); }
 .auto-balance-result {
   width: 100%; font-size: 12px; color: var(--blue-700); font-weight: 600; min-height: 18px;
+  white-space: pre-line; text-align: left;
 }
 .balance-rule-panel {
   margin: 14px 0;
@@ -379,6 +380,35 @@ body {
   color: var(--gray-500);
   line-height: 1.5;
 }
+.premium-config-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  text-align: left;
+}
+.premium-config-title { font-size: 13px; font-weight: 700; color: var(--blue-900); margin-bottom: 6px; }
+.premium-config-help { font-size: 12px; color: var(--gray-500); margin-bottom: 10px; line-height: 1.5; }
+.premium-role-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.premium-role-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 8px; font-size: 12px;
+  border: 1px solid var(--gray-300); border-radius: 4px;
+  cursor: pointer; background: var(--white); color: var(--gray-500);
+}
+.premium-role-chip.premium { border-color: #D69E2E; background: #FFFAF0; color: #8A5A00; font-weight: 600; }
+.premium-params { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.premium-params label { font-size: 12px; color: var(--gray-700); display: inline-flex; align-items: center; gap: 4px; }
+.premium-params input {
+  width: 64px; border: 1px solid var(--gray-200); border-radius: 4px;
+  padding: 4px 6px; font: 12px var(--font); color: var(--gray-700);
+}
+.premium-param-item { display: flex; flex-direction: column; gap: 2px; }
+.premium-param-hint { font-size: 11px; color: var(--gray-400); line-height: 1.4; max-width: 210px; }
+.premium-presets { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; font-size: 12px; color: var(--gray-700); }
+.premium-presets .btn-auto-restore { padding: 4px 14px; font-size: 12px; }
+.premium-confirm-row { text-align: right; margin-top: 10px; }
 @media (max-width: 900px) {
   .balance-rule-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
 }
@@ -641,9 +671,12 @@ body {
           <label for="avgPriceOrig">原排表均价（元）</label>
           <input type="number" id="avgPriceOrig" class="param-input" step="0.00001" min="0" placeholder="上传原排表后自动识别" readonly aria-readonly="true">
         </div>
-        <div class="param-group">
-          <label for="avgPriceActual">拆配表均价（元）</label>
-          <input type="number" id="avgPriceActual" class="param-input" step="0.00001" min="0" placeholder="如 26.00000">
+        <div class="param-group" style="flex-direction:column;align-items:center;gap:4px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label for="avgPriceActual">拆配表均价（元）</label>
+            <input type="number" id="avgPriceActual" class="param-input" step="0.00001" min="0" placeholder="如 26.00000">
+          </div>
+          <button type="button" id="btnFillAvg" class="btn-rename" style="font-size:11px;padding:4px 10px;" onclick="fillParsedAverage()">一键填入系统解析值</button>
         </div>
         <div class="param-group">
           <label for="totalPoints">拆配表总点数（校验）</label>
@@ -664,7 +697,7 @@ body {
   <div class="step-card" id="step2">
     <div class="card">
       <div class="card-title">STEP 2/5 — 调价配平器</div>
-      <div class="desc-note">自动配平仅根据热度提供配平方案，结果仅供参考。</div>
+      <div class="desc-note">配平由算法自动主导，已尽量贴合大多数拼团的情况；如对结果不满意，可直接在下方表格中修改调价。</div>
       <div class="heat-order-panel" id="heatOrderPanel"></div>
       <div class="balance-rule-panel">
         <div class="balance-rule-title">调平规则</div>
@@ -677,13 +710,41 @@ body {
             </select>
           </div>
         </div>
-        <div class="balance-rule-hint" id="balanceRuleHint">准则配平按热度准则自动分配差额；换调价切换精度档位（整数元 → 0.1 → 0.01）。轻约束调平仅保证热度排序与新单价非负，无解时使用。</div>
+        <div class="balance-rule-hint" id="balanceRuleHint">特典按倍数定价、普通角色阶梯保留、总价不变；多出角色超过 2 个时先确认特典配置。</div>
+        <div class="premium-config-panel" id="premiumConfigPanel" style="display:none;">
+          <div class="premium-config-title">特典角色配置（多出角色 &gt; 2 个时需要设置）</div>
+          <div class="premium-config-help">点标签切换「特典 / 普通多出」。倍数越高，普通角色越便宜。</div>
+          <div class="premium-role-list" id="premiumRoleList"></div>
+          <div class="premium-presets">
+            <span>快捷档位：</span>
+            <button type="button" class="btn-auto-restore" onclick="applyPremiumPreset('easy')" title="特典只贵一点（1.3倍起）">佛系</button>
+            <button type="button" class="btn-auto-restore" onclick="applyPremiumPreset('standard')" title="翻倍左右（2倍起）">标准</button>
+            <button type="button" class="btn-auto-restore" onclick="applyPremiumPreset('high')" title="明显翻倍（3倍起）">高配</button>
+          </div>
+          <div class="premium-params">
+            <div class="premium-param-item">
+              <label>最热特典卖原价几倍 <input type="number" id="premiumMultRank1" min="1" step="0.05" value="2" onchange="onPremiumParamChange()"></label>
+              <div class="premium-param-hint">热度第 1 名（最贵特典）的价钱 = 它对应角色的原价 × 此数。如设 2：toya签名 = toya原价 23 × 2 = 46 元。</div>
+            </div>
+            <div class="premium-param-item">
+              <label>往后每名降几倍 <input type="number" id="premiumMultStep" min="0" step="0.05" value="0.15" onchange="onPremiumParamChange()"></label>
+              <div class="premium-param-hint">每往后一名，倍数比前一名减这么多。如设 0.15：2.0 → 1.85 → 1.70 → 1.55 → 1.40…（减到「最冷特典至少几倍」就不减了）。</div>
+            </div>
+            <div class="premium-param-item">
+              <label>最冷特典至少几倍 <input type="number" id="premiumMultFloor" min="1" step="0.05" value="1.5" onchange="onPremiumParamChange()"></label>
+              <div class="premium-param-hint">再靠后的特典，倍数也不会低于这个数。如设 1.5：哪怕第 5 名也只按原价 1.5 倍起步。</div>
+            </div>
+          </div>
+          <div class="premium-confirm-row">
+            <button type="button" class="btn-auto-restore" id="btnConfirmPremium" onclick="confirmPremiumConfig()">确认特典配置</button>
+          </div>
+        </div>
       </div>
       <div class="auto-balance-panel">
         <button type="button" class="btn-auto-balance" id="btnAutoBalance" onclick="autoBalance()">自动配平</button>
         <button type="button" class="btn-auto-restore" id="btnSwitchAuto" onclick="cycleAutoBalance()" disabled>换调价</button>
         <button type="button" class="btn-auto-restore" id="btnRestoreAuto" onclick="restoreAutoBalance()" disabled>恢复自动结果</button>
-        <div class="auto-balance-result" id="autoBalanceResult">准则流水线 v3 已加载（2026-08-14）。确认热度排序后点击自动配平。</div>
+        <div class="auto-balance-result" id="autoBalanceResult">确认热度排序与特典配置后，点击自动配平。</div>
       </div>
       <div class="balancer-wrap" id="balancerWrap"></div>
       <div id="balanceDisplay" style="margin-top:8px;"></div>
@@ -814,6 +875,10 @@ var balanceMaxPriceMultiplier = 3;
 var balancePrecision = 'default';
 var isBalanced = false;
 var kindName = '';
+
+// 特典模型状态（v4 测试版）
+var premiumOverrides = {};      // 多出角色 ch → true=特典 / false=普通多出(爆配)
+var premiumConfigConfirmed = false;  // 多出角色>2 时需用户确认特典配置
 
 // Step 3 state
 var newPrices = {};            // adjusted + avgPriceActual
@@ -1357,6 +1422,8 @@ function resetStep2State() {
   originalCharacterSet = {};
   missingOriginalCharacters = [];
   heatOrderConfirmed = false;
+  premiumOverrides = {};
+  premiumConfigConfirmed = false;
   autoBalanceSnapshot = null;
   autoBalanceVariant = 0;
   autoBalanceAvailable = 0;
@@ -1732,6 +1799,27 @@ function refreshOriginalAverage() {
   document.getElementById('avgPriceOrig').value = formatFiveDecimals(avgPriceOrig);
 }
 
+// 一键填入系统解析值：拆配均价 = 原表总价 ÷ 拆配总点数（即通过跨表总价校验的值）
+function fillParsedAverage() {
+  if (!originalFile || !actualFile) { showToast('请先上传原排表和拆配表', true); return; }
+  try {
+    var origExtract = extractPointsPerChar(originalFile.workbook);
+    var actExtract = extractPointsPerChar(actualFile.workbook);
+    var origTotal = 0, actTotal = 0;
+    Object.keys(origExtract.points).forEach(function(ch) { origTotal += origExtract.points[ch] || 0; });
+    Object.keys(actExtract.points).forEach(function(ch) { actTotal += actExtract.points[ch] || 0; });
+    if (!origTotal || !actTotal) { showToast('无法计算：排表点数为空', true); return; }
+    refreshOriginalAverage();
+    var suggested = roundToFiveDecimals(avgPriceOrig * origTotal / actTotal);
+    document.getElementById('avgPriceActual').value = suggested;
+    clearStep1ParseError();
+    saveDraft();
+    showToast('已填入系统解析均价 ' + formatFiveDecimals(suggested) + ' 元');
+  } catch (ex) {
+    showToast('计算失败：' + ex.message, true);
+  }
+}
+
 // 金额级容差：0.005 元（5厘）内视为相等。
 // 拆配表均价由用户手工输入（最多 5 位小数），与内部全精度均价必然存在
 // 舍入差；纯浮点容差会让正常数据几乎永远无法通过跨表总价校验。
@@ -1808,6 +1896,8 @@ function buildBalancer() {
   // 每次导入两张排表进入第二步，都必须由用户确认完整角色热度顺序。
   // 不能因为点数、均价或角色集合一致就跳过热度确认。
   heatOrderConfirmed = false;
+  premiumOverrides = {};
+  premiumConfigConfirmed = false;
 
   renderBalancer();
 }
@@ -1815,12 +1905,15 @@ function buildBalancer() {
 function renderHeatOrderPanel() {
   var panel = document.getElementById('heatOrderPanel');
   var autoBtn = document.getElementById('btnAutoBalance');
+  // 重渲染前记录滚动位置，渲染后恢复——拖到进度条滚动后的区域放下时，可视区不再跳回起点
+  var prevList = document.getElementById('heatOrderList');
+  if (prevList) heatListScrollLeft = prevList.scrollLeft;
   panel.style.display = 'block';
   var title = missingOriginalCharacters.length
     ? '请确认全部角色调价热度排序（新增角色：' + missingOriginalCharacters.join('、') + '）'
     : '请确认全部角色调价热度排序';
   var html = '<div class="heat-order-title">' + title + '</div>';
-  html += '<div class="heat-order-help">系统已按原调价从高到低排列。直接拖拽角色卡片可调整顺序（从左到右 = 调价热度最高 → 最低），拖拽后需重新确认；也可用卡片上的箭头微调。自动方案会保持前一角色调价不低于后一角色。黄色角色为原排表中不存在的新角色。</div>';
+  html += '<div class="heat-order-help">从左到右 = 热度从高到低。直接拖卡片调顺序，拖完需重新确认；黄色 = 新增角色。</div>';
   html += '<div class="heat-order-list" id="heatOrderList">';
   for (var i = 0; i < characters.length; i++) {
     var ch = characters[i];
@@ -1836,6 +1929,10 @@ function renderHeatOrderPanel() {
   html += '</div><div class="heat-confirm-row"><button type="button" class="btn-auto-balance" onclick="confirmHeatOrder()">' +
     (heatOrderConfirmed ? '已确认调价热度排序' : '确认调价热度排序') + '</button></div>';
   panel.innerHTML = html;
+  var newList = document.getElementById('heatOrderList');
+  if (newList && heatListScrollLeft > 0) {
+    newList.scrollLeft = Math.min(heatListScrollLeft, newList.scrollWidth - newList.clientWidth);
+  }
   autoBtn.disabled = !heatOrderConfirmed;
 }
 
@@ -1853,7 +1950,44 @@ function moveHeatRole(index, direction) {
 // ==================== STEP 2: 热度排序拖拽 ====================
 // HTML5 拖拽：dragover 时实时移动 DOM 卡片位置，dragend/drop 时按 DOM 顺序
 // 提交回 characters，并重置确认状态——保证拖拽后的热度顺序与后续计算完全一致。
+var heatScrollTimer = null;
+var heatListScrollLeft = 0; // 热度列表滚动位置（重渲染后恢复，避免可视区跳回起点）
+
+function stopHeatAutoScroll() {
+  if (heatScrollTimer !== null) {
+    clearTimeout(heatScrollTimer);
+    heatScrollTimer = null;
+  }
+}
+
+// 拖拽到可视框左/右边缘时，进度条自动跟着滚动，方便把卡片拖到远端角色。
+// 越靠近边缘滚动越快；松开/放下时停止。
+function heatAutoScroll(list, e) {
+  if (!list) return;
+  var rect = list.getBoundingClientRect();
+  var edgeZone = 240; // 边缘触发区宽度（px）
+  var dir = 0, depth = 0;
+  if (e.clientX > rect.right - edgeZone) {
+    dir = 1;
+    depth = (e.clientX - (rect.right - edgeZone)) / edgeZone;
+  } else if (e.clientX < rect.left + edgeZone) {
+    dir = -1;
+    depth = ((rect.left + edgeZone) - e.clientX) / edgeZone;
+  }
+  if (dir === 0) { stopHeatAutoScroll(); return; }
+  var maxLeft = list.scrollWidth - list.clientWidth;
+  if (maxLeft <= 0) return;
+  var step = Math.max(3, Math.round(depth * 14)); // 每 16ms 滚动像素数
+  if (heatScrollTimer !== null) { clearTimeout(heatScrollTimer); heatScrollTimer = null; }
+  heatScrollTimer = setTimeout(function tick() {
+    if (heatScrollTimer === null) return;
+    list.scrollLeft = Math.max(0, Math.min(list.scrollLeft + dir * step, maxLeft));
+    heatScrollTimer = setTimeout(tick, 16);
+  }, 16);
+}
+
 function onHeatDragStart(e) {
+  stopHeatAutoScroll();
   var chip = e.target && e.target.closest ? e.target.closest('.heat-role-chip') : null;
   if (!chip || !chip.getAttribute('draggable')) return;
   chip.classList.add('dragging');
@@ -1864,11 +1998,18 @@ function onHeatDragStart(e) {
 }
 
 function onHeatDragOver(e) {
-  var chip = e.target && e.target.closest ? e.target.closest('.heat-role-chip') : null;
   var list = document.getElementById('heatOrderList');
-  if (!chip || !list) return;
+  if (!list) return;
   var dragging = list.querySelector('.heat-role-chip.dragging');
   if (!dragging) return;
+  // 先处理边缘自动滚动（即使鼠标悬停在空白区也滚，方便拖到远端）
+  heatAutoScroll(list, e);
+  var chip = e.target && e.target.closest ? e.target.closest('.heat-role-chip') : null;
+  if (!chip) {
+    // 空白区（进度条边缘/卡片间隙）：允许放置（松开即按当前 DOM 顺序提交），滚动继续
+    if (list.contains(e.target)) e.preventDefault();
+    return;
+  }
   e.preventDefault();
   if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
   var chips = list.querySelectorAll('.heat-role-chip');
@@ -1907,11 +2048,13 @@ function commitHeatDragOrder() {
 }
 
 function onHeatDrop(e) {
+  stopHeatAutoScroll();
   if (e.preventDefault) e.preventDefault();
   commitHeatDragOrder();
 }
 
 function onHeatDragEnd(e) {
+  stopHeatAutoScroll();
   var chip = e.target && e.target.closest ? e.target.closest('.heat-role-chip') : null;
   if (chip) chip.classList.remove('dragging');
   commitHeatDragOrder();
@@ -1975,7 +2118,7 @@ function renderBalancer() {
     var val = adjustments[ch];
     var unchanged = (pointsPerChar[ch] || 0) === (originalPointsPerChar[ch] || 0);
     var manualHint = unchanged ? ' title="点数未变化：自动配平保持原调价；可手动微调，仍须精确配平"' : '';
-    html += '<td><input type="number" class="balancer-input" data-char="' + ch + '" value="' + val + '" step="0.01"' + manualHint + ' onchange="onAdjChange(this)" oninput="onAdjInput(this)"></td>';
+    html += '<td><input type="number" class="balancer-input" data-char="' + ch + '" value="' + (isFinite(val) ? val.toFixed(2) : '0.00') + '" step="0.01"' + manualHint + ' onchange="onAdjChange(this)" oninput="onAdjInput(this)"></td>';
   }
   html += '</tr>';
 
@@ -1994,6 +2137,7 @@ function renderBalancer() {
   document.getElementById('btnRestoreAuto').disabled = !autoBalanceSnapshot;
   document.getElementById('btnSwitchAuto').disabled = !autoBalanceSnapshot || autoBalanceAvailable <= 1;
   renderHeatOrderPanel();
+  renderPremiumConfigPanel();
   updateBalanceDisplay();
 }
 
@@ -3965,6 +4109,361 @@ function applyCoreRuleResult(result, useNextVariant, variantIndex) {
   showToast(useNextVariant ? '已切换精度档位' : '自动配平完成');
 }
 
+// ==================== STEP 2: 特典模型 v4.2（热度顺序 = 唯一真相） ====================
+// 调价规则（价格永远沿确认热度顺序单调递减，任何顺序都能出价，不再报"冲突"）：
+//   前部特典（排在第一个原表角色之前的特典）= 基准原价 × 倍数，且不低于「原表最高原价 + 0.5」
+//   原表角色 = 原价 − 统一平移 d（阶梯保留；原价相等 → 二调价相等）
+//   中间多出（夹在原表角色之间的特典/爆配）= 按位置线性插值（介于前后锚点价格之间）
+//   尾部多出（最后一个原表角色之后）= 余量按基础原价阶梯分（最便宜）
+//   d 由预算反解：总价恒等于 拆配点数 × 拆配均价（用户输入），即 Σ(点数×调价) = 0。
+function getExtraRoles() {
+  var extras = [];
+  characters.forEach(function(ch) { if (!originalCharacterSet[ch]) extras.push(ch); });
+  return extras;
+}
+
+function isPremiumName(ch) {
+  return /(签名|签|特典|金签|特)/.test(String(ch));
+}
+
+function classifyPremiumRoles() {
+  // 特典是否按倍数定价，取决于用户的热度序列：
+  // 只有「排在第一个原表角色之前」的特典才按倍数定价（调价最高）；
+  // 被拖到原表角色后面/中间的特典与普通多出一样，走阶梯底部余量分配。
+  var premium = [], extraLow = [], normal = [];
+  var firstNormalIdx = -1;
+  for (var i = 0; i < characters.length; i++) {
+    if (originalCharacterSet[characters[i]]) { firstNormalIdx = i; break; }
+  }
+  characters.forEach(function(ch, idx) {
+    if (originalCharacterSet[ch]) { normal.push(ch); return; }
+    var isPrem = premiumOverrides[ch] !== undefined ? premiumOverrides[ch] : isPremiumName(ch);
+    if (isPrem && (firstNormalIdx === -1 || idx < firstNormalIdx)) premium.push(ch);
+    else extraLow.push(ch);
+  });
+  return {premium: premium, extraLow: extraLow, normal: normal};
+}
+
+function stripPremiumSuffix(name) {
+  var s = String(name).trim();
+  s = s.replace(/(签名|特典|金签|爆配)$/, '');
+  s = s.replace(/(签|特)$/, '');
+  return s.trim();
+}
+
+function getPremiumParams() {
+  var r1 = parseFloat(document.getElementById('premiumMultRank1').value);
+  var st = parseFloat(document.getElementById('premiumMultStep').value);
+  var fl = parseFloat(document.getElementById('premiumMultFloor').value);
+  return {
+    rank1: isFinite(r1) && r1 >= 1 ? r1 : 2.0,
+    step: isFinite(st) && st >= 0 ? st : 0.15,
+    floor: isFinite(fl) && fl >= 1 ? fl : 1.5
+  };
+}
+
+function solveNewModel(params) {
+  var cls = classifyPremiumRoles();
+  var targetTotal = 0;
+  characters.forEach(function(ch) { targetTotal += (pointsPerChar[ch] || 0) * avgPriceActual; });
+
+  // 原表最高原价（特典绝对下限基准）
+  var maxOrig = 0;
+  Object.keys(originalPrices).forEach(function(k) {
+    var p = originalPrices[k];
+    if (isFinite(p) && p > maxOrig) maxOrig = p;
+  });
+  if (!maxOrig) maxOrig = avgPriceOrig || 0;
+  var absFloor = maxOrig + 0.5;
+
+  // 1) 前部特典：倍数定价（固定价，与 d 无关）
+  var premiumPrice = {}, premiumMult = {}, premiumTotal = 0;
+  for (var i = 0; i < cls.premium.length; i++) {
+    var ch = cls.premium[i];
+    var mult = Math.max(params.rank1 - i * params.step, params.floor);
+    var baseName = stripPremiumSuffix(ch);
+    var basePrice = originalPrices[baseName];
+    if (basePrice === undefined || !isFinite(basePrice)) basePrice = avgPriceOrig || 0;
+    var price = Math.max(basePrice * mult, absFloor);
+    premiumMult[ch] = mult;
+    premiumPrice[ch] = price;
+    premiumTotal += (pointsPerChar[ch] || 0) * price;
+  }
+
+  // 2) 原表角色统计（锚点）
+  var normalPoints = 0, normalOrigTotal = 0, lowestOrig = Infinity, normalOrig = {};
+  cls.normal.forEach(function(ch) {
+    var pts = pointsPerChar[ch] || 0;
+    var op = originalPrices[ch];
+    if (op === undefined || !isFinite(op)) op = avgPriceOrig || 0;
+    normalOrig[ch] = op;
+    normalPoints += pts;
+    normalOrigTotal += pts * op;
+    if (op < lowestOrig) lowestOrig = op;
+  });
+  if (!isFinite(lowestOrig)) lowestOrig = 0;
+  if (normalPoints === 0) {
+    return {ok: false, reason: 'no-normal', d: 0};
+  }
+
+  // 3) 位置索引
+  var pos = {};
+  characters.forEach(function(ch, pi) { pos[ch] = pi; });
+
+  // 4) 锚点（前部特典固定价 + 原表角色 原价−d），仿射值 v = a + b·d
+  var a = {}, b = {}, isAnchor = {};
+  characters.forEach(function(ch) { a[ch] = 0; b[ch] = 0; });
+  cls.premium.forEach(function(ch) { a[ch] = premiumPrice[ch]; b[ch] = 0; isAnchor[ch] = true; });
+  cls.normal.forEach(function(ch) { a[ch] = normalOrig[ch]; b[ch] = -1; isAnchor[ch] = true; });
+  var anchors = [];
+  characters.forEach(function(ch) { if (isAnchor[ch]) anchors.push({p: pos[ch], a: a[ch], b: b[ch]}); });
+  if (!anchors.length) return {ok: false, reason: 'no-normal', d: 0};
+  var lastAnchor = anchors[anchors.length - 1];
+
+  // 5) 多出角色的基础原价（尾部余量比例用；解析不到用最低普通原价兜底）
+  var elBase = {};
+  cls.extraLow.forEach(function(ch) {
+    var baseName = stripPremiumSuffix(ch);
+    var base = originalPrices[baseName];
+    if (base === undefined || !isFinite(base)) base = lowestOrig;
+    elBase[ch] = base;
+  });
+  var maxTailBase = 0;
+  cls.extraLow.forEach(function(ch) {
+    if (pos[ch] > lastAnchor.p && elBase[ch] > maxTailBase) maxTailBase = elBase[ch];
+  });
+
+  // 6) 非锚点多出角色定价：
+  //    中间（左右都有锚点）→ 按位置线性插值；
+  //    最前（无左锚点）→ 与第一个锚点同价；
+  //    尾部（无右锚点）→ 余量按基础原价阶梯分（最热尾部 = 最后锚点价，其余按比例递减）。
+  cls.extraLow.forEach(function(ch) {
+    var p = pos[ch];
+    var left = null, right = null;
+    for (var ai = 0; ai < anchors.length; ai++) {
+      if (anchors[ai].p < p) left = anchors[ai];
+      else if (anchors[ai].p > p) { right = anchors[ai]; break; }
+    }
+    if (left && right) {
+      var t = (p - left.p) / (right.p - left.p);
+      a[ch] = left.a + (right.a - left.a) * t;
+      b[ch] = left.b + (right.b - left.b) * t;
+    } else if (right) {
+      a[ch] = right.a; b[ch] = right.b;   // 最前：与第一个锚点同价
+    } else if (left) {
+      if (maxTailBase > 0) {
+        var ratio = elBase[ch] / maxTailBase;
+        a[ch] = left.a * ratio;
+        b[ch] = left.b * ratio;
+      } else {
+        a[ch] = left.a; b[ch] = left.b;
+      }
+    } else {
+      a[ch] = absFloor; b[ch] = 0;
+    }
+  });
+
+  // 7) 预算反解：Σ points×(a + b·d) = targetTotal → A + B·d = targetTotal
+  function computeAB() {
+    var A = 0, B = 0;
+    characters.forEach(function(ch) {
+      var pts = pointsPerChar[ch] || 0;
+      A += pts * a[ch];
+      B += pts * b[ch];
+    });
+    return {A: A, B: B};
+  }
+  var ab = computeAB();
+  if (Math.abs(ab.B) < 1e-12) return {ok: false, reason: 'no-normal', d: 0};
+  var d = (targetTotal - ab.A) / ab.B;
+
+  // 8) 单调强制（用户顺序是唯一真相）：后向抬升 + 固定点再平衡。
+  //    正常情况（只拖动多出角色）不会触发；仅当原表角色被拖乱原价顺序时兜底保证价格有序。
+  var value = {};
+  var clampedAny = true;
+  for (var iter = 0; iter < 12 && clampedAny; iter++) {
+    clampedAny = false;
+    characters.forEach(function(ch) { value[ch] = a[ch] + b[ch] * d; });
+    for (var mi = characters.length - 2; mi >= 0; mi--) {
+      var cur = characters[mi], nxt = characters[mi + 1];
+      if (value[cur] < value[nxt] - 1e-9) {
+        a[cur] = a[nxt]; b[cur] = b[nxt];
+        value[cur] = value[nxt];
+        clampedAny = true;
+      }
+    }
+    if (clampedAny) {
+      ab = computeAB();
+      if (Math.abs(ab.B) < 1e-12) break;
+      d = (targetTotal - ab.A) / ab.B;
+    }
+  }
+
+  // 9) 可行性：所有价格非负
+  var minPrice = Infinity;
+  characters.forEach(function(ch) {
+    value[ch] = a[ch] + b[ch] * d;
+    if (value[ch] < minPrice) minPrice = value[ch];
+  });
+  if (minPrice < -1e-9) {
+    return {ok: false, reason: 'negative', minNormal: minPrice, d: d};
+  }
+
+  // 10) 生成价格与调价
+  var price = {}, adj = {};
+  characters.forEach(function(ch) {
+    price[ch] = value[ch];
+    adj[ch] = price[ch] - avgPriceActual;
+  });
+
+  // 总价校验（全精度）
+  var total = 0;
+  characters.forEach(function(ch) { total += (pointsPerChar[ch] || 0) * price[ch]; });
+  var totalOk = Math.abs(total - targetTotal) <= 0.005;
+
+  return {
+    ok: true,
+    adj: adj,
+    price: price,
+    premiumPrice: premiumPrice,
+    premiumMult: premiumMult,
+    d: d,
+    total: total,
+    targetTotal: targetTotal,
+    totalOk: totalOk,
+    cls: cls
+  };
+}
+
+function findMaxFeasibleRank1(params) {
+  // 倍率越高，普通角色越便宜；二分查找当前参数下最大可行倍率（保持普通角色非负）
+  var lo = 1.0, hi = 20.0;
+  function feasible(r1) {
+    var p = {rank1: r1, step: params.step, floor: params.floor};
+    return solveNewModel(p).ok;
+  }
+  if (!feasible(lo)) return null;
+  for (var it = 0; it < 50; it++) {
+    var mid = (lo + hi) / 2;
+    if (feasible(mid)) lo = mid; else hi = mid;
+  }
+  return Math.floor(lo * 100) / 100;
+}
+
+function doAutoBalanceNewModel() {
+  var params = getPremiumParams();
+  var solved = solveNewModel(params);
+  if (!solved.ok) {
+    var maxR = findMaxFeasibleRank1(params);
+    var msg, toastMsg;
+    if (solved.reason === 'negative') {
+      msg = '特典卖太贵了：普通角色最低价会被压成负数（最低 ' + solved.minNormal.toFixed(2) + ' 元）。';
+      if (maxR) msg += '当前参数下最高只能设 ' + maxR.toFixed(2) + ' 倍。';
+      msg += '请把「最热特典卖原价几倍」调小再试。';
+      toastMsg = '特典倍数过高，普通角色会变负数';
+    } else {
+      msg = '表里没有原排表角色，无法用特典模型。';
+      toastMsg = '没有原表角色，无法配平';
+    }
+    document.getElementById('autoBalanceResult').textContent = msg;
+    showToast('特典模型配平失败：' + toastMsg, true);
+    return;
+  }
+  autoBalanceCoreResult = null;
+  autoBalanceVariant = 0;
+  autoBalanceAvailable = 1;
+  autoBalanceQuantumCents = 1;
+  autoBalanceFallbackType = null;
+  autoBalanceSnapshot = {};
+  characters.forEach(function(ch) {
+    adjustments[ch] = solved.adj[ch];
+    autoBalanceSnapshot[ch] = adjustments[ch];
+  });
+  renderBalancer();
+
+  // 结果文案（分块 + 一句话总结，只留看得懂的话）
+  var parts = [];
+  solved.cls.premium.forEach(function(ch) {
+    var base = stripPremiumSuffix(ch);
+    var basePrice = originalPrices[base];
+    var baseText = (basePrice === undefined || !isFinite(basePrice)) ? '' : base + '原价' + basePrice.toFixed(2) + '×';
+    parts.push(ch + ' ' + solved.price[ch].toFixed(2) + '（' + baseText + solved.premiumMult[ch].toFixed(2) + '）');
+  });
+  var elParts = solved.cls.extraLow.map(function(ch) { return ch + ' ' + solved.price[ch].toFixed(2); });
+  var normalText = solved.cls.normal.map(function(ch) { return ch + ' ' + solved.price[ch].toFixed(2); });
+  var lines = [];
+  lines.push('总价 ' + solved.total.toFixed(2) + ' 元，校验' + (solved.totalOk ? '通过' : '异常'));
+  if (parts.length) lines.push('特典：' + parts.join('、'));
+  lines.push('普通角色（阶梯保留）：' + normalText.join('、'));
+  if (elParts.length) lines.push('多出角色：' + elParts.join('、'));
+  // 一句话总结：普通角色平均价变化（= 平移量 d）
+  var nSum = 0, nPts = 0, oSum = 0;
+  solved.cls.normal.forEach(function(ch) {
+    var pts = pointsPerChar[ch] || 0;
+    nPts += pts;
+    nSum += pts * solved.price[ch];
+    oSum += pts * (originalPrices[ch] !== undefined ? originalPrices[ch] : avgPriceOrig);
+  });
+  if (nPts > 0) {
+    var delta = (oSum - nSum) / nPts;
+    lines.push('普通角色平均每点便宜了 ' + Math.abs(delta).toFixed(2) + ' 元');
+  }
+  document.getElementById('autoBalanceResult').textContent = lines.join('\n');
+  saveDraft();
+  showToast('自动配平完成（特典模型）');
+}
+
+function renderPremiumConfigPanel() {
+  var panel = document.getElementById('premiumConfigPanel');
+  if (!panel) return;
+  var extras = getExtraRoles();
+  if (extras.length <= 2) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  var list = document.getElementById('premiumRoleList');
+  var html = '';
+  extras.forEach(function(ch) {
+    var isPrem = premiumOverrides[ch] !== undefined ? premiumOverrides[ch] : isPremiumName(ch);
+    html += '<span class="premium-role-chip' + (isPrem ? ' premium' : '') + '" data-char="' + escapeHtml(ch) + '" title="点击切换特典/普通多出">' +
+      escapeHtml(ch) + '：' + (isPrem ? '特典' : '普通多出') + '</span>';
+  });
+  list.innerHTML = html;
+  var btn = document.getElementById('btnConfirmPremium');
+  if (btn) {
+    btn.textContent = premiumConfigConfirmed ? '已确认 ✓' : '确认特典配置';
+    btn.disabled = premiumConfigConfirmed;
+  }
+}
+
+function onPremiumParamChange() {
+  premiumConfigConfirmed = false;
+  renderPremiumConfigPanel();
+  saveDraft();
+}
+
+// 快捷档位：一键填好三个参数（最热特典倍数 / 每档递减 / 最冷特典倍数）
+function applyPremiumPreset(kind) {
+  var map = {
+    easy:     {rank1: 1.3, step: 0.10, floor: 1.1},   // 佛系：特典只贵一点
+    standard: {rank1: 2.0, step: 0.15, floor: 1.5},   // 标准：翻倍左右（默认）
+    high:     {rank1: 3.0, step: 0.20, floor: 1.8}    // 高配：明显翻倍
+  };
+  var p = map[kind] || map.standard;
+  document.getElementById('premiumMultRank1').value = p.rank1;
+  document.getElementById('premiumMultStep').value = p.step;
+  document.getElementById('premiumMultFloor').value = p.floor;
+  premiumConfigConfirmed = false;
+  renderPremiumConfigPanel();
+  saveDraft();
+  showToast('已应用「' + (kind === 'easy' ? '佛系' : (kind === 'high' ? '高配' : '标准')) + '」档位，请确认特典配置');
+}
+
+function confirmPremiumConfig() {
+  premiumConfigConfirmed = true;
+  renderPremiumConfigPanel();
+  saveDraft();
+  showToast('特典配置已确认，可以自动配平');
+}
+
 var autoBalanceBusy = false;
 
 function autoBalance(useNextVariant) {
@@ -3974,6 +4473,11 @@ function autoBalance(useNextVariant) {
   }
   if (!heatOrderConfirmed) {
     showToast('请先调整并确认全部角色的调价热度排序', true);
+    return;
+  }
+  // 多出角色 >2 时，必须先确认特典配置（分类与倍数）
+  if (getExtraRoles().length > 2 && !premiumConfigConfirmed) {
+    showToast('多出角色超过 2 个，请先确认「特典角色配置」', true);
     return;
   }
   // 防重入：求解是同步阻塞的（大表可达数十秒）。先禁用按钮并渲染"配平中"，
@@ -4024,16 +4528,7 @@ function doAutoBalance(useNextVariant) {
   applyBalanceRuleConfig(getBalanceRuleConfig());
   if (!useNextVariant) autoBalanceVariant = 0;
   if (balanceMode === 'light') { doAutoBalanceLegacy(useNextVariant); return; }
-  var coreResult = computeFinalAdjustments();
-  if (coreResult.ok) {
-    autoBalanceCoreResult = coreResult;
-    applyCoreRuleResult(coreResult, useNextVariant, 0);
-    return;
-  }
-  // 准则流水线无解：先给即时反馈，再走旧兜底链（可能耗时较长）
-  var resEl = document.getElementById('autoBalanceResult');
-  if (resEl) resEl.textContent = '准则配平在全部精度档与放宽层级内未找到精确解，正在尝试热度断层/极限兜底…';
-  doAutoBalanceLegacy(useNextVariant);  // 兜底链含最终无解诊断文案
+  doAutoBalanceNewModel();
 }
 
 function doAutoBalanceLegacy(useNextVariant) {
@@ -4489,7 +4984,7 @@ function buildFinalListTable(data) {
       for (var l = 0; l < labels.length; l++) {
         parts.push(labels[l] + charMap[labels[l]]);
       }
-      if (parts.length) details.push(kind + '-' + parts.join(''));
+      if (parts.length) details.push(parts.join('，'));
     }
 
     var detailStr = details.join(',');
@@ -4499,9 +4994,9 @@ function buildFinalListTable(data) {
       var group = [];
       for (var d = 0; d < details.length; d++) {
         group.push(details[d]);
-        if (group.length >= 4) { breaks.push(group.join(',')); group = []; }
+        if (group.length >= 4) { breaks.push(group.join('，')); group = []; }
       }
-      if (group.length) breaks.push(group.join(','));
+      if (group.length) breaks.push(group.join('，'));
       detailStr = breaks.join('\n');
     }
     var row = [person, detailStr, pm.totalCount,
@@ -4900,6 +5395,17 @@ function init() {
   heatPanel.addEventListener('dragover', onHeatDragOver);
   heatPanel.addEventListener('drop', onHeatDrop);
   heatPanel.addEventListener('dragend', onHeatDragEnd);
+  // 特典分类切换：事件代理（面板重渲染不丢监听）
+  document.getElementById('premiumRoleList').addEventListener('click', function(e) {
+    var chip = e.target && e.target.closest ? e.target.closest('.premium-role-chip') : null;
+    if (!chip) return;
+    var ch = chip.getAttribute('data-char');
+    if (!ch) return;
+    premiumOverrides[ch] = !(premiumOverrides[ch] !== undefined ? premiumOverrides[ch] : isPremiumName(ch));
+    premiumConfigConfirmed = false;
+    renderPremiumConfigPanel();
+    saveDraft();
+  });
   applyBalanceRuleConfig({mode:balanceMode, range:balanceRange, maxPriceMultiplier:balanceMaxPriceMultiplier, precision:balancePrecision});
   buildColorSwatches();
 
