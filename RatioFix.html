@@ -710,7 +710,7 @@ body {
             </select>
           </div>
         </div>
-        <div class="balance-rule-hint" id="balanceRuleHint">特典按倍数定价、普通角色阶梯保留、总价不变；多出角色超过 2 个时先确认特典配置。</div>
+        <div class="balance-rule-hint" id="balanceRuleHint">无多出角色（拆配前后点数不变）：走准则配平。有多出角色：特典按倍数定价、普通角色阶梯保留、总价不变（多出超过 2 个需先确认特典配置）。</div>
         <div class="premium-config-panel" id="premiumConfigPanel" style="display:none;">
           <div class="premium-config-title">特典角色配置（多出角色 &gt; 2 个时需要设置）</div>
           <div class="premium-config-help">点标签切换「特典 / 普通多出」。倍数越高，普通角色越便宜。</div>
@@ -744,7 +744,7 @@ body {
         <button type="button" class="btn-auto-balance" id="btnAutoBalance" onclick="autoBalance()">自动配平</button>
         <button type="button" class="btn-auto-restore" id="btnSwitchAuto" onclick="cycleAutoBalance()" disabled>换调价</button>
         <button type="button" class="btn-auto-restore" id="btnRestoreAuto" onclick="restoreAutoBalance()" disabled>恢复自动结果</button>
-        <div class="auto-balance-result" id="autoBalanceResult">确认热度排序与特典配置后，点击自动配平。</div>
+        <div class="auto-balance-result" id="autoBalanceResult">确认热度排序后，点击自动配平。</div>
       </div>
       <div class="balancer-wrap" id="balancerWrap"></div>
       <div id="balanceDisplay" style="margin-top:8px;"></div>
@@ -4528,6 +4528,21 @@ function doAutoBalance(useNextVariant) {
   applyBalanceRuleConfig(getBalanceRuleConfig());
   if (!useNextVariant) autoBalanceVariant = 0;
   if (balanceMode === 'light') { doAutoBalanceLegacy(useNextVariant); return; }
+  // 无角色多出（拆配前后点数不变）→ 准则配平流水线（原规则，与 524d452 逐字一致）
+  if (getExtraRoles().length === 0) {
+    var coreResult = computeFinalAdjustments();
+    if (coreResult.ok) {
+      autoBalanceCoreResult = coreResult;
+      applyCoreRuleResult(coreResult, useNextVariant, 0);
+      return;
+    }
+    // 准则流水线无解：先给即时反馈，再走旧兜底链（可能耗时较长）
+    var resEl = document.getElementById('autoBalanceResult');
+    if (resEl) resEl.textContent = '准则配平在全部精度档与放宽层级内未找到精确解，正在尝试热度断层/极限兜底…';
+    doAutoBalanceLegacy(useNextVariant);  // 兜底链含最终无解诊断文案
+    return;
+  }
+  // 有角色多出 → 特典模型（保持现状）
   doAutoBalanceNewModel();
 }
 
