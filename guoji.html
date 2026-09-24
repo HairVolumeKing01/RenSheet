@@ -530,6 +530,101 @@ body {
   .instructions { grid-template-columns: 1fr 1fr; }
 }
 </style>
+<style id="zhangye-skin">
+/* ===== 账页皮肤：纯换色排版，不触碰任何行为/显隐/结构 ===== */
+:root {
+  --blue-900: #0f2a38;
+  --blue-700: #1c4a63;
+  --blue-500: #176b8d;
+  --blue-300: #7fa7b5;
+  --blue-100: #cfe3e9;
+  --blue-50: #eaf1f3;
+  --water: #a8ccd8;
+  --gray-700: #40586a;
+  --gray-400: #93a6b1;
+  --gray-200: #d8e2e6;
+  --gray-100: #f4f8f9;
+  --white: #fdfefe;
+  --gray-900: #0f2a38;
+  --gray-800: #1c4a63;
+  --radius: 4px;
+  --ink: #0f2a38;
+  --ink-soft: #40586a;
+  --water-ink: #176b8d;
+  --seal: #b03a2e;
+  --rule: rgba(20, 48, 63, .17);
+  --rule-soft: rgba(20, 48, 63, .09);
+  --rule-strong: rgba(20, 48, 63, .6);
+  --serif: "Songti SC", "Noto Serif SC", "SimSun", "宋体", serif;
+  --mono: "Cascadia Mono", Consolas, "SF Mono", monospace;
+}
+html { min-height: 100%; background: linear-gradient(180deg, rgba(255,255,255,.95) 0%, rgba(235,245,247,.85) 50%, rgba(218,236,241,.9) 100%); }
+body { background: transparent; }
+.container { position: relative; z-index: 1; }
+
+/* 宣纸卡片 */
+.card {
+  position: relative;
+  background: rgba(252, 254, 254, .82);
+  border: 1px solid var(--rule);
+  border-top: 2px solid var(--rule-strong);
+  box-shadow: 0 1px 0 rgba(255,255,255,.35) inset, 0 12px 32px rgba(15, 74, 96, .1);
+}
+.card::after { /* 纸纤维 */
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .05;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)' opacity='.5'/%3E%3C/svg%3E");
+}
+@supports selector(:has(*)) {
+  .card:not(:has(.modal-backdrop)) { backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+}
+
+/* 排印 */
+.header h1 { font-family: var(--serif); font-weight: 800; letter-spacing: .08em; color: var(--ink); }
+.header .intro { color: var(--ink-soft); }
+.card-title {
+  font-family: var(--serif); font-weight: 800; letter-spacing: .18em; color: var(--ink);
+  border-bottom: 1px solid var(--rule-soft); padding-bottom: 10px;
+}
+.card-title::before { content: "◆"; color: var(--seal); margin-right: 8px; font-size: .72em; vertical-align: 2px; }
+.inst-step { border: 1px solid var(--rule-soft); }
+.inst-step .step-num { color: var(--seal); font-family: var(--mono); }
+
+/* 纸墨控件（只换色） */
+.drop-zone { background: rgba(234,241,243,.55); }
+.drop-zone:hover, .drop-zone.drag-over { background: rgba(207,227,233,.7); }
+.file-tag { border-radius: 4px; background: rgba(234,241,243,.8); border-color: var(--rule); }
+.checkbox-group { background: rgba(244,248,249,.9); border: 1px solid var(--rule-soft); }
+.checkbox-group input:checked + label { background: var(--white); box-shadow: 0 0 0 2px var(--ink); }
+.color-swatch.active { border-color: var(--ink); box-shadow: 0 0 0 3px var(--ink); }
+.input-text, .validation-input { border-color: var(--rule); background: rgba(255,255,255,.65); }
+.deposit-mode-row { background: rgba(234,241,243,.6); border-color: var(--rule-soft); }
+.fee-mode-panel { background: rgba(255,255,255,.6); border-color: var(--rule-soft); }
+.btn-primary { background: var(--ink); }
+.btn-primary:hover { background: var(--water-ink); }
+.btn-secondary { background: rgba(255,255,255,.6); border-color: var(--rule); }
+.btn-export { background: var(--water-ink); }
+.btn-export:hover { background: var(--ink); }
+
+/* 表格只调字体边线 */
+.preview-wrap { border-color: var(--rule); }
+.preview-table th { background: var(--ink); font-family: var(--serif); letter-spacing: .12em; }
+.preview-table td { border-bottom-color: var(--rule-soft); }
+.validation-file-row { background: rgba(234,241,243,.6); border: 1px solid var(--rule-soft); }
+.parse-preview-table th { background: var(--ink); color: var(--white); font-family: var(--serif); }
+
+/* guoji 专属：算法点选卡 / 排表条目（不动 .chosen 锁定、.post-mode-locked/inert） */
+.mode-option { border: 2px solid var(--rule); background: rgba(244,248,249,.7); }
+.mode-option.active {
+  background: var(--white);
+  border: 2px solid var(--water-ink);
+  box-shadow: 0 0 0 4px rgba(23, 107, 141, .15);
+}
+.parse-entry { background: rgba(244,248,249,.7); border-color: var(--rule); }
+
+/* Toast 只换背景 */
+.toast { background: var(--ink); border: 1px solid var(--rule); }
+.toast.error { background: var(--seal); }
+</style>
 </head>
 <body>
 
@@ -2119,5 +2214,7 @@ restoreDraft();
 if (!calcMode) postModeCardsEl.inert = true;
 </script>
 
+<script src="lib/water.js"></script>
+<script>if (window.WaterFx) { window.WaterFx.init({ waves: true }); }</script>
 </body>
 </html>

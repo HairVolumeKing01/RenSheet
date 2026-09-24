@@ -5,10 +5,8 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f2f7f8">
-<title>RenSheet</title>
+<title>RenSheet — 账页 · 水波预览</title>
 <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
-<link rel="icon" type="image/png" sizes="48x48" href="images/favicon-48.png">
-<link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <style>
 :root {
   --paper: #f2f7f8;
@@ -86,7 +84,6 @@ a { color: inherit; }
 .slip[open] .chev { transform: rotate(180deg); }
 .slip-body { margin: 9px 16px 0; padding: 10px 0 13px; border-top: 1px dashed var(--rule-soft); }
 .slip-body p { margin: 0; color: var(--ink-soft); font-size: 13px; font-weight: 500; line-height: 1.7; }
-.slip-body p + p { margin-top: 6px; }
 .slip-body a { color: var(--water-ink); font-weight: 650; text-underline-offset: 3px; }
 
 .ledger-head { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; margin: 32px 2px 12px; }
@@ -172,17 +169,13 @@ a { color: inherit; }
   <header class="hero">
     <p class="kicker">岁次丙午 · 山前小账房</p>
     <h1 class="title">Rensheet</h1>
-    <p class="tagline">团长大人，欢迎来到 RenSheet，快开始今天的工作吧</p>
+    <p class="tagline">高效打表，纯净体验</p>
     <p class="side-note" aria-hidden="true">账目清如水</p>
   </header>
 
   <details class="slip">
     <summary><span class="slip-label">公告</span><span class="slip-title">国际表赞助方案与二调自动配平已上线</span><span class="slip-time">更新于近期</span><svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
-    <div class="slip-body">
-      <p><strong>重要通知：</strong>国际表已上线<a href="https://www.ifdian.net/a/baiyanxi" target="_blank" rel="noopener">爱发电赞助方案</a>（限时特惠！！月费 ¥5 / 年费 ¥30），赞助后凭订单号<a href="get-code.html">自助取码</a>激活，一次激活 · 无限使用。</p>
-      <p><strong>功能更新：</strong>二调退补表已支持 <strong>自动配平</strong>，轻松导入原排表与拆配实际排表，几步生成退补明细，解放大脑。</p>
-      <p>网站维护不易，恳请大家多多支持 RenSheet，后续会上线更多有用的开团功能！非常感谢！</p>
-    </div>
+    <div class="slip-body"><p>国际表已上线<a href="https://www.ifdian.net/a/baiyanxi" target="_blank" rel="noopener">爱发电赞助方案</a>，赞助后凭订单号<a href="get-code.html">自助取码</a>激活。二调退补表已支持自动配平，可直接生成退补明细。</p></div>
   </details>
 
   <div class="ledger-head"><h2>选择今天要处理的表</h2><p>划过条目，水光随行 · 点按水面，金鱼相迎</p></div>
@@ -198,25 +191,25 @@ a { color: inherit; }
     <a class="ledger-row" href="manzeng.html">
       <span class="idx">02</span>
       <span class="name">满赠分配退补肾表<svg class="squiggle" viewBox="0 0 48 8" preserveAspectRatio="none" aria-hidden="true"><path d="M2 6 C 9 2, 16 2, 24 5 S 39 8, 46 4"/></svg></span>
-      <span class="desc">「满赠门槛 · 自动分配 · 定价降均退补一条龙」</span>
+      <span class="desc">「满赠门槛、自动分配与定价退补」</span>
       <span class="seal blue">开发中</span>
     </a>
     <a class="ledger-row" href="guoji.html">
       <span class="idx">03</span>
       <span class="name">国际表<svg class="squiggle" viewBox="0 0 48 8" preserveAspectRatio="none" aria-hidden="true"><path d="M2 6 C 9 2, 16 2, 24 5 S 39 8, 46 4"/></svg></span>
-      <span class="desc">「拼团国际运费分摊 · 全重/净重双算法可选」</span>
+      <span class="desc">「国际运费分摊 · 全重与净重双算法」</span>
       <span class="seal">已上线</span>
     </a>
     <a class="ledger-row" href="RatioFix.html">
       <span class="idx">04</span>
       <span class="name">二调退补表<svg class="squiggle" viewBox="0 0 48 8" preserveAspectRatio="none" aria-hidden="true"><path d="M2 6 C 9 2, 16 2, 24 5 S 39 8, 46 4"/></svg></span>
-      <span class="desc">「爆配 / 隐藏二调退补明细计算」</span>
+      <span class="desc">「爆配与隐藏二调退补明细计算」</span>
       <span class="seal">已上线</span>
     </a>
     <a class="ledger-row" href="guide.html">
       <span class="idx">05</span>
       <span class="name">使用说明<svg class="squiggle" viewBox="0 0 48 8" preserveAspectRatio="none" aria-hidden="true"><path d="M2 6 C 9 2, 16 2, 24 5 S 39 8, 46 4"/></svg></span>
-      <span class="desc">「动画演示 · 三步上手三个工具」</span>
+      <span class="desc">「动画演示 · 快速上手三个工具」</span>
       <span class="seal">指引</span>
     </a>
     <a class="ledger-row" href="dashang.html">
@@ -228,8 +221,7 @@ a { color: inherit; }
   </section>
 
   <footer class="colophon">
-    <span class="line">有问题请私信开发者唯一小红书：<a href="https://www.xiaohongshu.com/user/profile/591529972" target="_blank" rel="noopener">591529972@无敌头铁王</a> · 或加用户咨询 QQ 群：740838603</span>
-    <span class="line">RenSheet · 高效打表，纯净体验</span>
+    <span class="line">咨询 QQ 群：740838603 · <a href="https://www.xiaohongshu.com/user/profile/591529972" target="_blank" rel="noopener">小红书 591529972@无敌头铁王</a></span>
     <span class="seal seal-mini">云账房</span>
   </footer>
 </main>

@@ -38,7 +38,7 @@ function createElement(id = '') {
 
 function loadRatioFix() {
   const html = fs.readFileSync(htmlPath, 'utf8');
-  const match = html.match(/<script>([\s\S]*?)<\/script>\s*<\/body>/i);
+  const match = html.match(/<script>([\s\S]*?)<\/script>/i);
   assert.ok(match, '未找到 RatioFix.html 的主脚本');
 
   const elements = new Map();
