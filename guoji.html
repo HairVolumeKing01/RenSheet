@@ -227,12 +227,157 @@ body {
 .parse-preview-table tr:nth-child(even) td { background: var(--blue-50); }
 .parse-preview-table tr:nth-child(odd) td { background: var(--white); }
 
+/* Per-role weight mode + table */
+.entry-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.entry-mode-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+.entry-mode-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--gray-400);
+  cursor: pointer;
+  padding: 4px 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: 20px;
+  background: var(--white);
+  transition: all 0.15s;
+}
+.entry-mode-opt.active {
+  color: var(--blue-700);
+  border-color: var(--blue-300);
+  background: var(--blue-50);
+  font-weight: 600;
+}
+.entry-mode-opt input { accent-color: var(--blue-700); cursor: pointer; margin: 0; }
+
+.char-weight-wrap { margin-top: 12px; }
+.char-weight-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.char-weight-table th {
+  background: var(--blue-700);
+  color: var(--white);
+  padding: 6px 10px;
+  font-weight: 500;
+  text-align: center;
+  font-size: 11px;
+}
+.char-weight-table td {
+  padding: 5px 10px;
+  text-align: center;
+  border-bottom: 1px solid var(--gray-200);
+  background: var(--white);
+}
+.char-weight-table .cw-role { text-align: left; color: var(--gray-700); font-weight: 500; }
+.char-weight-table .cw-input { width: 110px; padding: 5px 10px; font-size: 13px; }
+.char-weight-table .cw-sub { color: var(--gray-700); }
+.char-weight-table tr.missing td { background: #FEF2F2; }
+.char-weight-table tr.missing .cw-input { border-color: #E53E3E; }
+.char-weight-foot {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--gray-700);
+  text-align: center;
+}
+.char-weight-foot strong { color: var(--blue-700); }
+.char-weight-error {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #FEF2F2;
+  border: 1px solid #FEB2B2;
+  color: #C53030;
+  font-size: 12px;
+  text-align: left;
+  line-height: 1.6;
+}
+
+/* Role breakdown (collapsed by default) */
+.btn-mini {
+  margin-top: 12px;
+  padding: 5px 14px;
+  font-size: 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--blue-700);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all 0.15s;
+}
+.btn-mini:hover { border-color: var(--blue-300); background: var(--blue-50); }
+.role-detail { margin-top: 10px; }
+.role-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.role-detail-table th {
+  background: var(--blue-700);
+  color: var(--white);
+  padding: 6px 10px;
+  font-weight: 500;
+  text-align: center;
+  font-size: 11px;
+}
+.role-detail-table td {
+  padding: 5px 10px;
+  text-align: center;
+  border-bottom: 1px solid var(--gray-200);
+  background: var(--white);
+}
+.role-detail-table .rd-role { text-align: left; color: var(--gray-700); }
+
 /* Form controls */
 .form-row {
   display: flex;
   align-items: center;
   gap: 24px;
   flex-wrap: wrap;
+}
+
+/* 排表条目参数行：字号与输入框适度缩小，字段+解析按钮并排一行 */
+.parse-entry .entry-params {
+  gap: 10px 12px;
+  justify-content: flex-start;
+}
+.parse-entry .entry-params .form-group { gap: 5px; }
+.parse-entry .entry-params label { font-size: 12px; }
+.parse-entry .entry-params .req-mark { font-size: 9px; margin-left: 1px; }
+.parse-entry .entry-params .input-text {
+  width: 84px;
+  padding: 6px 8px;
+  font-size: 13px;
+  border-radius: 5px;
+}
+.parse-entry .entry-params .input-text.entry-kind { width: 100px; }
+.parse-entry .entry-params .parse-btn {
+  margin-left: auto;
+  padding: 6px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+/* 视口不足 1000px 时容器开始变窄，再压一档保持一行 */
+@media (max-width: 999px) {
+  .parse-entry .entry-params { gap: 8px 7px; }
+  .parse-entry .entry-params .form-group { gap: 4px; }
+  .parse-entry .entry-params label { font-size: 11px; }
+  .parse-entry .entry-params .input-text { width: 74px; padding: 5px 7px; font-size: 12px; }
+  .parse-entry .entry-params .input-text.entry-kind { width: 86px; }
+  .parse-entry .entry-params .parse-btn { padding: 5px 10px; font-size: 11px; }
 }
 .form-group {
   display: flex;
@@ -244,6 +389,23 @@ body {
   font-weight: 600;
   color: var(--gray-700);
   white-space: nowrap;
+}
+
+/* Required-field mark */
+.req-mark {
+  color: #C53030;
+  font-weight: 600;
+  font-size: 11px;
+  margin-left: 3px;
+  vertical-align: 1px;
+}
+.char-weight-table th .req-mark,
+.role-detail-table th .req-mark { color: #F3BDB6; }
+.req-legend {
+  font-size: 12px;
+  color: var(--gray-700);
+  text-align: center;
+  margin: 8px 0 2px;
 }
 
 /* Color swatches */
@@ -522,6 +684,9 @@ body {
   .form-row { flex-direction: column; align-items: flex-start; gap: 14px; }
   .parse-entry .form-row { flex-direction: column; align-items: flex-start; gap: 10px; }
   .parse-stats { flex-direction: column; gap: 6px; }
+  .char-weight-table .cw-input { width: 88px; }
+  .char-weight-table th, .char-weight-table td { padding: 5px 6px; }
+  .role-detail-table th, .role-detail-table td { padding: 5px 6px; }
   .preview-table { font-size: 12px; }
   .color-swatches { max-width: 300px; }
   .preview-summary { flex-direction: column; gap: 8px; }
@@ -611,6 +776,12 @@ body { background: transparent; }
 .preview-table td { border-bottom-color: var(--rule-soft); }
 .validation-file-row { background: rgba(234,241,243,.6); border: 1px solid var(--rule-soft); }
 .parse-preview-table th { background: var(--ink); color: var(--white); font-family: var(--serif); }
+.char-weight-table th, .role-detail-table th { background: var(--ink); color: var(--white); font-family: var(--serif); }
+.char-weight-table td, .role-detail-table td { background: rgba(255,255,255,.6); border-bottom-color: var(--rule-soft); }
+.char-weight-table tr.missing td { background: #FEF2F2; }
+.entry-mode-opt { border-color: var(--rule); background: rgba(255,255,255,.6); }
+.entry-mode-opt.active { border-color: var(--water-ink); background: var(--white); }
+.btn-mini { border-color: var(--rule); background: rgba(255,255,255,.6); }
 
 /* guoji 专属：算法点选卡 / 排表条目（不动 .chosen 锁定、.post-mode-locked/inert） */
 .mode-option { border: 2px solid var(--rule); background: rgba(244,248,249,.7); }
@@ -659,7 +830,7 @@ body { background: transparent; }
       </div>
       <div class="inst-step">
         <div class="step-num">STEP 4</div>
-        <div class="step-text">选择上传模式，导入排表文件（分表模式最多50个，多sheet模式一个品类对应一个sheet上传1个文件即可），填写必要参数并逐个解析</div>
+        <div class="step-text">选择上传模式，导入排表文件（分表模式最多50个，多sheet模式一个品类对应一个sheet上传1个文件即可），填写必要参数并逐个解析。克重方式可选：统一克重（整个品类一个克重）或分角色克重（第2行每个角色单独填克重），角色整列无人购买（点数=0）会直接报错</div>
       </div>
       <div class="inst-step">
         <div class="step-num">STEP 5</div>
@@ -706,13 +877,14 @@ body { background: transparent; }
   <!-- Global Parameters -->
   <div class="card">
     <div class="card-title">STEP 3 — 基础参数</div>
+    <div class="req-legend"><span class="req-mark">※</span> 为必填项，留空无法计算</div>
     <div class="form-row" style="justify-content:center;">
       <div class="form-group">
-        <label>总国际运费（元）</label>
+        <label>总国际运费（元）<span class="req-mark">※</span></label>
         <input type="number" class="input-text w140" id="shippingFee" placeholder="0.00" step="0.01" min="0">
       </div>
       <div class="form-group" id="packageWeightGroup">
-        <label>总包裹重量（克）</label>
+        <label>总包裹重量（克）<span class="req-mark">※</span></label>
         <input type="number" class="input-text w140" id="packageWeight" placeholder="0.00" step="0.01" min="0">
       </div>
       <div class="form-group">
@@ -726,6 +898,7 @@ body { background: transparent; }
   <div class="card">
     <div class="card-title">STEP 4 — 导入排表</div>
     <a href="sample/导入文件格式示例.xlsx" class="step-link" download>下载格式示例</a>
+    <div class="req-legend"><span class="req-mark">※</span> 为必填项（分角色克重需逐个角色填写），留空无法解析该排表</div>
     <div class="form-row" style="justify-content:center;gap:24px;margin-bottom:14px;flex-wrap:wrap;">
       <label class="radio-label" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
         <input type="radio" name="uploadMode" value="multiSheet" checked onchange="switchUploadMode()"> 多 sheet 单文件
@@ -825,7 +998,7 @@ body { background: transparent; }
 var MAX_FILES = 50;
 var uploadMode = 'multiSheet'; // 'multiSheet' | 'multiFile'
 var calcMode = '';            // ''=未选择 | 'full'=全重分摊(称包裹) | 'net'=净重分摊(免称包裹)
-var parsedFiles = [];         // [{id, name, kind, gramWeight, verifyPoints, workbook, parsed, purchases, cnPoints, cnBodyWeight, totalPoints, totalBodyWeight, cnCount}]
+var parsedFiles = [];         // [{id, name, kind, sheetIndex, weightMode, gramWeight, verifyPoints, verifyWeight, workbook, preview, charOrder, charPoints, charWeights, charError, weightErrorRoles, parsed, purchases, cnPoints, cnCharCount, cnBodyWeight, totalPoints, totalBodyWeight, cnCount}]
 var manualEntries = [];       // [{id, cn, grams}]
 var computedResults = null;   // {mode, rows, totalBodyWeightAll, totalBoxAllocation, totalPackageWeight, rate}
 var currentTheme = 'blue';
@@ -846,6 +1019,36 @@ function sanitizeCellValue(val) {
   if (typeof val === 'number' || val == null) return val;
   var s = String(val);
   return /^[=+\-@]/.test(s) ? "'" + s : val;
+}
+
+// ==================== PARSE ENTRY FACTORY ====================
+// weightMode: 'uniform'=整个品类统一单点克重 | 'perChar'=第2行每个角色单独克重
+function newParseEntry(opts) {
+  return {
+    id: fileIdCounter++,
+    name: opts.name,
+    kind: opts.kind,
+    sheetIndex: opts.sheetIndex,
+    workbook: opts.workbook,
+    preview: opts.preview,
+    weightMode: 'uniform',
+    gramWeight: 0,
+    verifyPoints: 0,
+    verifyWeight: 0,
+    charOrder: opts.charOrder || [],
+    charPoints: opts.charPoints || {},
+    charWeights: {},
+    charError: opts.charError || '',
+    weightErrorRoles: null,
+    parsed: false,
+    purchases: [],
+    cnPoints: {},
+    cnCharCount: {},
+    cnBodyWeight: {},
+    totalPoints: 0,
+    totalBodyWeight: 0,
+    cnCount: 0
+  };
 }
 
 function switchUploadMode() {
@@ -1035,44 +1238,48 @@ function handleFiles(files) {
               var sd = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
               var sheetKind = String((sd[0] || [])[0] || '').trim();
               if (!sheetKind) continue;
-              parsedFiles.push({
-                id: fileIdCounter++,
+              var sheetPreview = { cnCount: 0, roleCount: 0, recordCount: 0, kind: sheetKind };
+              var preRoles = [], prePoints = {};
+              try {
+                var scan = scanSheetColumns(sd);
+                var cnSet = {}; var recCount = 0;
+                for (var rh = 0; rh < scan.roles.length; rh++) {
+                  preRoles.push(scan.roles[rh].role);
+                  prePoints[scan.roles[rh].role] = scan.roles[rh].points;
+                  var scanCol = scan.roles[rh].col;
+                  for (var srow = 3; srow < sd.length; srow++) {
+                    var nameCell = sd[srow] ? String(sd[srow][scanCol] || '').trim() : '';
+                    if (!nameCell) continue;
+                    cnSet[nameCell] = true; recCount++;
+                  }
+                }
+                sheetPreview.cnCount = Object.keys(cnSet).length;
+                sheetPreview.roleCount = scan.roles.length;
+                sheetPreview.recordCount = recCount;
+              } catch(scanErr) {
+                sheetPreview = { error: scanErr.message };
+              }
+              parsedFiles.push(newParseEntry({
                 name: file.name + ' / ' + wb.SheetNames[si],
                 kind: sheetKind,
                 sheetIndex: si,
-                gramWeight: 0,
-                verifyPoints: 0,
                 workbook: wb,
-                preview: { cnCount: 0, roleCount: 0, recordCount: 0, kind: sheetKind },
-                parsed: false,
-                purchases: [],
-                cnPoints: {},
-                cnBodyWeight: {},
-                totalPoints: 0,
-                totalBodyWeight: 0,
-                cnCount: 0
-              });
+                preview: sheetPreview,
+                charOrder: preRoles,
+                charPoints: prePoints,
+                charError: ''
+              }));
             }
             if (!parsedFiles.length) throw new Error('所有sheet均无有效品类数据');
           } else {
             var kind = '';
             try { kind = getSheetKind(wb); } catch(ex) { kind = ''; }
-            parsedFiles.push({
-              id: fileIdCounter++,
+            parsedFiles.push(newParseEntry({
               name: file.name,
               kind: kind,
-              gramWeight: 0,
-              verifyPoints: 0,
               workbook: wb,
-              preview: tryParsePreview(wb),
-              parsed: false,
-              purchases: [],
-              cnPoints: {},
-              cnBodyWeight: {},
-              totalPoints: 0,
-              totalBodyWeight: 0,
-              cnCount: 0
-            });
+              preview: tryParsePreview(wb)
+            }));
           }
         } catch(ex) {
           errors.push('文件「' + file.name + '」文件解析失败');
@@ -1124,12 +1331,23 @@ function renderParseEntries() {
         html += '<div class="parse-entry-preview-stats">识别到 ' + f.preview.cnCount + ' 个CN、' + f.preview.roleCount + ' 个角色、' + f.preview.recordCount + ' 个点数</div>';
       }
     }
-    html += '<div class="form-row">';
-    html += '<div class="form-group"><label>种类名称</label><input type="text" class="input-text w140 entry-kind" data-eid="' + f.id + '" value="' + escAttr(f.kind) + '" placeholder="如：吧唧"></div>';
-    html += '<div class="form-group"><label>单点克重(g/点)</label><input type="number" class="input-text w120 entry-gram" data-eid="' + f.id + '" value="' + (f.gramWeight || '') + '" placeholder="0.00" step="0.01" min="0"></div>';
+    html += '<div class="entry-mode-row">';
+    html += '<span class="entry-mode-label">克重方式</span>';
+    html += '<label class="entry-mode-opt' + (f.weightMode !== 'perChar' ? ' active' : '') + '"><input type="radio" name="wm-' + f.id + '" class="entry-mode-radio" data-eid="' + f.id + '" value="uniform"' + (f.weightMode !== 'perChar' ? ' checked' : '') + '>统一克重</label>';
+    html += '<label class="entry-mode-opt' + (f.weightMode === 'perChar' ? ' active' : '') + '"><input type="radio" name="wm-' + f.id + '" class="entry-mode-radio" data-eid="' + f.id + '" value="perChar"' + (f.weightMode === 'perChar' ? ' checked' : '') + '>分角色克重（每个角色单独填）</label>';
+    html += '</div>';
+    html += '<div class="form-row entry-params">';
+    html += '<div class="form-group"><label>种类名称<span class="req-mark">※</span></label><input type="text" class="input-text w140 entry-kind" data-eid="' + f.id + '" value="' + escAttr(f.kind) + '" placeholder="如：吧唧"></div>';
+    if (f.weightMode !== 'perChar') {
+      html += '<div class="form-group"><label>单点克重(g/点)<span class="req-mark">※</span></label><input type="number" class="input-text w120 entry-gram" data-eid="' + f.id + '" value="' + (f.gramWeight || '') + '" placeholder="0.00" step="0.01" min="0"></div>';
+    }
     html += '<div class="form-group"><label>校验总点数</label><input type="number" class="input-text w120 entry-verify" data-eid="' + f.id + '" value="' + (f.verifyPoints || '') + '" placeholder="0" step="1" min="0"></div>';
+    html += '<div class="form-group"><label>校验总本体重量(g)</label><input type="number" class="input-text w120 entry-verify-weight" data-eid="' + f.id + '" value="' + (f.verifyWeight || '') + '" placeholder="0.00" step="0.01" min="0"></div>';
     html += '<button class="btn btn-secondary btn-sm parse-btn" data-pid="' + f.id + '">解析此排表</button>';
     html += '</div>';
+    if (f.weightMode === 'perChar') {
+      html += buildCharWeightTableHtml(f);
+    }
     if (f.parsed) {
       html += buildParseResultsHtml(f);
     }
@@ -1170,6 +1388,54 @@ function renderParseEntries() {
       if (entry) { entry.verifyPoints = parseInt(this.value) || 0; entry.parsed = false; invalidateResults(); }
     });
   }
+  var verifyWeightInputs = parseEntriesEl.querySelectorAll('.entry-verify-weight');
+  for (var vw = 0; vw < verifyWeightInputs.length; vw++) {
+    verifyWeightInputs[vw].addEventListener('input', function() {
+      var eid = parseInt(this.dataset.eid);
+      var entry = findEntry(eid);
+      if (entry) { entry.verifyWeight = parseFloat(this.value) || 0; entry.parsed = false; invalidateResults(); }
+    });
+  }
+
+  // Weight mode radios
+  var modeRadios = parseEntriesEl.querySelectorAll('.entry-mode-radio');
+  for (var mr = 0; mr < modeRadios.length; mr++) {
+    modeRadios[mr].addEventListener('change', function() {
+      setEntryWeightMode(parseInt(this.dataset.eid), this.value);
+    });
+  }
+
+  // Per-role weight inputs (update summary in place to keep focus)
+  var cwInputs = parseEntriesEl.querySelectorAll('.entry-cweight');
+  for (var cw = 0; cw < cwInputs.length; cw++) {
+    cwInputs[cw].addEventListener('input', function() {
+      var eid = parseInt(this.dataset.eid);
+      var entry = findEntry(eid);
+      if (!entry) return;
+      var role = this.getAttribute('data-role');
+      var val = parseFloat(this.value) || 0;
+      if (val > 0) entry.charWeights[role] = val; else delete entry.charWeights[role];
+      entry.parsed = false;
+      if (entry.weightErrorRoles) {
+        entry.weightErrorRoles = entry.weightErrorRoles.filter(function(x) { return x !== role; });
+      }
+      invalidateResults();
+      refreshCharWeightSummary(entry);
+    });
+  }
+
+  // Role breakdown toggles
+  var detailToggles = parseEntriesEl.querySelectorAll('.role-detail-toggle');
+  for (var rd = 0; rd < detailToggles.length; rd++) {
+    detailToggles[rd].addEventListener('click', function() {
+      var eid = this.dataset.eid;
+      var box = parseEntriesEl.querySelector('.role-detail[data-eid="' + eid + '"]');
+      if (!box) return;
+      var show = box.style.display === 'none';
+      box.style.display = show ? 'block' : 'none';
+      this.textContent = show ? '收起角色明细' : '展开角色明细';
+    });
+  }
 
   // Attach parse button listeners
   var parseBtns = parseEntriesEl.querySelectorAll('.parse-btn');
@@ -1203,9 +1469,17 @@ function buildParseResultsHtml(f) {
   if (f.verifyPoints > 0) {
     var diff = Math.abs(f.totalPoints - f.verifyPoints);
     if (diff === 0) {
-      html += '<span class="verify-ok">校验通过</span>';
+      html += '<span class="verify-ok">点数校验通过</span>';
     } else {
-      html += '<span class="verify-ng">校验不符（差' + diff + '点）</span>';
+      html += '<span class="verify-ng">点数校验不符（差' + diff + '点）</span>';
+    }
+  }
+  if (f.verifyWeight > 0) {
+    var wdiff = Math.abs(f.totalBodyWeight - f.verifyWeight);
+    if (wdiff <= 0.01) {
+      html += '<span class="verify-ok">重量校验通过</span>';
+    } else {
+      html += '<span class="verify-ng">重量校验不符（差' + wdiff.toFixed(2) + ' g）</span>';
     }
   }
   html += '</div>';
@@ -1219,8 +1493,93 @@ function buildParseResultsHtml(f) {
     }
     html += '</tbody></table>';
   }
+
+  // Role breakdown (collapsed by default)
+  if (f.charOrder && f.charOrder.length) {
+    html += '<div class="btn-row" style="justify-content:center;"><button type="button" class="btn-mini role-detail-toggle" data-eid="' + f.id + '">展开角色明细</button></div>';
+    html += '<div class="role-detail" data-eid="' + f.id + '" style="display:none;">';
+    html += '<table class="role-detail-table"><thead><tr><th>角色（第2行列头）</th><th>点数</th><th>克重(g/点)</th><th>小计(g)</th></tr></thead><tbody>';
+    for (var q = 0; q < f.charOrder.length; q++) {
+      var role = f.charOrder[q];
+      var pts = f.charPoints[role] || 0;
+      var cw = (f.weightMode === 'perChar') ? (f.charWeights[role] || 0) : (f.gramWeight || 0);
+      html += '<tr><td class="rd-role">' + escapeHtml(role) + '</td><td>' + pts + '</td><td>' + cw + '</td><td>' + (pts * cw).toFixed(2) + '</td></tr>';
+    }
+    html += '</tbody></table></div>';
+  }
   html += '</div>';
   return html;
+}
+
+// ==================== PER-ROLE WEIGHT UI ====================
+function buildCharWeightTableHtml(f) {
+  if (f.charError) {
+    return '<div class="char-weight-error">角色列表读取失败：' + escapeHtml(f.charError) + '</div>';
+  }
+  if (!f.charOrder || !f.charOrder.length) {
+    return '<div class="char-weight-error">未读取到角色列（第2行列头），请检查排表或重新上传该文件</div>';
+  }
+  var total = 0; var filled = 0;
+  var rows = '';
+  for (var i = 0; i < f.charOrder.length; i++) {
+    var role = f.charOrder[i];
+    var pts = f.charPoints[role] || 0;
+    var w = f.charWeights[role];
+    var hasW = (typeof w === 'number' && w > 0);
+    if (hasW) { filled++; total += pts * w; }
+    var missing = !!(f.weightErrorRoles && f.weightErrorRoles.indexOf(role) >= 0);
+    rows += '<tr class="' + (missing ? 'missing' : '') + '" data-role="' + escAttr(role) + '">';
+    rows += '<td class="cw-role">' + escapeHtml(role) + '</td>';
+    rows += '<td>' + pts + '</td>';
+    rows += '<td><input type="number" class="input-text cw-input entry-cweight" data-eid="' + f.id + '" data-role="' + escAttr(role) + '" value="' + (hasW ? w : '') + '" placeholder="0.00" step="0.01" min="0"></td>';
+    rows += '<td class="cw-sub">' + (hasW ? (pts * w).toFixed(2) : '--') + '</td>';
+    rows += '</tr>';
+  }
+  var html = '<div class="char-weight-wrap" data-eid="' + f.id + '">';
+  html += '<table class="char-weight-table"><thead><tr><th>角色（第2行列头）</th><th>本表点数</th><th>单点克重(g/点)<span class="req-mark">※</span></th><th>小计(g)</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  html += '<div class="char-weight-foot">已填 <strong class="cw-filled">' + filled + '</strong>/' + f.charOrder.length + ' 个角色　合计总本体重量：<strong class="cw-total">' + total.toFixed(2) + '</strong> g</div>';
+  html += '</div>';
+  return html;
+}
+
+// 只更新表格内的小计与合计，避免重渲染导致输入框失焦
+function refreshCharWeightSummary(entry) {
+  var wrap = parseEntriesEl.querySelector('.char-weight-wrap[data-eid="' + entry.id + '"]');
+  if (!wrap) return;
+  var total = 0; var filled = 0;
+  var rows = wrap.querySelectorAll('tr[data-role]');
+  for (var i = 0; i < rows.length; i++) {
+    var role = rows[i].getAttribute('data-role');
+    var input = rows[i].querySelector('.entry-cweight');
+    var w = input ? (parseFloat(input.value) || 0) : 0;
+    var pts = entry.charPoints[role] || 0;
+    var sub = rows[i].querySelector('.cw-sub');
+    if (w > 0) {
+      filled++;
+      total += pts * w;
+      rows[i].classList.remove('missing');
+      if (sub) sub.textContent = (pts * w).toFixed(2);
+    } else if (sub) {
+      sub.textContent = '--';
+    }
+  }
+  var filledEl = wrap.querySelector('.cw-filled');
+  if (filledEl) filledEl.textContent = String(filled);
+  var totalEl = wrap.querySelector('.cw-total');
+  if (totalEl) totalEl.textContent = total.toFixed(2);
+}
+
+function setEntryWeightMode(id, mode) {
+  var entry = findEntry(id);
+  if (!entry || entry.weightMode === mode) return;
+  entry.weightMode = mode;
+  entry.parsed = false;
+  entry.weightErrorRoles = null;
+  if (mode === 'perChar' && !loadCharStats(entry)) {
+    showToast('无法列出角色：' + entry.charError, true);
+  }
+  invalidateResults();
+  renderParseEntries();
 }
 
 function updateProcessBtn() {
@@ -1255,38 +1614,15 @@ function tryParsePreview(wb) {
       var ws = wb.Sheets[wb.SheetNames[si]];
       assertA1Present(ws, wb.SheetNames[si]);
       var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-      var kind = String((data[0] || [])[0] || '').trim();
-      if (!kind) throw new Error('格式错误：sheet「' + wb.SheetNames[si] + '」A1单元格（品类名）为空');
-      kinds.push(kind);
-      var rawHeaders = (data[1] || []).slice(1);
-      var rawPriceRow = data[2] || [];
-      // 扫描范围：第2行/第3行/数据区出现内容的最大列
-      var maxCol = Math.max(rawHeaders.length, rawPriceRow.length - 1);
-      for (var pr = 3; pr < data.length; pr++) {
-        if (data[pr] && data[pr].length - 1 > maxCol) maxCol = data[pr].length - 1;
-      }
-      var headerCols = [];
-      for (var ci = 1; ci <= maxCol; ci++) {
-        var hdr = String(rawHeaders[ci - 1] == null ? '' : rawHeaders[ci - 1]).trim();
-        var pv = String(rawPriceRow[ci] == null ? '' : rawPriceRow[ci]).trim();
-        var hasData = false;
-        for (var dr = 3; dr < data.length && !hasData; dr++) {
-          if (data[dr] && String(data[dr][ci] || '').trim()) hasData = true;
-        }
-        if (!hdr && !pv && !hasData) continue; // 角色/单价/数据全空的列：跳过
-        if (!hdr) {
-          if (pv) throw new Error('格式错误：第3行第' + colToLetter(ci) + '列有单价，但第2行对应角色名为空，请补齐角色名或删除该单价');
-          throw new Error('格式错误：第' + colToLetter(ci) + '列存在购买数据，但第2行角色名为空，请检查表头是否缺少角色名或存在合并单元格');
-        }
-        if (pv !== '' && !/^\d+(\.\d+)?$/.test(pv)) throw new Error('格式错误：第3行第' + colToLetter(ci) + '列单价"' + pv + '"无法解析，请输入纯数字（不能包含中文或特殊符号）');
-        headerCols.push(ci); // 有角色：单价为空按0处理
-      }
-      totalRole += headerCols.length;
-      for (var r = 3; r < data.length; r++) {
-        var row = data[r];
-        if (!row || !row.length) continue;
-        for (var h = 0; h < headerCols.length; h++) {
-          var name = String(row[headerCols[h]] || '').trim();
+      var scan = scanSheetColumns(data);
+      kinds.push(scan.kind);
+      totalRole += scan.roles.length;
+      for (var rh = 0; rh < scan.roles.length; rh++) {
+        var col = scan.roles[rh].col;
+        for (var r = 3; r < data.length; r++) {
+          var row = data[r];
+          if (!row || !row.length) continue;
+          var name = String(row[col] || '').trim();
           if (!name) continue;
           totalCnSet[name] = true; totalRec++;
         }
@@ -1299,6 +1635,86 @@ function tryParsePreview(wb) {
     return {error: e.message};
   }
 }
+
+// ==================== SHARED COLUMN SCAN ====================
+// 列扫描/校验与 parseSheetData 完全一致，并额外执行本页业务规则：
+// 有角色名（第2行列头）但整列无人购买（点数=0）视为格式错误，该排表无法参与解析。
+function scanSheetColumns(data) {
+  if (data.length < 4) throw new Error('数据行不足（表内仅' + data.length + '行，至少需要4行——第1行品类名、第2行角色、第3行单价、第4+行数据）');
+  var kind = String((data[0] || [])[0] || '').trim();
+  if (!kind) throw new Error('格式错误：A1单元格（品类名）为空');
+  for (var c = 1; c < (data[0] || []).length; c++) {
+    if (String(data[0][c] || '').trim()) throw new Error('格式错误：第一行仅A1可填写品类名，B1及其他单元格请留空（当前' + colToLetter(c) + '1单元格有值）');
+  }
+  var rawHeaders = (data[1] || []).slice(1);
+  var rawPriceRow = data[2] || [];
+  // 扫描范围：第2行/第3行/数据区出现内容的最大列
+  var maxCol = Math.max(rawHeaders.length, rawPriceRow.length - 1);
+  for (var pr = 3; pr < data.length; pr++) {
+    if (data[pr] && data[pr].length - 1 > maxCol) maxCol = data[pr].length - 1;
+  }
+  var roles = [];
+  var seen = {}; var seenAtCol = {};
+  for (var ci = 1; ci <= maxCol; ci++) {
+    var hdr = String(rawHeaders[ci - 1] == null ? '' : rawHeaders[ci - 1]).trim();
+    var pv = String(rawPriceRow[ci] == null ? '' : rawPriceRow[ci]).trim();
+    var points = 0;
+    for (var dr = 3; dr < data.length; dr++) {
+      if (data[dr] && String(data[dr][ci] || '').trim()) points++;
+    }
+    if (!hdr && !pv && !points) continue; // 角色/单价/数据全空的列：跳过
+    if (!hdr) {
+      if (pv) throw new Error('格式错误：第3行第' + colToLetter(ci) + '列有单价，但第2行对应角色名为空，请补齐角色名或删除该单价');
+      throw new Error('格式错误：第' + colToLetter(ci) + '列存在购买数据，但第2行角色名为空，请检查表头是否缺少角色名或存在合并单元格');
+    }
+    if (seen[hdr]) {
+      throw new Error('格式错误：第2行第' + colToLetter(ci) + '列角色名"' + hdr + '"重复（首次出现于第' + colToLetter(seenAtCol[hdr]) + '列）');
+    }
+    seen[hdr] = true;
+    seenAtCol[hdr] = ci;
+    if (pv !== '' && !/^\d+(\.\d+)?$/.test(pv)) throw new Error('格式错误：第3行第' + colToLetter(ci) + '列单价"' + pv + '"无法解析，请输入纯数字（不能包含中文或特殊符号）');
+    if (points === 0) throw new Error('格式错误：角色「' + hdr + '」（第' + colToLetter(ci) + '列）整列无人购买（点数=0），请删除该列或补全购买数据后再解析');
+    roles.push({ role: hdr, col: ci, points: points });
+  }
+  if (!roles.length) throw new Error('无有效数据：角色（第2行列头）、单价、数据区均为空');
+  return { kind: kind, roles: roles };
+}
+
+function readEntrySheetData(entry) {
+  if (!entry.workbook) throw new Error('文件已不在内存中，请重新上传该文件');
+  var si = entry.sheetIndex !== undefined ? entry.sheetIndex : 0;
+  var sheetName = entry.workbook.SheetNames[si];
+  if (!sheetName) throw new Error('排表 sheet 不存在，请重新上传该文件');
+  var ws = entry.workbook.Sheets[sheetName];
+  assertA1Present(ws, sheetName);
+  return XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+}
+
+function getRoleStatsForEntry(entry) {
+  return scanSheetColumns(readEntrySheetData(entry));
+}
+
+// 读取该排表的角色列表（列头）与每列点数；成功返回 true，失败写入 entry.charError
+function loadCharStats(entry) {
+  if (entry.charOrder && entry.charOrder.length && !entry.charError) return true;
+  try {
+    var scan = getRoleStatsForEntry(entry);
+    entry.charOrder = [];
+    entry.charPoints = {};
+    for (var i = 0; i < scan.roles.length; i++) {
+      entry.charOrder.push(scan.roles[i].role);
+      entry.charPoints[scan.roles[i].role] = scan.roles[i].points;
+    }
+    entry.charError = '';
+    return true;
+  } catch(e) {
+    entry.charOrder = [];
+    entry.charPoints = {};
+    entry.charError = e.message;
+    return false;
+  }
+}
+
 // ==================== PARSE INPUT SHEETS ====================
 // A1为空(第1行整行为空)时 sheet_to_json 会跳过空行导致数据错位, 用!ref真实行号兜底
 function assertA1Present(ws, sheetName) {
@@ -1430,21 +1846,70 @@ function parseFileEntry(id) {
   var kindInput = parseEntriesEl.querySelector('.entry-kind[data-eid="' + id + '"]');
   var gramInput = parseEntriesEl.querySelector('.entry-gram[data-eid="' + id + '"]');
   var verifyInput = parseEntriesEl.querySelector('.entry-verify[data-eid="' + id + '"]');
+  var verifyWeightInput = parseEntriesEl.querySelector('.entry-verify-weight[data-eid="' + id + '"]');
 
   entry.kind = kindInput ? kindInput.value.trim() : entry.kind;
   entry.gramWeight = gramInput ? (parseFloat(gramInput.value) || 0) : entry.gramWeight;
   entry.verifyPoints = verifyInput ? (parseInt(verifyInput.value) || 0) : entry.verifyPoints;
+  entry.verifyWeight = verifyWeightInput ? (parseFloat(verifyWeightInput.value) || 0) : entry.verifyWeight;
 
   if (!entry.kind) { showToast('请填写种类名称', true); return; }
-  if (entry.gramWeight <= 0) { showToast('单点克重必须大于0', true); return; }
+
+  var isPerChar = entry.weightMode === 'perChar';
+  if (!isPerChar && entry.gramWeight <= 0) { showToast('单点克重必须大于0', true); return; }
+
+  // 角色列扫描：与 parseSheetData 同规则，且点数=0 的角色直接报错（两种克重方式都拦截）
+  var roleStats;
+  try {
+    roleStats = getRoleStatsForEntry(entry);
+  } catch(e) {
+    if (isPerChar) { entry.charOrder = []; entry.charPoints = {}; entry.charError = e.message; }
+    showToast('文件「' + entry.name + '」' + e.message, true);
+    renderParseEntries();
+    return;
+  }
+  entry.charOrder = [];
+  entry.charPoints = {};
+  for (var rs = 0; rs < roleStats.roles.length; rs++) {
+    entry.charOrder.push(roleStats.roles[rs].role);
+    entry.charPoints[roleStats.roles[rs].role] = roleStats.roles[rs].points;
+  }
+  entry.charError = '';
+
+  // 分角色克重：每个角色都必须填 >0 的克重
+  if (isPerChar) {
+    var cwInputs = parseEntriesEl.querySelectorAll('.entry-cweight[data-eid="' + id + '"]');
+    var weights = {};
+    var missing = [];
+    for (var cw = 0; cw < cwInputs.length; cw++) {
+      var cRole = cwInputs[cw].getAttribute('data-role');
+      var cVal = parseFloat(cwInputs[cw].value) || 0;
+      if (cVal > 0) weights[cRole] = cVal;
+    }
+    for (var co = 0; co < entry.charOrder.length; co++) {
+      var roleName = entry.charOrder[co];
+      if (!(weights[roleName] > 0)) {
+        // DOM 缺失时回退到已缓存的值
+        if (entry.charWeights[roleName] > 0 && !cwInputs.length) weights[roleName] = entry.charWeights[roleName];
+        else missing.push(roleName);
+      }
+    }
+    if (missing.length) {
+      entry.charWeights = weights;
+      entry.weightErrorRoles = missing;
+      showToast('以下角色未填写有效单点克重（必须大于0）：' + missing.join('、'), true);
+      renderParseEntries();
+      return;
+    }
+    entry.charWeights = weights;
+    entry.weightErrorRoles = null;
+  }
 
   // Check kind consistency with A1
   var a1kind = '';
   try {
     if (entry.sheetIndex !== undefined) {
-      var ws = entry.workbook.Sheets[entry.workbook.SheetNames[entry.sheetIndex]];
-      var sd = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-      a1kind = String((sd[0] || [])[0] || '').trim();
+      a1kind = String((readEntrySheetData(entry)[0] || [])[0] || '').trim();
     } else {
       a1kind = getSheetKind(entry.workbook);
     }
@@ -1471,34 +1936,52 @@ function parseFileEntry(id) {
     return;
   }
 
-  // Aggregate CN points
+  // Aggregate CN points + per-CN per-role counts
   var cnPoints = {};
+  var cnCharCount = {};
   for (var i = 0; i < purchases.length; i++) {
-    var pn = purchases[i].person;
+    var p = purchases[i];
+    var pn = p.person;
     cnPoints[pn] = (cnPoints[pn] || 0) + 1;
+    if (!cnCharCount[pn]) cnCharCount[pn] = {};
+    var ch = p.character;
+    cnCharCount[pn][ch] = (cnCharCount[pn][ch] || 0) + 1;
   }
 
   var cns = Object.keys(cnPoints);
   var cnBodyWeight = {};
   var totalPoints = 0;
+  var totalBodyWeight = 0;
   for (var j = 0; j < cns.length; j++) {
-    var pts = cnPoints[cns[j]];
+    var cn = cns[j];
+    var pts = cnPoints[cn];
     totalPoints += pts;
-    cnBodyWeight[cns[j]] = pts * entry.gramWeight;
+    var weight = 0;
+    if (isPerChar) {
+      var perChar = cnCharCount[cn] || {};
+      for (var ck in perChar) {
+        if (perChar.hasOwnProperty(ck)) weight += perChar[ck] * (entry.charWeights[ck] || 0);
+      }
+    } else {
+      weight = pts * entry.gramWeight;
+    }
+    cnBodyWeight[cn] = weight;
+    totalBodyWeight += weight;
   }
 
   entry.parsed = true;
   entry.purchases = purchases;
   entry.cnPoints = cnPoints;
+  entry.cnCharCount = cnCharCount;
   entry.cnBodyWeight = cnBodyWeight;
   entry.totalPoints = totalPoints;
-  entry.totalBodyWeight = totalPoints * entry.gramWeight;
+  entry.totalBodyWeight = totalBodyWeight;
   entry.cnCount = cns.length;
 
   computedResults = null;
   exportBtn.disabled = true;
   renderParseEntries();
-  showToast(entry.name + ' 解析完成：' + entry.cnCount + '人，' + totalPoints + '点，' + entry.totalBodyWeight.toFixed(2) + 'g');
+  showToast(entry.name + ' 解析完成：' + entry.cnCount + '人，' + totalPoints + '点，' + totalBodyWeight.toFixed(2) + 'g' + (isPerChar ? '（分角色克重）' : ''));
 }
 
 // ==================== MANUAL ENTRIES ====================
@@ -2057,7 +2540,9 @@ function buildDraftObject() {
     parsedFilesMeta: parsedFiles.map(function(f) {
       return {
         id: f.id, name: f.name, kind: f.kind,
-        gramWeight: f.gramWeight, verifyPoints: f.verifyPoints,
+        weightMode: f.weightMode, gramWeight: f.gramWeight,
+        charWeights: f.charWeights, charPoints: f.charPoints, charOrder: f.charOrder,
+        verifyPoints: f.verifyPoints, verifyWeight: f.verifyWeight,
         parsed: f.parsed, cnCount: f.cnCount,
         totalPoints: f.totalPoints, totalBodyWeight: f.totalBodyWeight
       };
