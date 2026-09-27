@@ -764,14 +764,13 @@ html.guide-anim .m-toast.show { opacity: 1; transform: translateY(-2px); }
   .stage-body { min-height: 260px; }
 }
 
-/* 减少动态效果：全部冻结为静态完成态，重播按钮隐藏（JS 侧亦不启动） */
+/* 减少动态效果：只冻结页面上方的数据流装饰动画；STEP 2 的三工具演示是本页核心内容，
+   照常播放（用户由 tab / 重播按钮主动触发），因此不再隐藏假光标与重播按钮 */
 @media (prefers-reduced-motion: reduce) {
   .flow-node, .node-num, .node-check, .flow-dot { animation: none !important; }
   .node-dot { background: var(--blue-50); }
   .node-check { opacity: 1; }
   .node-num { opacity: 0; }
-  .stage-replay { display: none; }
-  .m-cursor, .m-ring { display: none; }
 }
 </style>
 <style id="zhangye-skin">
@@ -1134,11 +1133,12 @@ body { background: transparent; }
   if (window.__guideInit) return; // 防重复执行（兼冒烟探针）
   window.__guideInit = true;
 
-  // 减少动态效果偏好：不启动动画引擎，但 tab 切换与静态完成态快照必须照常工作
-  var REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // 本页的核心内容就是这段演示动画（用户点 tab / 重播主动触发、静音、无闪烁），
+  // 因此即便系统偏好「减少动态效果」，动画也照常播放，只冻结页面上方的数据流装饰动画
+  // （见 CSS 的 prefers-reduced-motion 块）。无 JS 时仍是静态完成态快照。
 
   // 触发 CSS 初始隐藏态（同步执行，先于首帧绘制）
-  if (!REDUCED) document.documentElement.classList.add('guide-anim');
+  document.documentElement.classList.add('guide-anim');
 
   /* ==================== 工具函数 ==================== */
   function q(sel, root) { return (root || document).querySelector(sel); }
@@ -1385,7 +1385,6 @@ body { background: transparent; }
     timers: [], panel: null, playing: false,
     play: function (panel) {
       this.stop();
-      if (REDUCED) return; // 减少动效：只切面板，不播放时间轴
       this.panel = panel;
       var scene = SCENES[panel.getAttribute('data-scene')];
       if (!scene) return;
@@ -1455,7 +1454,6 @@ body { background: transparent; }
 
   /* ==================== 离屏暂停 ==================== */
   var inView = true;
-  if (!REDUCED) {
   var io = new IntersectionObserver(function (entries) {
     entries.forEach(function (en) {
       if (en.isIntersecting) {
@@ -1466,14 +1464,13 @@ body { background: transparent; }
         player.stop();
       }
     });
-  }, { threshold: 0.05 });
+  }, { threshold: 0 }); // 只要露出一点就播，避免移动端短视口下 5% 阈值不触发
   io.observe(document.getElementById('guide'));
 
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'hidden') player.stop();
     else if (inView && !player.playing && activePanel) player.play(activePanel);
   });
-  }
 
   /* ==================== 启动 ==================== */
   selectTab(0, false);
