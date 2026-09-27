@@ -89,6 +89,22 @@ a { color: inherit; }
 .slip-body p + p { margin-top: 6px; }
 .slip-body a { color: var(--water-ink); font-weight: 650; text-underline-offset: 3px; }
 
+/* 公告内的版本更新区块 */
+.ver-block { margin-top: 11px; padding-top: 10px; border-top: 1px dashed var(--rule-soft); }
+.ver-caption { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .16em; color: var(--ink-faint); }
+.ver-item { margin-top: 9px; }
+.ver-item + .ver-item { margin-top: 11px; }
+.ver-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.ver-tag { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--water-ink); }
+.ver-tag.is-latest { color: var(--seal); }
+.ver-badge { padding: 1px 5px 0; border: 1px solid currentColor; border-radius: 2px; font-size: 10px; letter-spacing: .12em; color: var(--seal); opacity: .85; }
+.ver-date { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+.ver-list { margin: 5px 0 0; padding: 0; list-style: none; }
+.ver-list li { position: relative; padding-left: 13px; font-size: 12.5px; font-weight: 500; color: var(--ink-soft); line-height: 1.72; }
+.ver-list li + li { margin-top: 3px; }
+.ver-list li::before { content: ""; position: absolute; left: 3px; top: .74em; width: 4px; height: 1px; background: var(--rule-strong); }
+.ver-list strong { color: var(--ink); font-weight: 700; }
+
 .ledger-head { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; margin: 32px 2px 12px; }
 .ledger-head h2 { margin: 0; font-family: var(--serif); font-size: 16px; font-weight: 800; letter-spacing: .06em; }
 .ledger-head p { margin: 0; font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink-faint); }
@@ -150,6 +166,7 @@ a { color: inherit; }
   .ledger-row .seal { grid-column: 3; grid-row: 1 / span 2; }
   .ledger-head { flex-direction: column; gap: 4px; margin-top: 24px; }
   .colophon { gap: 7px; }
+  .ver-list li { font-size: 12px; line-height: 1.68; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 </style>
@@ -177,11 +194,34 @@ a { color: inherit; }
   </header>
 
   <details class="slip">
-    <summary><span class="slip-label">公告</span><span class="slip-title">国际表赞助方案与二调自动配平已上线</span><span class="slip-time">更新于近期</span><svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+    <summary><span class="slip-label">公告</span><span class="slip-title">v2.7 已上线：国际表分角色克重 · 全站换肤</span><span class="slip-time">更新于 2026-09-27</span><svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
     <div class="slip-body">
       <p><strong>重要通知：</strong>国际表已上线<a href="https://www.ifdian.net/a/baiyanxi" target="_blank" rel="noopener">爱发电赞助方案</a>（限时特惠！！月费 ¥5 / 年费 ¥30），赞助后凭订单号<a href="get-code.html">自助取码</a>激活，一次激活 · 无限使用。</p>
-      <p><strong>功能更新：</strong>二调退补表已支持 <strong>自动配平</strong>，轻松导入原排表与拆配实际排表，几步生成退补明细，解放大脑。</p>
       <p>网站维护不易，恳请大家多多支持 RenSheet，后续会上线更多有用的开团功能！非常感谢！</p>
+
+      <div class="ver-block">
+        <div class="ver-caption">版本更新 · 最近两个版本</div>
+
+        <div class="ver-item">
+          <div class="ver-head"><span class="ver-tag is-latest">v2.7</span><span class="ver-badge">最新</span><span class="ver-date">2026-09-27</span></div>
+          <ul class="ver-list">
+            <li><strong>国际表 · 分角色克重</strong>：每个排表可单独选「统一克重 / 分角色克重」，分角色按第 2 行列头逐个角色填克重；未填完禁止解析，有列头但整列无人购买（点数 = 0）直接报错。</li>
+            <li><strong>国际表 · 重量校验与排版</strong>：新增可选「校验总本体重量(g)」，可展开「角色 × 点数 × 克重 = 小计」明细；必填项加红 ※ 标注，参数行改为一排显示。</li>
+            <li><strong>二调退补表 · 特典模型 v4.2</strong>：特典模型升级与第一步校验修复；第二步热度列支持拖拽排序。</li>
+            <li><strong>全站 · 界面换肤</strong>：「账页浮于水面」纸面账页 + 朱砂章 + 水波，纯 CSS 实现，计算逻辑未变。</li>
+          </ul>
+        </div>
+
+        <div class="ver-item">
+          <div class="ver-head"><span class="ver-tag">v2.6</span><span class="ver-date">2026-08-16</span></div>
+          <ul class="ver-list">
+            <li><strong>国际表 · 双算法模式</strong>：可选「全重分摊 / 净重分摊」，两种算法逐人金额完全一致，区别只在是否需要称量总包裹重量。</li>
+            <li><strong>二调退补表 · 退补方向修正</strong>：退补改为「现肾 − 原肾」，最终表列「实肾」更名「现肾」；第三步 CN 格可直接改名并校验点数一致。</li>
+            <li><strong>肾表 · 满赠预分配</strong>：输出设置新增满赠预分配；全站新增站点图标与开发角标。</li>
+            <li><strong>使用说明页 · 全新上线</strong>：新增动画演示页面，三步上手三个工具。</li>
+          </ul>
+        </div>
+      </div>
     </div>
   </details>
 
