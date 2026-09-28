@@ -2459,6 +2459,33 @@ function showRestoreBanner(saved) {
 // ==================== INIT ====================
 processBtn.disabled = true;
 restoreDraft();
+
+// ==================== 来自「相册拼谷排表生成」的排表交接 ====================
+// ocr.html 把生成的排表 xlsx 以 base64 存在 sessionStorage，这里还原成文件喂给原有的导入流程，
+// 所以走的是和手动上传完全相同的解析/校验路径。
+(function () {
+  var raw = null;
+  try { raw = sessionStorage.getItem('renshet_ocr_handoff'); } catch (e) { return; }
+  if (!raw) return;
+  try { sessionStorage.removeItem('renshet_ocr_handoff'); } catch (e) {}
+  var payload;
+  try { payload = JSON.parse(raw); } catch (e) { return; }
+  if (!payload || !payload.b64) return;
+  try {
+    var bin = atob(payload.b64);
+    var arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    var file = new File([arr], payload.name || '相册排表.xlsx',
+      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    var dt = new DataTransfer();
+    dt.items.add(file);
+    try { clearDraft(); } catch (e2) {}
+    handleFiles(dt.files);
+    showToast('已从「相册拼谷排表生成」导入：' + file.name);
+  } catch (e) {
+    showToast('相册排表交接失败，请改用「导出排表」后手动导入', true);
+  }
+})();
 </script>
 
 <script src="lib/water.js"></script>
