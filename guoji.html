@@ -1513,8 +1513,7 @@ function refreshEntryStats(entry) {
 }
 
 // 影响本体重量或解析结果的参数被改动后，已解析结果即过期：
-// 立刻撤下过期结果、换成可见提示，并在处理时按当前参数自动重新解析，
-// 避免"填过/解析过的克重没进总重"这类静默丢数据。
+// 撤下过期结果、换成可见提示，处理时按当前参数重新解析，保证总重与页面显示一致。
 function markEntryNeedsReparse(entry) {
   if (!entry.parsed) return;
   entry.parsed = false;
@@ -2286,7 +2285,7 @@ function processAll() {
   var shippingFee = parseFloat(shippingFeeEl.value) || 0;
   var packageWeight = parseFloat(packageWeightEl.value) || 0;
 
-  // 先按当前参数把过期排表补解析，避免静默丢数据
+  // 先按当前参数把已过期（待重算）的排表解析好，保证总重与页面显示一致
   if (!recoverPendingReparse()) return null;
 
   // 已导入但从未解析过的排表不参与计算：收集起来在预览区明确提示
