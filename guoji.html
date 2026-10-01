@@ -28,6 +28,11 @@
   --white: #FFFFFF;
   --radius: 8px;
   --font: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --ease-out: cubic-bezier(.23, 1, .32, 1);
+  --ease-in-out: cubic-bezier(.77, 0, .175, 1);
+  --dur-1: 150ms;
+  --dur-2: 220ms;
+  --dur-3: 320ms;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -120,7 +125,7 @@ body {
   padding: 36px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
   background: var(--blue-50);
 }
 .drop-zone:hover, .drop-zone.drag-over {
@@ -204,6 +209,17 @@ body {
 .parse-stats strong { color: var(--blue-700); }
 .verify-ok { color: #38A169; font-weight: 600; }
 .verify-ng { color: #E53E3E; font-weight: 600; }
+/* 参数改动后已解析结果过期：过期结果直接撤下，换成可见提示 */
+.parse-stale-note {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-left: 3px solid #C9A227;
+  background: #FDF8E7;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #7A6212;
+  text-align: left;
+}
 
 /* Per-CN mini table */
 .parse-preview-table {
@@ -251,7 +267,7 @@ body {
   border: 1px solid var(--gray-200);
   border-radius: 20px;
   background: var(--white);
-  transition: all 0.15s;
+  transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
 }
 .entry-mode-opt.active {
   color: var(--blue-700);
@@ -316,7 +332,7 @@ body {
   color: var(--blue-700);
   cursor: pointer;
   font-family: var(--font);
-  transition: all 0.15s;
+  transition: border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
 }
 .btn-mini:hover { border-color: var(--blue-300); background: var(--blue-50); }
 .role-detail { margin-top: 10px; }
@@ -420,9 +436,8 @@ body {
   border-radius: 50%;
   cursor: pointer;
   border: 2px solid transparent;
-  transition: all 0.15s;
+  transition: transform var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
 }
-.color-swatch:hover { transform: scale(1.15); }
 .color-swatch.active { border-color: #1a1a1a; box-shadow: 0 0 0 3px #1a1a1a; transform: scale(1.2); }
 
 /* Input */
@@ -470,7 +485,7 @@ body {
   text-align: left;
   color: var(--gray-400);
   background: var(--gray-100);
-  transition: all 0.15s;
+  transition: border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
 }
 .mode-option:hover { border-color: var(--blue-300); }
 .mode-option.active {
@@ -534,7 +549,7 @@ body {
   border-radius: 6px;
   cursor: pointer;
   letter-spacing: 0.5px;
-  transition: all 0.15s;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
 }
 .btn-primary {
   background: var(--blue-700);
@@ -635,7 +650,7 @@ body {
   position: fixed;
   top: 24px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateY(-12px);
   background: var(--blue-900);
   color: var(--white);
   padding: 12px 28px;
@@ -643,11 +658,11 @@ body {
   font-size: 14px;
   z-index: 1000;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity var(--dur-3) var(--ease-out), transform var(--dur-3) var(--ease-out);
   pointer-events: none;
   letter-spacing: 1px;
 }
-.toast.show { opacity: 1; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.error { background: #C53030; }
 
 /* Empty state */
@@ -670,6 +685,44 @@ body {
 .lightbox img { max-width:92vw; max-height:92vh; border-radius:4px; box-shadow:0 4px 24px rgba(0,0,0,0.5); cursor:zoom-out; }
 .lightbox-close { position:absolute; top:20px; right:30px; color:#fff; font-size:32px; cursor:pointer; opacity:0.7; transition:opacity 0.15s; line-height:1; }
 .lightbox-close:hover { opacity:1; }
+
+/* Motion: unified */
+.back-link { display: inline-block; margin-bottom: 12px; font-size: 13px; color: var(--blue-500); text-decoration: none; letter-spacing: 1px; transition: color var(--dur-1) var(--ease-out); }
+.back-link:hover { color: var(--blue-700); }
+.btn:active:not(:disabled), .btn-mini:active, .mode-option:active, .entry-mode-opt:active { transform: scale(0.96); }
+button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .color-swatch:hover { transform: scale(1.15); }
+}
+
+/* Card entrance stagger */
+.container > .card { animation: cardIn 0.5s var(--ease-out) both; }
+.container > .card:nth-child(2) { animation-delay: 0ms; }
+.container > .card:nth-child(3) { animation-delay: 100ms; }
+.container > .card:nth-child(4) { animation-delay: 200ms; }
+.container > .card:nth-child(5) { animation-delay: 300ms; }
+.container > .card:nth-child(6) { animation-delay: 400ms; }
+.container > .card:nth-child(7) { animation-delay: 500ms; }
+.container > .card:nth-child(8) { animation-delay: 600ms; }
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Preview row stagger */
+.preview-table tbody tr { animation: rowIn 0.28s var(--ease-out) both; }
+.preview-table tbody tr:nth-child(1) { animation-delay: 0ms; }
+.preview-table tbody tr:nth-child(2) { animation-delay: 30ms; }
+.preview-table tbody tr:nth-child(3) { animation-delay: 60ms; }
+.preview-table tbody tr:nth-child(4) { animation-delay: 90ms; }
+.preview-table tbody tr:nth-child(5) { animation-delay: 120ms; }
+.preview-table tbody tr:nth-child(6) { animation-delay: 150ms; }
+.preview-table tbody tr:nth-child(n+7) { animation-delay: 150ms; }
+@keyframes rowIn { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
 
 /* Responsive */
 @media (max-width: 900px) {
@@ -803,7 +856,7 @@ body { background: transparent; }
 
   <!-- Header -->
   <div class="header">
-    <a href="index.html" style="display:inline-block;margin-bottom:12px;font-size:13px;color:var(--blue-500);text-decoration:none;letter-spacing:1px;transition:color 0.15s;" onmouseover="this.style.color='var(--blue-700)'" onmouseout="this.style.color='var(--blue-500)'">&larr; 返回首页</a>
+    <a href="index.html" class="back-link">&larr; 返回首页</a>
     <h1>RenSheet</h1>
     <p class="intro">国际表生成器</p>
   </div>
@@ -1041,6 +1094,7 @@ function newParseEntry(opts) {
     charError: opts.charError || '',
     weightErrorRoles: null,
     parsed: false,
+    needsReparse: false,
     purchases: [],
     cnPoints: {},
     cnCharCount: {},
@@ -1350,6 +1404,8 @@ function renderParseEntries() {
     }
     if (f.parsed) {
       html += buildParseResultsHtml(f);
+    } else if (f.needsReparse) {
+      html += '<div class="parse-stale-note">参数已修改：本排表已退出计算，点击「开始处理」时会按当前参数自动重新解析</div>';
     }
     html += '</div>';
   }
@@ -1369,7 +1425,7 @@ function renderParseEntries() {
     kindInputs[ki].addEventListener('input', function() {
       var eid = parseInt(this.dataset.eid);
       var entry = findEntry(eid);
-      if (entry) { entry.kind = this.value.trim(); entry.parsed = false; invalidateResults(); }
+      if (entry) { entry.kind = this.value.trim(); markEntryNeedsReparse(entry); }
     });
   }
   var gramInputs = parseEntriesEl.querySelectorAll('.entry-gram');
@@ -1377,7 +1433,7 @@ function renderParseEntries() {
     gramInputs[gi].addEventListener('input', function() {
       var eid = parseInt(this.dataset.eid);
       var entry = findEntry(eid);
-      if (entry) { entry.gramWeight = parseFloat(this.value) || 0; entry.parsed = false; invalidateResults(); }
+      if (entry) { entry.gramWeight = parseFloat(this.value) || 0; markEntryNeedsReparse(entry); }
     });
   }
   var verifyInputs = parseEntriesEl.querySelectorAll('.entry-verify');
@@ -1385,7 +1441,7 @@ function renderParseEntries() {
     verifyInputs[vi].addEventListener('input', function() {
       var eid = parseInt(this.dataset.eid);
       var entry = findEntry(eid);
-      if (entry) { entry.verifyPoints = parseInt(this.value) || 0; entry.parsed = false; invalidateResults(); }
+      if (entry) { entry.verifyPoints = parseInt(this.value) || 0; refreshEntryStats(entry); }
     });
   }
   var verifyWeightInputs = parseEntriesEl.querySelectorAll('.entry-verify-weight');
@@ -1393,7 +1449,7 @@ function renderParseEntries() {
     verifyWeightInputs[vw].addEventListener('input', function() {
       var eid = parseInt(this.dataset.eid);
       var entry = findEntry(eid);
-      if (entry) { entry.verifyWeight = parseFloat(this.value) || 0; entry.parsed = false; invalidateResults(); }
+      if (entry) { entry.verifyWeight = parseFloat(this.value) || 0; refreshEntryStats(entry); }
     });
   }
 
@@ -1415,12 +1471,11 @@ function renderParseEntries() {
       var role = this.getAttribute('data-role');
       var val = parseFloat(this.value) || 0;
       if (val > 0) entry.charWeights[role] = val; else delete entry.charWeights[role];
-      entry.parsed = false;
       if (entry.weightErrorRoles) {
         entry.weightErrorRoles = entry.weightErrorRoles.filter(function(x) { return x !== role; });
       }
-      invalidateResults();
       refreshCharWeightSummary(entry);
+      markEntryNeedsReparse(entry);
     });
   }
 
@@ -1449,6 +1504,35 @@ function renderParseEntries() {
   saveDraft();
 }
 
+// 校验项（校验总点数/校验总本体重量）只是核对结论，不参与金额与重量计算：
+// 改动后立即刷新校验结论，不让已经算好的本体重量失效。
+function refreshEntryStats(entry) {
+  if (!entry.parsed) return;
+  var stats = parseEntriesEl.querySelector('.parse-entry[data-id="' + entry.id + '"] .parse-results .parse-stats');
+  if (stats) stats.innerHTML = buildParseStatsHtml(entry);
+}
+
+// 影响本体重量或解析结果的参数被改动后，已解析结果即过期：
+// 立刻撤下过期结果、换成可见提示，并在处理时按当前参数自动重新解析，
+// 避免"填过/解析过的克重没进总重"这类静默丢数据。
+function markEntryNeedsReparse(entry) {
+  if (!entry.parsed) return;
+  entry.parsed = false;
+  entry.needsReparse = true;
+  var box = parseEntriesEl.querySelector('.parse-entry[data-id="' + entry.id + '"]');
+  if (box) {
+    var res = box.querySelector('.parse-results');
+    if (res) {
+      var note = document.createElement('div');
+      note.className = 'parse-stale-note';
+      note.textContent = '参数已修改：本排表已退出计算，点击「开始处理」时会按当前参数自动重新解析';
+      res.parentNode.replaceChild(note, res);
+    }
+  }
+  invalidateResults();
+  updateProcessBtn();
+}
+
 function findEntry(id) {
   for (var i = 0; i < parsedFiles.length; i++) {
     if (parsedFiles[i].id === id) return parsedFiles[i];
@@ -1460,9 +1544,8 @@ function escAttr(s) {
   return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-function buildParseResultsHtml(f) {
-  var html = '<div class="parse-results">';
-  html += '<div class="parse-stats">';
+function buildParseStatsHtml(f) {
+  var html = '';
   html += '<span>唯一CN数：<strong>' + f.cnCount + '</strong></span>';
   html += '<span>总点数：<strong>' + f.totalPoints + '</strong></span>';
   html += '<span>总本体重量：<strong>' + f.totalBodyWeight.toFixed(2) + ' g</strong></span>';
@@ -1482,7 +1565,12 @@ function buildParseResultsHtml(f) {
       html += '<span class="verify-ng">重量校验不符（差' + wdiff.toFixed(2) + ' g）</span>';
     }
   }
-  html += '</div>';
+  return html;
+}
+
+function buildParseResultsHtml(f) {
+  var html = '<div class="parse-results">';
+  html += '<div class="parse-stats">' + buildParseStatsHtml(f) + '</div>';
 
   // Per-CN mini table
   var cns = Object.keys(f.cnPoints).sort();
@@ -1584,10 +1672,12 @@ function setEntryWeightMode(id, mode) {
 
 function updateProcessBtn() {
   var hasParsed = false;
+  var hasPending = false;
   for (var i = 0; i < parsedFiles.length; i++) {
-    if (parsedFiles[i].parsed) { hasParsed = true; break; }
+    if (parsedFiles[i].parsed) hasParsed = true;
+    if (parsedFiles[i].needsReparse) hasPending = true; // 过期条目在处理时会自动补解析
   }
-  processBtn.disabled = !hasParsed && !hasManualData();
+  processBtn.disabled = !hasParsed && !hasManualData() && !hasPending;
 }
 
 function hasManualData() {
@@ -1970,6 +2060,7 @@ function parseFileEntry(id) {
   }
 
   entry.parsed = true;
+  entry.needsReparse = false;
   entry.purchases = purchases;
   entry.cnPoints = cnPoints;
   entry.cnCharCount = cnCharCount;
@@ -2171,9 +2262,38 @@ function getThemeColors(theme) {
 }
 
 // ==================== PROCESS ALL ====================
+// 参数改动后过期的排表（needsReparse）在真正计算前按当前参数自动重新解析一次，
+// 保证「填过/解析过」的克重一定进入总重；若当前参数不合法则明确拦下并报错。
+function recoverPendingReparse() {
+  var pending = [];
+  for (var i = 0; i < parsedFiles.length; i++) {
+    if (parsedFiles[i].needsReparse) pending.push(parsedFiles[i]);
+  }
+  if (!pending.length) return true;
+  for (var j = 0; j < pending.length; j++) parseFileEntry(pending[j].id);
+  var failed = [];
+  for (var k = 0; k < pending.length; k++) {
+    if (!pending[k].parsed) failed.push(pending[k].name);
+  }
+  if (failed.length) {
+    showToast('以下排表当前参数无法解析，未计入总重，请修正后重新处理：\n' + failed.join('\n'), true);
+    return false;
+  }
+  return true;
+}
+
 function processAll() {
   var shippingFee = parseFloat(shippingFeeEl.value) || 0;
   var packageWeight = parseFloat(packageWeightEl.value) || 0;
+
+  // 先按当前参数把过期排表补解析，避免静默丢数据
+  if (!recoverPendingReparse()) return null;
+
+  // 已导入但从未解析过的排表不参与计算：收集起来在预览区明确提示
+  var unparsedFiles = [];
+  for (var uf = 0; uf < parsedFiles.length; uf++) {
+    if (!parsedFiles[uf].parsed) unparsedFiles.push(parsedFiles[uf].name);
+  }
 
   // Merge body weights from all parsed files
   var masterBodyWeight = {};
@@ -2288,6 +2408,7 @@ function processAll() {
     rate: rate,
     validationErrors: validationErrors,
     deletedCns: deletedCns,
+    unparsedFiles: unparsedFiles,
     hasValidationError: validationErrors.length > 0
   };
 
@@ -2297,8 +2418,9 @@ function processAll() {
   if (typeof markTrialUsed === 'function') markTrialUsed('guoji');
   var toastMsg = '处理完成！共 ' + filteredRows.length + ' 人';
   if (deletedCns.length) toastMsg += '（已移除 ' + deletedCns.length + ' 条全零数据）';
+  if (unparsedFiles.length) toastMsg += '\n注意：' + unparsedFiles.length + ' 个已导入排表未解析，未计入总重';
   if (validationErrors.length) toastMsg += '\n校验发现 ' + validationErrors.length + ' 个异常，请查看预览区';
-  showToast(toastMsg, validationErrors.length > 0);
+  showToast(toastMsg, validationErrors.length > 0 || unparsedFiles.length > 0);
   return computedResults;
 }
 
@@ -2306,10 +2428,14 @@ function processAll() {
 function validateBeforeProcess() {
   var errors = [];
   var hasParsed = false;
+  var pendingReparse = false;
   for (var i = 0; i < parsedFiles.length; i++) {
     if (parsedFiles[i].parsed) { hasParsed = true; break; }
   }
-  if (!hasParsed && !hasManualData()) {
+  for (var p = 0; p < parsedFiles.length; p++) {
+    if (parsedFiles[p].needsReparse) { pendingReparse = true; break; }
+  }
+  if (!hasParsed && !pendingReparse && !hasManualData()) {
     errors.push('请先解析排表或添加非排表CN');
   }
   if (calcMode === 'full' && parseFloat(packageWeightEl.value) < 0) {
@@ -2353,6 +2479,12 @@ function renderPreview() {
   if (computedResults.deletedCns && computedResults.deletedCns.length) {
     errorBanner += '<div style="background:#FFF3CD;border:1px solid #E6C631;border-radius:6px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:#856404;">';
     errorBanner += '已自动移除 ' + computedResults.deletedCns.length + ' 条全零数据：' + escapeHtml(computedResults.deletedCns.join('、'));
+    errorBanner += '</div>';
+  }
+  if (computedResults.unparsedFiles && computedResults.unparsedFiles.length) {
+    errorBanner += '<div style="background:#FDF8E7;border:1px solid #E6C631;border-radius:6px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:#7A6212;">';
+    errorBanner += '以下已导入排表未解析，未计入总重：' + escapeHtml(computedResults.unparsedFiles.join('、'));
+    errorBanner += ' &mdash; 如需计入请点击该排表的「解析此排表」后重新处理';
     errorBanner += '</div>';
   }
   if (computedResults.hasValidationError) {

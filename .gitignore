@@ -1,6 +1,7 @@
 _add_*.py
 _fix_*.py
 _debug_*.txt
+.tmp/
 .claude/
 node_modules/
 .idea/

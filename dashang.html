@@ -97,7 +97,7 @@ body {
 
 /* ===== Container ===== */
 .container {
-  max-width: 720px;
+  max-width: 1200px;
   width: 100%;
   margin: 0 auto;
   padding: 60px 24px;
@@ -155,14 +155,20 @@ body {
 
 /* ===== Main row ===== */
 .main-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 422px;
   gap: 24px;
-  align-items: flex-start;
+  align-items: stretch;
+}
+.support-stack {
+  display: contents;
 }
 
 /* ===== QR Card — gold-framed mirror ===== */
 .card-qr {
-  flex: 0 0 280px;
+  width: 100%;
+  height: 100%;
   position: relative;
   background: linear-gradient(145deg, #111111 0%, #1A1A1A 50%, #111111 100%);
   border-radius: var(--radius);
@@ -175,7 +181,7 @@ body {
     0 0 0 4px rgba(139,117,54,0.3),
     inset 0 0 30px rgba(0,0,0,0.3),
     0 4px 20px rgba(0,0,0,0.3);
-  animation: fadeInUp 0.7s ease-out both, goldPulse 4s ease-in-out 1s infinite;
+  animation: fadeInUp 0.7s ease-out 0.15s both, goldPulse 4s ease-in-out 1s infinite;
   transition: box-shadow 0.4s ease;
 }
 .card-qr:hover {
@@ -240,7 +246,8 @@ body {
 
 /* ===== Sponsor wall — gold plaque ===== */
 .card-sponsor {
-  flex: 1;
+  width: 100%;
+  height: 100%;
   background: linear-gradient(180deg, rgba(17,17,17,0.95) 0%, rgba(8,8,8,0.95) 100%);
   border-radius: var(--radius);
   border: 2px solid var(--gold-500);
@@ -350,10 +357,15 @@ body {
 /* ===== Responsive ===== */
 @media (max-width: 640px) {
   .container { padding: 40px 20px; }
-  .main-row { flex-direction: column; align-items: center; }
+  .main-row { grid-template-columns: minmax(0, 1fr); grid-auto-rows: 422px; gap: 18px; }
   .page-title h1 { font-size: 26px; letter-spacing: 8px; }
   .title-ornament { width: 36px; }
-  .card-qr { flex: 0 0 auto; width: 100%; max-width: 320px; }
+  .card-qr { height: 100%; width: 100%; max-width: 420px; justify-self: center; }
+  .card-sponsor { height: 100%; }
+}
+@media (min-width: 641px) and (max-width: 800px) {
+  .main-row { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 480px; }
+  .card-power { grid-column: auto; }
 }
 </style>
 <style id="zhangye-skin">
@@ -427,6 +439,30 @@ body { background: transparent; }
   filter: url(#stampRough);
 }
 
+/* 发电榜：与金主名录同构，水蓝青绿与金色形成对照。 */
+.card-power {
+  width: 100%; height: 100%; min-height: 0; display: flex; flex-direction: column;
+  margin: 0; border: 1px solid #2b8191; border-radius: 6px; overflow: hidden;
+  background: linear-gradient(155deg, rgba(232,247,247,.96), rgba(247,252,251,.98) 62%, rgba(225,241,243,.95));
+  box-shadow: 0 0 0 2px rgba(49,133,148,.12), 0 8px 22px rgba(17,73,91,.12);
+  animation: fadeInUp .7s ease-out .15s both;
+}
+.power-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; color: #f4fcfc; background: linear-gradient(112deg, #123e50 0%, #176b7d 50%, #238c91 100%); background-size: 200% 100%; animation: shimmer 6s linear infinite; border-bottom: 1px solid rgba(208,238,239,.3); }
+.power-header .power-title { font: 700 14px var(--serif); letter-spacing: .16em; }
+.power-header .power-cycle { color: rgba(244,252,252,.72); font-size: 11px; font-weight: 600; letter-spacing: .5px; white-space: nowrap; }
+.power-list { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 0; }
+.power-list::-webkit-scrollbar { width: 4px; }
+.power-list::-webkit-scrollbar-thumb { background: #5d9ba3; border-radius: 3px; }
+.power-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 42px; padding: 8px 20px; border-bottom: 1px solid rgba(34,105,119,.14); color: #173d4c; transition: background .3s, padding-left .3s; }
+.power-item:last-child { border-bottom: 0; }
+.power-item:hover { background: rgba(61,151,157,.1); padding-left: 26px; }
+.power-name { min-width: 0; overflow-wrap: anywhere; font-size: 12px; font-weight: 650; letter-spacing: .02em; }
+.power-thanks { display: inline-block; margin-left: 7px; padding: 1px 5px; border: 1px solid rgba(32,111,128,.38); border-radius: 3px; color: #176b7d; font-size: 9px; font-weight: 600; letter-spacing: .04em; white-space: nowrap; vertical-align: 1px; }
+.power-amount { flex: none; color: #145467; font-size: 13px; font-weight: 750; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.power-empty { padding: 28px 20px; color: #587b83; font-size: 12px; line-height: 2; letter-spacing: .5px; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .card-power,.power-header { animation: none; } .power-item { transition: none; } }
+@media (max-width: 640px) { .card-power { height: 100%; min-height: 0; } }
+
 .footer { color: var(--text-dim); }
 </style>
 </head>
@@ -466,7 +502,8 @@ body { background: transparent; }
       <div class="voluntary">不打赏完全没关系，用得开心就好。</div>
     </div>
 
-    <!-- Right: Sponsor Wall -->
+    <!-- Right: standalone sponsor and power cards -->
+    <div class="support-stack">
     <div class="card-sponsor">
       <div class="sponsor-header">
         <span class="sh-title">金主大人名录</span>
@@ -510,6 +547,34 @@ body { background: transparent; }
         <div class="sponsor-empty">
           感谢以上金主大人对 RenSheet 的温柔托举<br>
           打赏后如需留名请备注，每月 1 日更新。
+        </div>
+      </div>
+    </div>
+      <div class="card-power">
+        <div class="power-header">
+          <span class="power-title">发电榜</span>
+          <span class="power-cycle">每月 1 日更新</span>
+        </div>
+        <div class="power-list" role="list" aria-label="发电榜名单">
+          <div class="power-item" role="listitem" style="--row:0"><span class="power-name">爱发电用户_d9hY<span class="power-thanks">累充感谢</span></span><span class="power-amount">¥35.00</span></div>
+          <div class="power-item" role="listitem" style="--row:1"><span class="power-name">爱发电用户_EPVm<span class="power-thanks">累充感谢</span></span><span class="power-amount">¥35.00</span></div>
+          <div class="power-item" role="listitem" style="--row:2"><span class="power-name">^ ^</span><span class="power-amount">¥30.00</span></div>
+          <div class="power-item" role="listitem" style="--row:3"><span class="power-name">🍑</span><span class="power-amount">¥30.00</span></div>
+          <div class="power-item" role="listitem" style="--row:4"><span class="power-name">西西里橘子<span class="power-thanks">累充感谢</span></span><span class="power-amount">¥35.00</span></div>
+          <div class="power-item" role="listitem" style="--row:5"><span class="power-name">爱发电用户_73535<span class="power-thanks">累充感谢</span></span><span class="power-amount">¥35.00</span></div>
+          <div class="power-item" role="listitem" style="--row:6"><span class="power-name">爱发电用户_YmJn</span><span class="power-amount">¥30.00</span></div>
+          <div class="power-item" role="listitem" style="--row:7"><span class="power-name">爱发电用户_djv6</span><span class="power-amount">¥30.00</span></div>
+          <div class="power-item" role="listitem" style="--row:8"><span class="power-name">鸣蝈</span><span class="power-amount">¥30.00</span></div>
+          <div class="power-item" role="listitem" style="--row:9"><span class="power-name">爱发电用户_NyUg</span><span class="power-amount">¥30.00</span></div>
+          <div class="power-item" role="listitem" style="--row:10"><span class="power-name">leo</span><span class="power-amount">¥30.00</span></div>
+          <div class="power-item" role="listitem" style="--row:11"><span class="power-name">爱发电用户_vgM3</span><span class="power-amount">¥30.00</span></div>
+          <div class="power-item" role="listitem" style="--row:12"><span class="power-name">好运连连</span><span class="power-amount">¥30.00</span></div>
+          <div class="power-item" role="listitem" style="--row:13"><span class="power-name">爱发电用户_gywS</span><span class="power-amount">¥5.00</span></div>
+          <div class="power-item" role="listitem" style="--row:14"><span class="power-name">iamfrisme</span><span class="power-amount">¥5.00</span></div>
+          <div class="power-item" role="listitem" style="--row:15"><span class="power-name">泡泡泡泡<span class="power-thanks">累充感谢</span></span><span class="power-amount">¥10.00</span></div>
+          <div class="power-item" role="listitem" style="--row:16"><span class="power-name">榴绒</span><span class="power-amount">¥5.00</span></div>
+          <div class="power-item" role="listitem" style="--row:17"><span class="power-name">kk</span><span class="power-amount">¥5.00</span></div>
+          <div class="power-empty">感谢以上金主大人们的发电支持</div>
         </div>
       </div>
     </div>

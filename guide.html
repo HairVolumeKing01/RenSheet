@@ -26,6 +26,11 @@
   --radius: 8px;
   --red-muted: #C0564A; /* 红补单元格专用低饱和砖红 */
   --font: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --ease-out: cubic-bezier(.23, 1, .32, 1);
+  --ease-in-out: cubic-bezier(.77, 0, .175, 1);
+  --dur-1: 150ms;
+  --dur-2: 220ms;
+  --dur-3: 320ms;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -180,7 +185,7 @@ body {
   letter-spacing: 1px;
   cursor: pointer;
   border-radius: var(--radius) var(--radius) 0 0;
-  transition: all 0.25s ease;
+  transition: color var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
 }
 .guide-tab::before {
   content: '';
@@ -198,7 +203,7 @@ body {
 
 .guide-panel { display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px; align-items: start; text-align: left; }
 .guide-panel[hidden] { display: none; }
-.guide-panel:not([hidden]) { animation: panelIn 0.3s ease; }
+.guide-panel:not([hidden]) { animation: panelIn 0.3s var(--ease-out); }
 @keyframes panelIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 /* 动画舞台（迷你模拟界面） */
@@ -232,7 +237,7 @@ body {
   border-radius: 6px;
   padding: 3px 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
 .stage-replay:hover { background: var(--blue-50); color: var(--blue-700); }
 .stage-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--blue-100); }
@@ -280,7 +285,7 @@ body {
   border: 1px solid var(--gray-200);
   border-radius: 6px;
   padding: 4px 12px;
-  transition: all 0.2s ease;
+  transition: border-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
 }
 .m-style.sel { border-color: var(--blue-500); color: var(--blue-700); background: var(--blue-50); }
 
@@ -480,7 +485,7 @@ html.guide-anim .m-screen-final.in { opacity: 1; pointer-events: auto; }
   border: 1px solid var(--gray-200);
   border-radius: 6px;
   padding: 6px 4px;
-  transition: all 0.2s ease;
+  transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
 }
 .m-mode.sel { border-color: var(--blue-500); box-shadow: 0 0 0 3px rgba(43,111,168,0.10); }
 .m-mode-name { font-size: 11px; font-weight: 700; color: var(--blue-900); }
@@ -512,7 +517,7 @@ html.guide-anim .m-screen-final.in { opacity: 1; pointer-events: auto; }
   transition: opacity 0.35s ease, transform 0.35s ease;
 }
 .m-theme { margin-top: 10px; display: flex; justify-content: center; gap: 8px; }
-.m-theme-item { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--gray-200); transition: all 0.2s ease; }
+.m-theme-item { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--gray-200); transition: border-color var(--dur-1) var(--ease-out); }
 .m-theme-item.sel { outline: 2px solid var(--blue-500); outline-offset: 1px; }
 .m-filename { margin-top: 8px; text-align: center; font-size: 11.5px; color: var(--blue-700); font-weight: 600; transition: opacity 0.35s ease, transform 0.35s ease; }
 
@@ -577,7 +582,7 @@ html.guide-anim .m-screen-final.in { opacity: 1; pointer-events: auto; }
   padding: 5px 9px; font-size: 10.5px; color: #276749; font-weight: 600; text-align: center;
 }
 .m-s3check { display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 8px; font-size: 10.5px; color: var(--gray-700); }
-.m-s3box { width: 13px; height: 13px; border: 1.5px solid var(--blue-300); border-radius: 3px; display: inline-block; transition: all 0.2s ease; }
+.m-s3box { width: 13px; height: 13px; border: 1.5px solid var(--blue-300); border-radius: 3px; display: inline-block; transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out); }
 .m-s3box.sel { background: var(--blue-500); border-color: var(--blue-500); box-shadow: inset 0 0 0 2px var(--white); }
 
 /* 假光标 */
@@ -681,7 +686,7 @@ html.guide-anim .m-toast.show { opacity: 1; transform: translateY(-2px); }
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   text-decoration: none;
   color: var(--gray-700);
-  transition: all 0.25s ease;
+  transition: border-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
   position: relative;
   overflow: hidden;
   text-align: left;
@@ -764,10 +769,20 @@ html.guide-anim .m-toast.show { opacity: 1; transform: translateY(-2px); }
   .stage-body { min-height: 260px; }
 }
 
-/* 减少动态效果：只冻结页面上方的数据流装饰动画；STEP 2 的三工具演示是本页核心内容，
+/* 减少动态效果：只冻结页面上方的数据流装饰动画；STEP 2 的工具演示是本页核心内容，
    照常播放（用户由 tab / 重播按钮主动触发），因此不再隐藏假光标与重播按钮 */
+/* Card entrance stagger */
+.container > .card { animation: cardIn 0.5s var(--ease-out) both; }
+.container > .card:nth-child(2) { animation-delay: 0ms; }
+.container > .card:nth-child(3) { animation-delay: 100ms; }
+.container > .card:nth-child(4) { animation-delay: 200ms; }
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .flow-node, .node-num, .node-check, .flow-dot { animation: none !important; }
+  .flow-node, .node-num, .node-check, .flow-dot, .container > .card { animation: none !important; }
   .node-dot { background: var(--blue-50); }
   .node-check { opacity: 1; }
   .node-num { opacity: 0; }
@@ -844,6 +859,7 @@ body { background: transparent; }
 .toast { background: var(--ink); }
 .toast.error { background: var(--seal); }
 </style>
+<link rel="stylesheet" href="lib/guide-ocr.css">
 </head>
 <body>
 
@@ -859,28 +875,28 @@ body { background: transparent; }
   <!-- STEP 1 — 流程总览 -->
   <div class="card">
     <div class="card-title">STEP 1 — 流程总览</div>
-    <p style="font-size:14px;color:var(--gray-700);font-weight:500;margin-bottom:28px;">三个工具共用一条流水线：导入排表 → 解析 → 处理 → 预览 → 导出。点击下方标签页查看每个工具的操作演示。</p>
+    <p style="font-size:14px;color:var(--gray-700);font-weight:500;margin-bottom:28px;">四个工具共用一条流水线：导入材料 → 识别或解析 → 处理 → 预览 → 导出。点击下方标签页查看每个工具的操作演示。</p>
     <div class="guide-flow" aria-hidden="true">
       <div class="flow-track"><span class="flow-dot"></span></div>
       <ol class="flow-list">
         <li class="flow-node" style="--i:0">
-          <span class="node-dot"><span class="node-num">1</span><svg class="node-check" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 27l7 7 14-15"/></svg></span>
+          <span class="node-dot"><span class="node-num">1</span><svg class="node-check" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 27l7 7 14-15"/></svg></span>
           <span class="node-label">导入排表</span>
         </li>
         <li class="flow-node" style="--i:1">
-          <span class="node-dot"><span class="node-num">2</span><svg class="node-check" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 27l7 7 14-15"/></svg></span>
+          <span class="node-dot"><span class="node-num">2</span><svg class="node-check" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 27l7 7 14-15"/></svg></span>
           <span class="node-label">解析</span>
         </li>
         <li class="flow-node" style="--i:2">
-          <span class="node-dot"><span class="node-num">3</span><svg class="node-check" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 27l7 7 14-15"/></svg></span>
+          <span class="node-dot"><span class="node-num">3</span><svg class="node-check" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 27l7 7 14-15"/></svg></span>
           <span class="node-label">处理</span>
         </li>
         <li class="flow-node" style="--i:3">
-          <span class="node-dot"><span class="node-num">4</span><svg class="node-check" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 27l7 7 14-15"/></svg></span>
+          <span class="node-dot"><span class="node-num">4</span><svg class="node-check" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 27l7 7 14-15"/></svg></span>
           <span class="node-label">预览</span>
         </li>
         <li class="flow-node" style="--i:4">
-          <span class="node-dot"><span class="node-num">5</span><svg class="node-check" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 27l7 7 14-15"/></svg></span>
+          <span class="node-dot"><span class="node-num">5</span><svg class="node-check" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 27l7 7 14-15"/></svg></span>
           <span class="node-label">导出</span>
         </li>
       </ol>
@@ -894,6 +910,7 @@ body { background: transparent; }
       <button class="guide-tab active" id="tab-shenbiao" role="tab" aria-selected="true" aria-controls="panel-shenbiao" tabindex="0">肾表</button>
       <button class="guide-tab" id="tab-ratiofix" role="tab" aria-selected="false" aria-controls="panel-ratiofix" tabindex="-1">二调退补表</button>
       <button class="guide-tab" id="tab-guoji" role="tab" aria-selected="false" aria-controls="panel-guoji" tabindex="-1">国际表</button>
+      <button class="guide-tab" id="tab-ocr" role="tab" aria-selected="false" aria-controls="panel-ocr" tabindex="-1">相册排表</button>
     </div>
 
     <!-- 面板 1：肾表 -->
@@ -908,7 +925,7 @@ body { background: transparent; }
         <div class="stage-body" aria-hidden="true">
           <div class="m-drop"><span class="m-drop-text">点击上传排表</span></div>
           <div class="m-chip-row">
-            <span class="m-chip"><svg class="chip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>示例排表.xlsx</span>
+            <span class="m-chip"><svg class="chip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>示例排表.xlsx</span>
           </div>
           <div class="m-styles"><span class="m-style">样式A</span><span class="m-style style-b">样式B</span><span class="m-style">样式C</span></div>
           <div class="m-table">
@@ -920,15 +937,15 @@ body { background: transparent; }
           </div>
           <div class="m-btn">导出肾表</div>
           <div class="m-toast">已导出 肾表.xlsx</div>
-          <span class="m-cursor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 3l14 8-6.5 2.5L10 20z"/></svg><i class="m-ring"></i></span>
+          <span class="m-cursor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 8-6.5 2.5L10 20z"/></svg><i class="m-ring"></i></span>
         </div>
       </div>
       <ol class="guide-steps">
-        <li class="guide-step"><span class="step-num">STEP 1</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M26 34V16"/><path d="M18 24l8-8 8 8"/><path d="M10 40h32"/></svg><span class="step-text">准备排表：A1 写品类名（如"吧唧"），B1 及之后必须留空；第 1 行写角色名（每个角色只能出现一次）；第 2 行写对应单价；第 3 行起，每个写了人名的格子 = 这个人买了该列角色 1 个谷子。一个 Excel 可放多个品类 sheet，也可以每品类一个文件分开传</span></li>
-        <li class="guide-step"><span class="step-num">STEP 2</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 20h28"/><path d="M32 12l8 8-8 8"/><path d="M40 32H12"/><path d="M20 24l-8 8 8 8"/></svg><span class="step-text">导入排表：先选上传模式——「多sheet单文件」（一个 Excel 含多个品类 sheet）或「分表上传」（多个 Excel 各一个品类）；拖拽或点击上传 .xlsx，非 xlsx 或格式错误会弹窗提示；已添加的文件显示为标签，可点 × 移除</span></li>
-        <li class="guide-step"><span class="step-num">STEP 3</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="26" cy="26" r="14"/><circle cx="26" cy="26" r="5"/><path d="M26 2v8M26 42v8M2 26h8M42 26h8"/></svg><span class="step-text">输出设置：样式可选分类式、清单式或同时选中；填写文件名并点「重命名」（该名称就是导出表格的标题）；可选开启「定尾模式」（固定金额如 20，或比例如 30%）；摊入打包费、手续费时开启「添加其他费用」（点数/人数/本体肾额比例均摊）；16 套主题色点击实时切换</span></li>
-        <li class="guide-step"><span class="step-num">STEP 4</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="26" cy="26" r="16"/><path d="M22 19l11 7-11 7z"/></svg><span class="step-text">开始处理：生成预览表后逐人核对金额；顶部出现红色提示 = 实际总肾 ≠ 点数×单价之和，回排表检查单价或漏填的格子</span></li>
-        <li class="guide-step"><span class="step-num">STEP 5</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M26 12v20"/><path d="M18 24l8 8 8-8"/><path d="M10 40h32"/></svg><span class="step-text">导出肾表：点击保存 xlsx 到本地；定尾模式下多出 定金|尾款 两列，并自动校验 定金合计 + 尾款合计 = 总肾合计</span></li>
+        <li class="guide-step"><span class="step-num">STEP 1</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M26 34V16"/><path d="M18 24l8-8 8 8"/><path d="M10 40h32"/></svg><span class="step-text">准备排表：A1 写品类名（如"吧唧"），B1 及之后必须留空；第 1 行写角色名（每个角色只能出现一次）；第 2 行写对应单价；第 3 行起，每个写了人名的格子 = 这个人买了该列角色 1 个谷子。一个 Excel 可放多个品类 sheet，也可以每品类一个文件分开传</span></li>
+        <li class="guide-step"><span class="step-num">STEP 2</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h28"/><path d="M32 12l8 8-8 8"/><path d="M40 32H12"/><path d="M20 24l-8 8 8 8"/></svg><span class="step-text">导入排表：先选上传模式——「多sheet单文件」（一个 Excel 含多个品类 sheet）或「分表上传」（多个 Excel 各一个品类）；拖拽或点击上传 .xlsx，非 xlsx 或格式错误会弹窗提示；已添加的文件显示为标签，可点 × 移除</span></li>
+        <li class="guide-step"><span class="step-num">STEP 3</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><circle cx="26" cy="26" r="14"/><circle cx="26" cy="26" r="5"/><path d="M26 2v8M26 42v8M2 26h8M42 26h8"/></svg><span class="step-text">输出设置：样式可选分类式、清单式或同时选中；填写文件名并点「重命名」（该名称就是导出表格的标题）；可选开启「定尾模式」（固定金额如 20，或比例如 30%）；摊入打包费、手续费时开启「添加其他费用」（点数/人数/本体肾额比例均摊）；16 套主题色点击实时切换</span></li>
+        <li class="guide-step"><span class="step-num">STEP 4</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><circle cx="26" cy="26" r="16"/><path d="M22 19l11 7-11 7z"/></svg><span class="step-text">开始处理：生成预览表后逐人核对金额；顶部出现红色提示 = 实际总肾 ≠ 点数×单价之和，回排表检查单价或漏填的格子</span></li>
+        <li class="guide-step"><span class="step-num">STEP 5</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M26 12v20"/><path d="M18 24l8 8 8-8"/><path d="M10 40h32"/></svg><span class="step-text">导出肾表：点击保存 xlsx 到本地；定尾模式下多出 定金|尾款 两列，并自动校验 定金合计 + 尾款合计 = 总肾合计</span></li>
       </ol>
     </div>
 
@@ -945,8 +962,8 @@ body { background: transparent; }
           <div class="m-screen">
           <div class="m-drop"><span class="m-drop-text">上传原排表 + 拆配实际排表</span></div>
           <div class="m-chip-row">
-            <span class="m-chip"><svg class="chip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>原排表.xlsx</span>
-            <span class="m-chip"><svg class="chip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>拆配实际.xlsx</span>
+            <span class="m-chip"><svg class="chip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>原排表.xlsx</span>
+            <span class="m-chip"><svg class="chip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>拆配实际.xlsx</span>
           </div>
           <div class="m-heat">
             <span class="m-heat-chip"><span class="m-heat-name">武道正比立牌</span><span class="m-heat-status">原排角色</span></span>
@@ -1002,15 +1019,15 @@ body { background: transparent; }
             <div class="m-btn">导出最终表</div>
             <div class="m-toast">已导出 退补表.xlsx</div>
           </div>
-          <span class="m-cursor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 3l14 8-6.5 2.5L10 20z"/></svg><i class="m-ring"></i></span>
+          <span class="m-cursor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 8-6.5 2.5L10 20z"/></svg><i class="m-ring"></i></span>
         </div>
       </div>
       <ol class="guide-steps">
-        <li class="guide-step"><span class="step-num">STEP 1</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M26 34V16"/><path d="M18 24l8-8 8 8"/><path d="M10 40h32"/></svg><span class="step-text">上传原排表与拆配实际排表（第一次开团的表 + 最终分货的表，格式同肾表，只读第一个sheet）。填写拆配表均价与拆配表总点数，原排表均价由系统自动算出；三重校验通过才能进入下一步</span></li>
-        <li class="guide-step"><span class="step-num">STEP 2</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 12h28"/><path d="M26 12v28"/><path d="M12 40h28"/><path d="M14 20l12-4 12 4"/></svg><span class="step-text">确认热度顺序：角色按原排表调价热度从高到低排列，黄色为原排表不存在的新角色；直接按住角色卡拖拽即可调整顺序（「↕ 拖拽排序」），拖完必须重新点「确认调价热度排序」</span></li>
-        <li class="guide-step"><span class="step-num">STEP 3</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M26 8l14 5v11c0 10-6 16-14 20-8-4-14-10-14-20V13z"/><path d="M18 26l6 6 10-12"/></svg><span class="step-text">自动配平：调平方式选「准则配平（推荐）」或「轻约束调平（兜底）」；点「自动配平」后按热度准则分配差额，报告会说明谁涨谁降及理由；「换调价」在整数元 / 0.1 元 / 0.01 元三档精度间切换方案，也可继续手动微调；必须满足 Σ(点数×调价) = 0 才能进入下一步</span></li>
-        <li class="guide-step"><span class="step-num">STEP 4</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="26" cy="26" r="8"/><path d="M26 6v8M26 38v8M6 26h8M38 26h8M12 12l6 6M34 34l6 6M40 12l-6 6M18 34l-6 6"/></svg><span class="step-text">确认新排表：核对各角色新单价（新单价 = 拆配表均价 + 最终调价），可下载写入新单价的排表。数据区的 CN 名字可直接点击修改（只能改名、不能增删格子，改过的格子以水蓝高亮）；勾选确认时会校验各列点数与拆配表一致，改过名字需重新勾选</span></li>
-        <li class="guide-step"><span class="step-num">STEP 5</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="8" y="10" width="36" height="32" rx="3"/><path d="M8 22h36M8 32h36M20 22v20"/></svg><span class="step-text">预览导出：最终表列 = cn | 明细 | 点数 | 原肾 | 现肾 | 红补蓝退；红补蓝退 = 现肾 − 原肾，正数=补款（红）、负数=退款（蓝），确认无误导出保存</span></li>
+        <li class="guide-step"><span class="step-num">STEP 1</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M26 34V16"/><path d="M18 24l8-8 8 8"/><path d="M10 40h32"/></svg><span class="step-text">上传原排表与拆配实际排表（第一次开团的表 + 最终分货的表，格式同肾表，只读第一个sheet）。填写拆配表均价与拆配表总点数，原排表均价由系统自动算出；三重校验通过才能进入下一步</span></li>
+        <li class="guide-step"><span class="step-num">STEP 2</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 12h28"/><path d="M26 12v28"/><path d="M12 40h28"/><path d="M14 20l12-4 12 4"/></svg><span class="step-text">确认热度顺序：角色按原排表调价热度从高到低排列，黄色为原排表不存在的新角色；直接按住角色卡拖拽即可调整顺序（「↕ 拖拽排序」），拖完必须重新点「确认调价热度排序」</span></li>
+        <li class="guide-step"><span class="step-num">STEP 3</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M26 8l14 5v11c0 10-6 16-14 20-8-4-14-10-14-20V13z"/><path d="M18 26l6 6 10-12"/></svg><span class="step-text">自动配平：调平方式选「准则配平（推荐）」或「轻约束调平（兜底）」；点「自动配平」后按热度准则分配差额，报告会说明谁涨谁降及理由；「换调价」在整数元 / 0.1 元 / 0.01 元三档精度间切换方案，也可继续手动微调；必须满足 Σ(点数×调价) = 0 才能进入下一步</span></li>
+        <li class="guide-step"><span class="step-num">STEP 4</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><circle cx="26" cy="26" r="8"/><path d="M26 6v8M26 38v8M6 26h8M38 26h8M12 12l6 6M34 34l6 6M40 12l-6 6M18 34l-6 6"/></svg><span class="step-text">确认新排表：核对各角色新单价（新单价 = 拆配表均价 + 最终调价），可下载写入新单价的排表。数据区的 CN 名字可直接点击修改（只能改名、不能增删格子，改过的格子以水蓝高亮）；勾选确认时会校验各列点数与拆配表一致，改过名字需重新勾选</span></li>
+        <li class="guide-step"><span class="step-num">STEP 5</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="10" width="36" height="32" rx="3"/><path d="M8 22h36M8 32h36M20 22v20"/></svg><span class="step-text">预览导出：最终表列 = cn | 明细 | 点数 | 原肾 | 现肾 | 红补蓝退；红补蓝退 = 现肾 − 原肾，正数=补款（红）、负数=退款（蓝），确认无误导出保存</span></li>
       </ol>
     </div>
 
@@ -1037,7 +1054,7 @@ body { background: transparent; }
             <div class="m-rate">费率 <b class="rate-val" data-dec="4">0.0000</b> 元/g</div>
             <div class="m-drop" style="margin-top:10px;"><span class="m-drop-text">点击上传排表</span></div>
             <div class="m-chip-row">
-              <span class="m-chip"><svg class="chip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>吧唧.xlsx</span>
+              <span class="m-chip"><svg class="chip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>吧唧.xlsx</span>
             </div>
             <div class="m-errbanner">解析提示：格式错误：角色「小紫」（第E列）整列无人购买（点数=0），请删除该列或补全购买数据后再解析<span class="m-errnote">示例：这一列有人名表头但没人买 → 上传即报错，删掉该列才能继续</span></div>
             <div class="m-wmode">
@@ -1090,19 +1107,55 @@ body { background: transparent; }
             <div class="m-btn">导出国际表</div>
             <div class="m-toast">已导出 拼团国际运费表.xlsx</div>
           </div>
-          <span class="m-cursor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 3l14 8-6.5 2.5L10 20z"/></svg><i class="m-ring"></i></span>
+          <span class="m-cursor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 8-6.5 2.5L10 20z"/></svg><i class="m-ring"></i></span>
         </div>
       </div>
       <ol class="guide-steps">
-        <li class="guide-step"><span class="step-num">STEP 1</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 10v8c0 6 10 6 10 12v12"/><path d="M36 10v8c0 6-10 6-10 12v12"/><circle cx="16" cy="10" r="3"/><circle cx="36" cy="10" r="3"/><circle cx="26" cy="42" r="3"/></svg><span class="step-text">选择算法：全重分摊（需称好整团包裹总重量）或净重分摊（无需称包裹）；两种算法金额完全相同，选哪个只取决于「要不要称包裹」，选定后锁定，可「重新选择模式」重来</span></li>
-        <li class="guide-step"><span class="step-num">STEP 2</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="26" cy="26" r="16"/><path d="M18 20l4 6-4 6M34 20l-4 6 4 6"/></svg><span class="step-text">填基础参数：总国际运费（元）；全重分摊再加总包裹重量（克，整箱打包后称重），费率自动实时算出（元/克）。净重分摊只填总运费即可</span></li>
-        <li class="guide-step"><span class="step-num">STEP 3</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M26 34V16"/><path d="M18 24l8-8 8 8"/><path d="M10 40h32"/></svg><span class="step-text">导入排表：格式与肾表相同（第 3 行单价对本工具无效，不用管）。每个排表先选克重方式——「统一克重」整个品类填一个克重；「分角色克重」按第 2 行列头逐个角色填克重（有点数的角色必须填完，否则点「解析此排表」会被拦下）。再填种类名称与可选的校验总点数、校验总本体重量；带 ※ 的是必填项</span></li>
-        <li class="guide-step"><span class="step-num">STEP 4</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="22" cy="22" r="12"/><path d="M31 31l10 10"/></svg><span class="step-text">核对解析结果：唯一 CN 数、总点数、总本体重量是否对得上；展开「角色明细」可看 角色 × 点数 × 克重 = 小计，下方每人的点数与重量明细可逐行自查。校验不符会提示差多少点；重量校验容差 0.01 g</span></li>
-        <li class="guide-step"><span class="step-num">STEP 5</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 12h28"/><path d="M26 12v28"/><path d="M12 40h28"/><path d="M14 20l12-4 12 4"/></svg><span class="step-text">非排表区：没进排表的散货，手动添加 CN 名称 + 额外克数；也可上传 CN-本体表（A 列 CN 名、B 列克数）批量导入，同名 CN 自动合并</span></li>
-        <li class="guide-step"><span class="step-num">STEP 6</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 14h32M10 26h20M10 38h32"/></svg><span class="step-text">输出设置：填写文件名并点「重命名」，选择颜色主题（16 色）</span></li>
-        <li class="guide-step"><span class="step-num">STEP 7</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M26 12v20"/><path d="M18 24l8 8 8-8"/><path d="M10 40h32"/></svg><span class="step-text">处理与导出：全重模式预览列 = cn | 本体(g) | 箱摊(g) | 总重(g) | 国际(元)；净重模式 = cn | 本体(g) | 国际(元)。校验问题以红/黄横幅提示；确认无误点「导出国际表」保存</span></li>
+        <li class="guide-step"><span class="step-num">STEP 1</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 10v8c0 6 10 6 10 12v12"/><path d="M36 10v8c0 6-10 6-10 12v12"/><circle cx="16" cy="10" r="3"/><circle cx="36" cy="10" r="3"/><circle cx="26" cy="42" r="3"/></svg><span class="step-text">选择算法：全重分摊（需称好整团包裹总重量）或净重分摊（无需称包裹）；两种算法金额完全相同，选哪个只取决于「要不要称包裹」，选定后锁定，可「重新选择模式」重来</span></li>
+        <li class="guide-step"><span class="step-num">STEP 2</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><circle cx="26" cy="26" r="16"/><path d="M18 20l4 6-4 6M34 20l-4 6 4 6"/></svg><span class="step-text">填基础参数：总国际运费（元）；全重分摊再加总包裹重量（克，整箱打包后称重），费率自动实时算出（元/克）。净重分摊只填总运费即可</span></li>
+        <li class="guide-step"><span class="step-num">STEP 3</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M26 34V16"/><path d="M18 24l8-8 8 8"/><path d="M10 40h32"/></svg><span class="step-text">导入排表：格式与肾表相同（第 3 行单价对本工具无效，不用管）。每个排表先选克重方式——「统一克重」整个品类填一个克重；「分角色克重」按第 2 行列头逐个角色填克重（有点数的角色必须填完，否则点「解析此排表」会被拦下）。再填种类名称与可选的校验总点数、校验总本体重量；带 ※ 的是必填项</span></li>
+        <li class="guide-step"><span class="step-num">STEP 4</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><circle cx="22" cy="22" r="12"/><path d="M31 31l10 10"/></svg><span class="step-text">核对解析结果：唯一 CN 数、总点数、总本体重量是否对得上；展开「角色明细」可看 角色 × 点数 × 克重 = 小计，下方每人的点数与重量明细可逐行自查。校验不符会提示差多少点；重量校验容差 0.01 g</span></li>
+        <li class="guide-step"><span class="step-num">STEP 5</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 12h28"/><path d="M26 12v28"/><path d="M12 40h28"/><path d="M14 20l12-4 12 4"/></svg><span class="step-text">非排表区：没进排表的散货，手动添加 CN 名称 + 额外克数；也可上传 CN-本体表（A 列 CN 名、B 列克数）批量导入，同名 CN 自动合并</span></li>
+        <li class="guide-step"><span class="step-num">STEP 6</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 14h32M10 26h20M10 38h32"/></svg><span class="step-text">输出设置：填写文件名并点「重命名」，选择颜色主题（16 色）</span></li>
+        <li class="guide-step"><span class="step-num">STEP 7</span><svg class="step-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><path d="M26 12v20"/><path d="M18 24l8 8 8-8"/><path d="M10 40h32"/></svg><span class="step-text">处理与导出：全重模式预览列 = cn | 本体(g) | 箱摊(g) | 总重(g) | 国际(元)；净重模式 = cn | 本体(g) | 国际(元)。校验问题以红/黄横幅提示；确认无误点「导出国际表」保存</span></li>
       </ol>
       <p class="guide-note"><svg viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="4"><circle cx="26" cy="26" r="20"/><path d="M26 15v14"/><path d="M26 37v1"/></svg><span>角色列有表头但整列无人购买（点数=0）时，上传就会直接报错，删掉该列或补全购买数据后才能解析。</span></p>
+    </div>
+
+    <!-- 面板 4：相册评论 OCR；画面由页面元素模拟，不读取真实截图 -->
+    <div class="guide-panel" id="panel-ocr" role="tabpanel" aria-labelledby="tab-ocr" data-scene="ocr" hidden>
+      <div class="oc-mode-picker" role="group" aria-label="选择相册排表演示模式">
+        <span>选择演示</span>
+        <button class="oc-modebtn" type="button" data-ocr-mode="single" aria-pressed="true">单领模式</button>
+        <button class="oc-modebtn" type="button" data-ocr-mode="ratio" aria-pressed="false">配比模式</button>
+        <span>静音播放 · 分别循环 · 可重播</span>
+      </div>
+      <div class="guide-stage">
+        <div class="stage-bar">
+          <span class="stage-dots"><i></i><i></i><i></i></span>
+          <span class="stage-title">相册排表 · 模拟操作</span>
+          <button class="stage-replay" type="button" aria-label="重播当前相册排表演示">重播</button>
+          <span class="stage-progress"><i></i></span>
+        </div>
+        <div class="stage-body oc-stage-body" aria-hidden="true">
+          <div class="oc-screen"><div class="oc-scene-head"><strong>导出肾表</strong><span>模拟演示 · 不读取文件</span></div><div class="oc-scene-content"><div class="oc-cardlet oc-kidney"><div class="oc-cardlet-title">单领模式 · 分类式肾表</div><div class="oc-kidney-head"><span>昵称</span><span>点数</span><span>肾额</span></div><div class="oc-kidney-total"><span>共 12 位成员</span><b>34 点</b><b>¥340</b></div><div class="oc-success">模拟导出肾表完成</div></div></div><div class="oc-scene-note">本教程仅模拟操作，打开工具后使用自己的图片</div></div>
+          <span class="m-cursor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 8-6.5 2.5L10 20z"/></svg><i class="m-ring"></i></span>
+        </div>
+      </div>
+      <ol class="guide-steps oc-steps">
+        <li class="guide-step"><span class="step-num">STEP 1</span><span class="step-text"><strong>准备分图：</strong>把长评论截成清晰、连续的多张图；避免超长截图。图片按评论从上到下的顺序编号，一次选入，检查有无重复。</span></li>
+        <li class="guide-step"><span class="step-num">STEP 2</span><span class="step-text"><strong>确认图片顺序：</strong>拖动缩略图交换位置，确认后一次识别整批。排位先按图片顺序，再按每张图内评论顺序，不依赖截图里的时间。</span></li>
+        <li class="guide-step"><span class="step-num">STEP 3</span><span class="step-text"><strong>核对角色：</strong>先把简称等不同称呼归到八个规范角色，再检查每条评论的昵称、角色和数量。示例为「角色甲2」「甲1」「角色甲凹」；实际填写自己的角色名。</span></li>
+        <li class="guide-step"><span class="step-num">STEP 4</span><span class="step-text"><strong>看原图：</strong>仅点角色校对区的原图可开悬浮窗；可同时打开多张，缩放图片、拖动窗口、调整大小，核对后随时关闭。</span></li>
+        <li class="guide-step"><span class="step-num">STEP 5</span><span class="step-text"><strong>选择模式：</strong>单领模式不填总配数，评论里的「凹 / all」要改成明确数量；配比模式给每个角色设同一总配数，「凹 / all」补该角色的剩余额度。</span></li>
+        <li class="guide-step"><span class="step-num">STEP 6</span><span class="step-text"><strong>确认超额：</strong>配比模式从最后一行往前核对；任一角色超额，该整行所有角色置灰，均不计入有效配数。演示中总配数为每角色 4。</span></li>
+        <li class="guide-step"><span class="step-num">STEP 7</span><span class="step-text"><strong>看实时排表：</strong>八个角色按列排列，窗口可移动、放大和缩小。校对与排位变化会同步到实时排表、STEP 3 预览和最终 Excel。</span></li>
+        <li class="guide-step"><span class="step-num">STEP 8</span><span class="step-text"><strong>导出排表：</strong>填品类名和文件名，选配色、核对预览后导出 xlsx。配比若有灰行，导出前选删除、保留或取消；演示选择删除。</span></li>
+        <li class="guide-step"><span class="step-num">STEP 9</span><span class="step-text"><strong>转入肾表：</strong>用同一份排表进入肾表页，选择分类式，填写角色单价后开始处理。转入前仍需确认灰行的处理方式。</span></li>
+        <li class="guide-step"><span class="step-num">STEP 10</span><span class="step-text"><strong>核对金额：</strong>肾表按昵称合并各角色点数与单价。演示单价均为 10 元；单领 34 点、340 元，配比删除灰行后 31 点、310 元。</span></li>
+        <li class="guide-step"><span class="step-num">STEP 11</span><span class="step-text"><strong>完成导出：</strong>预览人数、点数和肾额后保存肾表。切换上方模式可分别观看完整流程，也可以重播当前模式。<a class="oc-open-tool" href="ocr.html">打开相册排表工具</a></span></li>
+      </ol>
+      <p class="guide-note"><svg viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="4"><circle cx="26" cy="26" r="20"/><path d="M26 15v14"/><path d="M26 37v1"/></svg><span>画面中的评论、成员和图片都为模拟数据。真实识别在浏览器本地完成，请在导出前逐条核对。</span></p>
     </div>
   </div>
 
@@ -1111,7 +1164,7 @@ body { background: transparent; }
     <div class="card-title">STEP 3 — 视频讲解</div>
     <a class="guide-video-card" id="guideVideo" href="https://www.xiaohongshu.com/user/profile/5d3858de0000000012031736?xsec_token=YBc47L-KV5UMoABXlAH92eWTma8z5pBTBwGb2R4LP47S8%3D&xsec_source=app_share" target="_blank" rel="noopener" aria-label="前往小红书观看使用指南讲解视频（在新窗口打开）">
       <span class="video-icon-wrap">
-        <svg class="video-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="26" cy="26" r="19"/><path d="M22 18l14 8-14 8z"/></svg>
+        <svg class="video-icon" viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="2"><circle cx="26" cy="26" r="19"/><path d="M22 18l14 8-14 8z"/></svg>
       </span>
       <span class="video-text">
         <span class="video-title">视频讲解</span>
@@ -1127,6 +1180,8 @@ body { background: transparent; }
 
 </div>
 
+<script src="lib/ocr/comment-parse.js"></script>
+<script src="lib/guide-ocr.js"></script>
 <script>
 (function () {
   'use strict';
@@ -1380,6 +1435,8 @@ body { background: transparent; }
     }
   };
 
+  if (window.GuideOcr) SCENES.ocr = window.GuideOcr.createScene({cursorTo:cursorTo,clickOn:clickOn});
+
   /* ==================== 场景播放器 ==================== */
   var player = {
     timers: [], panel: null, playing: false,
@@ -1434,6 +1491,15 @@ body { background: transparent; }
 
   tabs.forEach(function (t, i) {
     t.addEventListener('click', function () { selectTab(i, false); });
+  });
+  qa('#panel-ocr .oc-modebtn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var mode = btn.getAttribute('data-ocr-mode');
+      if (!SCENES.ocr || !mode) return;
+      qa('#panel-ocr .oc-modebtn').forEach(function (item) { item.setAttribute('aria-pressed', item === btn ? 'true' : 'false'); });
+      SCENES.ocr.setMode(mode);
+      player.play(q('#panel-ocr'));
+    });
   });
   var tablist = q('#guideTabs');
   tablist.addEventListener('keydown', function (e) {

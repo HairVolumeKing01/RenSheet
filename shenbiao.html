@@ -26,6 +26,11 @@
   --white: #FFFFFF;
   --radius: 8px;
   --font: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --ease-out: cubic-bezier(.23, 1, .32, 1);
+  --ease-in-out: cubic-bezier(.77, 0, .175, 1);
+  --dur-1: 150ms;
+  --dur-2: 220ms;
+  --dur-3: 320ms;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -118,7 +123,7 @@ body {
   padding: 36px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
   background: var(--blue-50);
 }
 .drop-zone:hover, .drop-zone.drag-over {
@@ -214,7 +219,7 @@ body {
   border-radius: 4px;
   cursor: pointer;
   color: var(--gray-400);
-  transition: all 0.15s;
+  transition: color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
 }
 .checkbox-group input:checked + label {
   background: var(--white);
@@ -234,9 +239,8 @@ body {
   border-radius: 50%;
   cursor: pointer;
   border: 2px solid transparent;
-  transition: all 0.15s;
+  transition: transform var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
 }
-.color-swatch:hover { transform: scale(1.15); }
 .color-swatch.active { border-color: #1a1a1a; box-shadow: 0 0 0 3px #1a1a1a; transform: scale(1.2); }
 
 /* Input */
@@ -276,7 +280,7 @@ body {
   border-radius: 6px;
   cursor: pointer;
   letter-spacing: 0.5px;
-  transition: all 0.15s;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
 }
 .btn-primary {
   background: var(--blue-700);
@@ -345,7 +349,7 @@ body {
   position: fixed;
   top: 24px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateY(-12px);
   background: var(--blue-900);
   color: var(--white);
   padding: 12px 28px;
@@ -353,11 +357,11 @@ body {
   font-size: 14px;
   z-index: 1000;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity var(--dur-3) var(--ease-out), transform var(--dur-3) var(--ease-out);
   pointer-events: none;
   letter-spacing: 1px;
 }
-.toast.show { opacity: 1; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.error { background: #C53030; }
 
 /* Empty state */
@@ -415,6 +419,37 @@ body {
 .validation-input:focus { border-color: var(--blue-300); }
 .validation-pass { color:#38A169; font-weight:600; font-size:13px; }
 .validation-fail { color:#E53E3E; font-weight:600; font-size:13px; }
+
+/* Motion: unified */
+.back-link { display: inline-block; margin-bottom: 12px; font-size: 13px; color: var(--blue-500); text-decoration: none; letter-spacing: 1px; transition: color var(--dur-1) var(--ease-out); }
+.back-link:hover { color: var(--blue-700); }
+.btn:active:not(:disabled) { transform: scale(0.96); }
+button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
+.card { animation: cardIn 0.5s var(--ease-out) both; }
+.container > .card:nth-child(2) { animation-delay: 0ms; }
+.container > .card:nth-child(3) { animation-delay: 100ms; }
+.container > .card:nth-child(4) { animation-delay: 200ms; }
+.container > .card:nth-child(5) { animation-delay: 300ms; }
+.container > .card:nth-child(6) { animation-delay: 400ms; }
+.preview-table tbody tr { animation: rowIn 0.28s var(--ease-out) both; }
+.preview-table tbody tr:nth-child(1) { animation-delay: 0ms; }
+.preview-table tbody tr:nth-child(2) { animation-delay: 30ms; }
+.preview-table tbody tr:nth-child(3) { animation-delay: 60ms; }
+.preview-table tbody tr:nth-child(4) { animation-delay: 90ms; }
+.preview-table tbody tr:nth-child(5) { animation-delay: 120ms; }
+.preview-table tbody tr:nth-child(6) { animation-delay: 150ms; }
+.preview-table tbody tr:nth-child(n+7) { animation-delay: 150ms; }
+@keyframes cardIn { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+@keyframes rowIn { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .card, .preview-table tbody tr { animation: none !important; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .color-swatch:hover { transform: scale(1.15); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
 
 /* Responsive */
 @media (max-width: 900px) {
@@ -525,7 +560,7 @@ body { background: transparent; }
 
   <!-- Header -->
   <div class="header">
-    <a href="index.html" style="display:inline-block;margin-bottom:12px;font-size:13px;color:var(--blue-500);text-decoration:none;letter-spacing:1px;transition:color 0.15s;" onmouseover="this.style.color='var(--blue-700)'" onmouseout="this.style.color='var(--blue-500)'">&larr; 返回首页</a>
+    <a href="index.html" class="back-link">&larr; 返回首页</a>
     <h1>RenSheet</h1>
     <p class="intro">肾表生成器</p>
   </div>
